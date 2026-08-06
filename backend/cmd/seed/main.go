@@ -16,6 +16,8 @@ const (
 	adminName     = "Admin"
 )
 
+// main seed/reset akun admin default buat kebutuhan development & testing lokal. Pakai
+// ON DUPLICATE KEY UPDATE jadi aman dijalanin berkali-kali (idempotent), gak bikin duplikat.
 func main() {
 	_ = godotenv.Load()
 	cfg := config.Load()

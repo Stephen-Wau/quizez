@@ -12,12 +12,15 @@ import (
 	"quizez/backend/internal/handlers"
 )
 
+// withCORS bungkus handler biar semua response ada header CORS-nya, sekalian short-circuit
+// preflight request (OPTIONS) dari browser sebelum sampai ke handler asli.
 func withCORS(frontendOrigin string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", frontendOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
+		// Browser kirim OPTIONS dulu buat preflight check, gak perlu diteruskan ke handler asli.
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -27,6 +30,7 @@ func withCORS(frontendOrigin string, next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// main nyiapin config, koneksi DB, dan daftar semua route sebelum server jalan di :8080.
 func main() {
 	_ = godotenv.Load()
 	cfg := config.Load()
@@ -45,6 +49,9 @@ func main() {
 
 	mux.HandleFunc("/api/auth/login", withCORS(cfg.FrontendOrigin, handlers.LoginHandler(conn, cfg.JWTSecret, cfg.JWTExpiryHours)))
 	mux.HandleFunc("/api/auth/me", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.MeHandler(conn))))
+
+	mux.HandleFunc("/api/quizzes", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuizzesHandler(conn))))
+	mux.HandleFunc("/api/quizzes/{id}", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuizHandler(conn))))
 
 	log.Println("quizez backend listening on localhost:8080")
 	log.Fatal(http.ListenAndServe("localhost:8080", mux))

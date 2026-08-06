@@ -19,6 +19,8 @@ type loginResponse struct {
 	ExpiresAt string `json:"expires_at"`
 }
 
+// LoginHandler cek kredensial email/password, kalau cocok terbitkan JWT buat dipakai FE
+// di request-request selanjutnya.
 func LoginHandler(db *sql.DB, jwtSecret string, jwtExpiryHours int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -32,6 +34,8 @@ func LoginHandler(db *sql.DB, jwtSecret string, jwtExpiryHours int) http.Handler
 			return
 		}
 
+		// Sengaja gabungin 2 kondisi ini (user gak ketemu ATAU password salah) jadi 1 pesan error
+		// generik, biar gak bocorin ke attacker mana yang salah (email atau password).
 		user, err := models.GetUserByEmail(db, req.Email)
 		if err != nil || !auth.CheckPassword(user.PasswordHash, req.Password) {
 			http.Error(w, "invalid email or password", http.StatusUnauthorized)
@@ -52,6 +56,8 @@ func LoginHandler(db *sql.DB, jwtSecret string, jwtExpiryHours int) http.Handler
 	}
 }
 
+// MeHandler return data user yang lagi login (dari claims JWT), dipakai FE buat nampilin
+// profil/nama user setelah login.
 func MeHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := auth.ClaimsFromContext(r.Context())
