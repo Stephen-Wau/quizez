@@ -1,24 +1,26 @@
-<div class="login-page">
-  <form class="login-card" [formGroup]="form" (ngSubmit)="submit()">
+<div class="login">
+  <form class="login__card" [formGroup]="form" (ngSubmit)="submit()">
     <h1>Quizez CMS</h1>
     <p class="subtitle">Sign in to continue</p>
 
-    <label>
-      Email
-      <input type="email" formControlName="email" placeholder="admin@mail.com" />
-    </label>
+    <app-input
+      label="Email"
+      type="email"
+      formControlName="email"
+      [errorMessage]="fieldError('email')"
+      [invalid]="credentialsInvalid"
+    ></app-input>
+    <app-input
+      label="Password"
+      type="password"
+      formControlName="password"
+      [errorMessage]="fieldError('password')"
+      [invalid]="credentialsInvalid"
+    ></app-input>
 
-    <label>
-      Password
-      <input type="password" formControlName="password" placeholder="********" />
-    </label>
-
-    @if (errorMessage) {
-      <p class="error">{{ errorMessage }}</p>
-    }
-
-    <button type="submit" [disabled]="loading">
-      {{ loading ? 'Signing in...' : 'Sign in' }}
-    </button>
+    <app-button type="submit" [disabled]="form.invalid || isSubmitting">
+      <lucide-icon name="log-in" [size]="16"></lucide-icon>
+      {{ isSubmitting ? 'Signing in...' : 'Sign in' }}
+    </app-button>
   </form>
 </div>
