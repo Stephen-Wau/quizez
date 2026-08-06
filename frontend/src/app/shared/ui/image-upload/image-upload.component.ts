@@ -34,6 +34,7 @@ export class ImageUploadComponent implements ControlValueAccessor {
   private onChange: (value: string | null) => void = () => {};
   private onTouched: () => void = () => {};
 
+  // Inject ToastService buat nampilin error validasi file (tipe/ukuran) lewat toast.
   constructor(private toast: ToastService) {}
 
   // Dipanggil Angular forms saat set value dari luar (ex: patchValue pas load data existing).

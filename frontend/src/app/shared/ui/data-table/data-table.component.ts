@@ -85,7 +85,9 @@ export class DataTableComponent implements OnChanges {
   private searchDebounceHandle?: ReturnType<typeof setTimeout>;
   private lastSort: { prop: string; dir: 'asc' | 'desc' } | null = null;
 
+  // Re-apply filter tiap kali @Input rows/columns berubah dari parent (ex: hasil load API baru).
   ngOnChanges(changes: SimpleChanges): void {
+    // Cuma perlu filter ulang kalau data atau daftar kolom yang berubah, bukan input lain (ex: pageSize).
     if (changes['rows'] || changes['columns']) {
       this.applyFilter();
     }
@@ -127,6 +129,7 @@ export class DataTableComponent implements OnChanges {
     this.refresh.emit();
   }
 
+  // Kumpulin state search/sort/page jadi satu DataTableQuery & emit ke parent (mode serverSide).
   private emitQuery(): void {
     this.search.emit({
       searchword: this.searchTerm.trim() || undefined,

@@ -14,5 +14,6 @@ export class ToastContainerComponent {
   // Dipakai template buat sinkronin durasi animasi border countdown ke waktu auto-dismiss beneran.
   dismissMs = AUTO_DISMISS_MS;
 
+  // Inject ToastService as public biar template bisa langsung baca toastService.toasts() buat di-loop.
   constructor(public toastService: ToastService) {}
 }

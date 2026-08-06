@@ -1,5 +1,5 @@
 <div class="field">
-  <label *ngIf="label" [for]="id">{{ label }}</label>
+  <label *ngIf="label" [for]="id">{{ label }}<span *ngIf="required" class="required-mark">*</span></label>
 
   <textarea
     *ngIf="multiline"

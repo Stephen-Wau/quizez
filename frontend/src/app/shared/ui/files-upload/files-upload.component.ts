@@ -42,6 +42,7 @@ export class FilesUploadComponent implements ControlValueAccessor {
   private onChange: (value: UploadedFile[]) => void = () => {};
   private onTouched: () => void = () => {};
 
+  // Inject ToastService buat nampilin error validasi file (ukuran) lewat toast.
   constructor(private toast: ToastService) {}
 
   // Buka file di tab baru buat preview.

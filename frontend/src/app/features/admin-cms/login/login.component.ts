@@ -34,11 +34,14 @@ export class LoginComponent {
     });
   }
 
+  // Ambil pesan error buat field tertentu di form, dipakai di template buat nampilin error di bawah input.
   fieldError(name: string): string {
     return fieldError(this.form, name, () => `${name === 'email' ? 'Email' : 'Password'} wajib diisi.`);
   }
 
+  // Handle submit form login: validasi dulu, kalau valid baru hit API login.
   submit(): void {
+    // Form belum valid, tandain semua field touched biar error langsung kelihatan, terus stop.
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;

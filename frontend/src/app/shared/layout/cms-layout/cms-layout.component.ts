@@ -17,6 +17,7 @@ export class CmsLayoutComponent implements OnInit {
 
   constructor(private auth: AuthService) {}
 
+  // Ambil data user yang lagi login buat ditampilin di layout (sidebar/header), dipanggil sekali pas layout dibuka.
   ngOnInit(): void {
     this.auth.me().subscribe({
       next: (me) => (this.user = me),

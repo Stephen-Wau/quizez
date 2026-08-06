@@ -22,7 +22,9 @@ let nextId = 0;
 })
 export class InputComponent implements ControlValueAccessor {
   @Input() label = '';
-  @Input() type: 'text' | 'password' | 'email' | 'month' = 'text';
+  @Input() type: 'text' | 'password' | 'email' | 'month' | 'time' | 'datetime-local' | 'number' = 'text';
+  // Nampilin tanda "*" merah di sebelah label, dipakai buat field yang wajib diisi.
+  @Input() required = false;
   @Input() errorMessage = '';
   // Paksa border error tanpa teks di bawah, dipakai buat error umum (ex: kredensial salah dari API).
   @Input() invalid = false;

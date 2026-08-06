@@ -90,10 +90,12 @@ export class MonthPickerComponent implements ControlValueAccessor, AfterViewInit
     this.fp?.setDate(this.value || '', false);
   }
 
+  // Daftarin callback yang dipanggil onChange flatpickr tiap kali user pilih bulan-tahun.
   registerOnChange(fn: (value: string) => void): void {
     this.onChange = fn;
   }
 
+  // Daftarin callback yang dipanggil onClose flatpickr (nandain field udah "disentuh").
   registerOnTouched(fn: () => void): void {
     this.onTouched = fn;
   }
@@ -104,6 +106,7 @@ export class MonthPickerComponent implements ControlValueAccessor, AfterViewInit
     this.fp?.set('clickOpens', !isDisabled);
   }
 
+  // Format Date bawaan flatpickr jadi string "YYYY-MM" sesuai kontrak API BE.
   private toYearMonth(date: Date): string {
     const year = date.getFullYear();
     const month = `${date.getMonth() + 1}`.padStart(2, '0');
@@ -121,6 +124,7 @@ export class MonthPickerComponent implements ControlValueAccessor, AfterViewInit
     });
   }
 
+  // Toggle dropdown tahun custom: tutup kalau lagi kebuka, buka kalau lagi ketutup.
   private toggleYearDropdown(): void {
     if (this.yearDropdownEl) {
       this.closeYearDropdown();
@@ -129,6 +133,7 @@ export class MonthPickerComponent implements ControlValueAccessor, AfterViewInit
     }
   }
 
+  // Bangun & tampilkan dropdown tahun custom (search + list scrollable) di dalam calendarContainer flatpickr.
   private openYearDropdown(): void {
     const fp = this.fp!;
     const yearInput = fp.currentYearElement;
@@ -152,6 +157,7 @@ export class MonthPickerComponent implements ControlValueAccessor, AfterViewInit
     const years: number[] = [];
     for (let y = baseYear + 10; y >= baseYear - 100; y--) years.push(y);
 
+    // Render ulang daftar tahun sesuai teks pencarian, highlight tahun yang lagi aktif.
     const renderList = (filter: string): void => {
       list.innerHTML = '';
       years
@@ -192,6 +198,7 @@ export class MonthPickerComponent implements ControlValueAccessor, AfterViewInit
     setTimeout(() => document.addEventListener('click', this.outsideClickHandler));
   }
 
+  // Lepas dropdown tahun custom dari DOM & bersihin listener klik-di-luar.
   private closeYearDropdown(): void {
     this.yearDropdownEl?.remove();
     this.yearDropdownEl = null;

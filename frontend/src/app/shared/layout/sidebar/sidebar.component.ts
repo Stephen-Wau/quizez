@@ -19,6 +19,7 @@ export class SidebarComponent {
 
   constructor(private auth: AuthService, private router: Router) {}
 
+  // Dipanggil pas user klik tombol logout di sidebar: bersihin sesi terus lempar balik ke halaman login.
   logout(): void {
     this.auth.logout();
     this.router.navigate(['/admin-cms/login']);
