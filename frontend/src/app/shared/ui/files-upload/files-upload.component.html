@@ -1,0 +1,42 @@
+<div class="files-upload">
+  <label *ngIf="label">{{ label }}</label>
+
+  <ul class="files-upload__list" *ngIf="value.length">
+    <li class="files-upload__item" *ngFor="let file of value; let i = index">
+      <lucide-icon name="file" [size]="16"></lucide-icon>
+      <button
+        type="button"
+        class="files-upload__name"
+        (click)="preview(file)"
+        title="Klik untuk preview file (buka di tab baru)"
+      >{{ file.file_name }}</button>
+      <button
+        type="button"
+        class="files-upload__remove"
+        (click)="remove(i)"
+        *ngIf="!disabled"
+      >
+        <lucide-icon name="x" [size]="14"></lucide-icon>
+      </button>
+    </li>
+  </ul>
+
+  <app-button
+    variant="ghost"
+    size="sm"
+    type="button"
+    (click)="triggerFilePicker()"
+    *ngIf="!disabled"
+  >
+    <lucide-icon name="paperclip" [size]="14"></lucide-icon>
+    Add File
+  </app-button>
+
+  <input
+    #fileInput
+    type="file"
+    multiple
+    class="files-upload__input"
+    (change)="handleFilesSelected($event)"
+  />
+</div>

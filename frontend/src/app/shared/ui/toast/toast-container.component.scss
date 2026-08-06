@@ -1,0 +1,131 @@
+// Registrasi custom property biar --p bisa di-animate smooth (bukan loncat) oleh browser.
+@property --p {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
+.toast-container {
+  position: fixed;
+  top: var(--spacing-4);
+  right: var(--spacing-4);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.toast {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  min-width: 340px;
+  max-width: 440px;
+  padding: var(--spacing-4);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  animation: toast-in 0.15s ease-out;
+  // Kliping conic-gradient border (::before) biar ngikutin border-radius kotak toast.
+  overflow: hidden;
+}
+
+// Border "countdown": conic-gradient nyapu dari 0% ke 100% seiring waktu, warnanya ikut tipe toast.
+// Pas border udah penuh sekeliling kotak, itu juga pas waktunya toast auto-dismiss.
+.toast::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(var(--toast-color) var(--p), transparent 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: toast-border-fill var(--toast-duration, 4000ms) linear forwards;
+  pointer-events: none;
+}
+
+.toast__icon {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.toast__message {
+  flex: 1;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.toast__close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+  padding: 0;
+}
+
+.toast--success {
+  --toast-color: #16a34a;
+
+  .toast__icon {
+    color: var(--toast-color);
+  }
+}
+
+.toast--error {
+  --toast-color: var(--color-danger);
+
+  .toast__icon {
+    color: var(--toast-color);
+  }
+}
+
+.toast--warning {
+  --toast-color: #d97706;
+
+  .toast__icon {
+    color: var(--toast-color);
+  }
+}
+
+.toast--info {
+  --toast-color: var(--color-primary);
+
+  .toast__icon {
+    color: var(--toast-color);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-border-fill {
+  from {
+    --p: 0%;
+  }
+  to {
+    --p: 100%;
+  }
+}

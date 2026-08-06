@@ -1,0 +1,15 @@
+<div class="field">
+  <label *ngIf="label" [for]="id">{{ label }}</label>
+
+  <input
+    #inputEl
+    [id]="id"
+    type="text"
+    readonly
+    [disabled]="disabled"
+    [class.input--error]="errorMessage || invalid"
+    class="month-picker__input"
+  />
+
+  <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+</div>

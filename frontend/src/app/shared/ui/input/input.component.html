@@ -1,0 +1,27 @@
+<div class="field">
+  <label *ngIf="label" [for]="id">{{ label }}</label>
+
+  <textarea
+    *ngIf="multiline"
+    [id]="id"
+    [rows]="rows"
+    [value]="value"
+    [disabled]="disabled"
+    [class.input--error]="errorMessage || invalid"
+    (input)="handleInput($any($event.target).value)"
+    (blur)="handleBlur()"
+  ></textarea>
+
+  <input
+    *ngIf="!multiline"
+    [id]="id"
+    [type]="type"
+    [value]="value"
+    [disabled]="disabled"
+    [class.input--error]="errorMessage || invalid"
+    (input)="handleInput($any($event.target).value)"
+    (blur)="handleBlur()"
+  />
+
+  <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+</div>

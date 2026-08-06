@@ -1,6 +1,7 @@
-import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
+import { ApplicationConfig, importProvidersFrom, provideZoneChangeDetection } from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
+import { LucideAngularModule, X, RefreshCw, File, Paperclip, ImagePlus, Trash2 } from 'lucide-angular';
 
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
@@ -10,5 +11,8 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor])),
+    importProvidersFrom(
+      LucideAngularModule.pick({ X, RefreshCw, File, Paperclip, ImagePlus, Trash2 })
+    ),
   ]
 };

@@ -1,0 +1,30 @@
+<div class="image-upload">
+  <label *ngIf="label">{{ label }}</label>
+
+  <div class="image-upload__frame" (click)="!value && triggerFilePicker()">
+    <img *ngIf="value" [src]="value" alt="Preview" />
+    <div *ngIf="!value" class="image-upload__placeholder">
+      <lucide-icon name="image-plus" [size]="28"></lucide-icon>
+      <span>Klik untuk upload</span>
+    </div>
+  </div>
+
+  <div class="image-upload__actions" *ngIf="value">
+    <app-button variant="ghost" size="sm" type="button" (click)="triggerFilePicker()">
+      <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+      Change
+    </app-button>
+    <app-button variant="danger" size="sm" type="button" (click)="remove()">
+      <lucide-icon name="trash-2" [size]="14"></lucide-icon>
+      Delete
+    </app-button>
+  </div>
+
+  <input
+    #fileInput
+    type="file"
+    accept="image/*"
+    class="image-upload__input"
+    (change)="handleFileSelected($event)"
+  />
+</div>

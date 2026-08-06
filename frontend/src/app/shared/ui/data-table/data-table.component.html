@@ -1,0 +1,78 @@
+<div class="app-data-table__toolbar">
+  <div class="app-data-table__search" *ngIf="searchable">
+    <input
+      type="text"
+      [ngModel]="searchTerm"
+      (ngModelChange)="searchTerm = $event; onSearchChange()"
+      [placeholder]="searchPlaceholder"
+      class="app-data-table__search-input"
+    />
+  </div>
+  <button
+    type="button"
+    class="app-data-table__refresh"
+    title="Refresh"
+    (click)="onRefreshClick()"
+  >
+    <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+  </button>
+</div>
+
+<!-- overflow-x:auto di sini (bukan di <ngx-datatable> langsung) biar di layar sempit tabelnya
+     discroll horizontal (kolom tetap kebaca penuh) alih-alih dipepetin sampai teksnya numpuk. -->
+<div class="app-data-table__scroll">
+  <ngx-datatable
+    class="app-data-table"
+    [rows]="filteredRows"
+    [columnMode]="'force'"
+    [headerHeight]="44"
+    [rowHeight]="'auto'"
+    [footerHeight]="serverSide ? 40 : 0"
+    [externalSorting]="serverSide"
+    [externalPaging]="serverSide"
+    [count]="totalCount"
+    [limit]="pageSize"
+    [offset]="currentPage - 1"
+    [messages]="{ emptyMessage: emptyMessage }"
+    (sort)="onSort($event)"
+  >
+    <ngx-datatable-column
+      *ngFor="let col of columns"
+      [name]="col.name"
+      [prop]="col.prop || ''"
+      [sortable]="col.sortable !== false"
+    >
+      <ng-template ngx-datatable-cell-template let-row="row" let-value="value">
+        <ng-container *ngIf="col.cellTemplate; else plainValue">
+          <ng-container
+            *ngTemplateOutlet="col.cellTemplate; context: { row: row, value: value }"
+          ></ng-container>
+        </ng-container>
+        <ng-template #plainValue>{{ value }}</ng-template>
+      </ng-template>
+    </ngx-datatable-column>
+
+    <ngx-datatable-footer *ngIf="serverSide">
+      <ng-template
+        ngx-datatable-footer-template
+        let-rowCount="rowCount"
+        let-pageSize="pageSize"
+        let-curPage="curPage"
+      >
+        <div class="app-data-table__footer">
+          <span class="app-data-table__footer-count">{{ rowCount }} total</span>
+          <datatable-pager
+            [page]="curPage"
+            [size]="pageSize"
+            [count]="rowCount"
+            pagerPreviousIcon="app-pager-icon app-pager-icon--first"
+            pagerLeftArrowIcon="app-pager-icon app-pager-icon--prev"
+            pagerRightArrowIcon="app-pager-icon app-pager-icon--next"
+            pagerNextIcon="app-pager-icon app-pager-icon--last"
+            (change)="onPage({ offset: $event.page - 1 })"
+          ></datatable-pager>
+        </div>
+      </ng-template>
+    </ngx-datatable-footer>
+  </ngx-datatable>
+</div>
