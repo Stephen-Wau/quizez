@@ -1,0 +1,19 @@
+<aside class="sidebar">
+  <div class="profile">
+    <div class="avatar">{{ (user?.name || user?.email || '?').charAt(0).toUpperCase() }}</div>
+    <div class="info">
+      <p class="name">{{ user?.name || '—' }}</p>
+      <p class="email">{{ user?.email || '' }}</p>
+    </div>
+  </div>
+
+  <nav>
+    @for (item of menuItems; track item.path) {
+      <a [routerLink]="item.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+        {{ item.label }}
+      </a>
+    }
+  </nav>
+
+  <button class="logout" (click)="logout()">Logout</button>
+</aside>

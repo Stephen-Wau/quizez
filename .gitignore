@@ -1,0 +1,17 @@
+# Backend
+backend/.env
+backend/*.exe
+backend/backend
+backend/backend.exe
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Claude Code local state
+.claude/

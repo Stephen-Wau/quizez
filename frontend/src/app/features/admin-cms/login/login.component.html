@@ -1,0 +1,24 @@
+<div class="login-page">
+  <form class="login-card" [formGroup]="form" (ngSubmit)="submit()">
+    <h1>Quizez CMS</h1>
+    <p class="subtitle">Sign in to continue</p>
+
+    <label>
+      Email
+      <input type="email" formControlName="email" placeholder="admin@mail.com" />
+    </label>
+
+    <label>
+      Password
+      <input type="password" formControlName="password" placeholder="********" />
+    </label>
+
+    @if (errorMessage) {
+      <p class="error">{{ errorMessage }}</p>
+    }
+
+    <button type="submit" [disabled]="loading">
+      {{ loading ? 'Signing in...' : 'Sign in' }}
+    </button>
+  </form>
+</div>
