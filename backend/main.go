@@ -52,6 +52,8 @@ func main() {
 
 	mux.HandleFunc("/api/quizzes", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuizzesHandler(conn))))
 	mux.HandleFunc("/api/quizzes/{id}", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuizHandler(conn))))
+	mux.HandleFunc("/api/questions", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuestionsHandler(conn))))
+	mux.HandleFunc("/api/questions/{id}", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuestionHandler(conn))))
 
 	log.Println("quizez backend listening on localhost:8080")
 	log.Fatal(http.ListenAndServe("localhost:8080", mux))
