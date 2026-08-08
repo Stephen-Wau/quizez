@@ -1,0 +1,24 @@
+CREATE TABLE IF NOT EXISTS questions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    quiz_id BIGINT NULL,
+    question TEXT NULL,
+    type_answer VARCHAR(30) NULL,
+    point INT NULL,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_questions_quiz
+        FOREIGN KEY (quiz_id) REFERENCES quizzes(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS questions_answers (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    question_id BIGINT NULL,
+    label VARCHAR(191) NULL,
+    value VARCHAR(191) NULL,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_questions_answers_question
+        FOREIGN KEY (question_id) REFERENCES questions(id)
+        ON DELETE CASCADE
+);
