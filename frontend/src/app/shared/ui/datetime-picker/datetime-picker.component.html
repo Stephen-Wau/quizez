@@ -1,0 +1,15 @@
+<div class="field">
+  <label *ngIf="label" [for]="id">{{ label }}<span *ngIf="required" class="required-mark">*</span></label>
+
+  <input
+    #inputEl
+    [id]="id"
+    type="text"
+    [disabled]="disabled"
+    [class.input--error]="errorMessage || invalid"
+    class="datetime-picker__input"
+    placeholder="{{ mode === 'time' ? 'HH:mm' : 'YYYY-MM-DD HH:mm' }}"
+  />
+
+  <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+</div>

@@ -1,0 +1,219 @@
+// Styling field & popup flatpickr biar konsisten sama InputComponent + design system CMS (warna,
+// radius, shadow dari CSS var global). Popup di-render sebagai sibling <body>, jadi butuh ::ng-deep.
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin-bottom: var(--spacing-3);
+
+  label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+
+    .required-mark {
+      color: var(--color-danger);
+      margin-left: 2px;
+    }
+  }
+
+  .error {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--color-danger);
+  }
+
+  ::ng-deep .datetime-picker__input {
+    width: 100%;
+    padding: var(--spacing-2) var(--spacing-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    font-size: 0.95rem;
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
+    &:disabled {
+      background: var(--color-bg);
+      color: var(--color-text-muted);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    &.input--error {
+      border-color: var(--color-danger);
+
+      &:focus {
+        border-color: var(--color-danger);
+      }
+    }
+  }
+}
+
+::ng-deep .flatpickr-calendar {
+  box-sizing: border-box;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  border-radius: calc(var(--radius) + 4px);
+  border: 1px solid var(--color-border);
+  padding: var(--spacing-2);
+  font-family: inherit;
+  // Transisi buka/tutup lebih smooth dibanding default flatpickr yang instan.
+  animation: datetime-picker-pop 0.12s ease-out;
+
+  &::before,
+  &::after {
+    display: none;
+  }
+
+  .flatpickr-months {
+    padding-bottom: var(--spacing-2);
+    margin-bottom: var(--spacing-2);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .flatpickr-day.selected,
+  .flatpickr-day.selected:hover,
+  .flatpickr-day.selected:focus,
+  .flatpickr-day.startRange,
+  .flatpickr-day.startRange:hover,
+  .flatpickr-day.startRange:focus,
+  .flatpickr-day.endRange,
+  .flatpickr-day.endRange:hover,
+  .flatpickr-day.endRange:focus {
+    background: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    color: #fff !important;
+  }
+
+  .flatpickr-day.today {
+    color: var(--color-text);
+    border-color: var(--color-primary);
+  }
+
+  .flatpickr-day.today:hover {
+    color: var(--color-text);
+    background: var(--color-bg);
+  }
+
+  .flatpickr-day.today.selected {
+    color: #fff;
+  }
+
+  .flatpickr-day:hover {
+    background: var(--color-bg);
+  }
+
+  .flatpickr-current-month {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  // Widget jam (hour/minute) — dibesarin & dikasih hover/focus halus biar keliatan "custom",
+  // bukan spinner angka kecil bawaan flatpickr yang polos.
+  &.hasTime {
+    width: min(328px, calc(100vw - 32px));
+    min-width: 0;
+
+    .flatpickr-days,
+    .dayContainer,
+    .flatpickr-weekdays {
+      width: 100%;
+      min-width: 100%;
+      box-sizing: border-box;
+    }
+
+    span.flatpickr-weekday,
+    .flatpickr-day {
+      max-width: none;
+    }
+  }
+
+  .flatpickr-time {
+    border-top: 1px solid var(--color-border);
+    height: auto;
+    padding: var(--spacing-2) 0;
+
+    .numInputWrapper {
+      transition: background 0.12s ease;
+      border-radius: var(--radius);
+
+      &:hover {
+        background: var(--color-bg);
+      }
+
+      span.arrowUp,
+      span.arrowDown {
+        border: none;
+
+        &:hover {
+          background: var(--color-primary);
+          opacity: 0.15;
+        }
+      }
+    }
+
+    input.flatpickr-hour,
+    input.flatpickr-minute {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--color-text);
+
+      &:focus {
+        background: var(--color-bg);
+        border-radius: var(--radius);
+      }
+    }
+
+    .flatpickr-time-separator {
+      color: var(--color-text-muted);
+      font-weight: 600;
+    }
+
+    // time_24hr:true udah gak nampilin AM/PM, tapi dijaga tetep disembunyiin buat antisipasi.
+    .flatpickr-am-pm {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  ::ng-deep .flatpickr-calendar {
+    padding: var(--spacing-1);
+
+    &.hasTime {
+      width: calc(100vw - 24px);
+    }
+
+    .flatpickr-months {
+      padding-bottom: var(--spacing-1);
+      margin-bottom: var(--spacing-1);
+    }
+
+    .flatpickr-current-month {
+      font-size: 0.95rem;
+    }
+
+    .flatpickr-day,
+    span.flatpickr-weekday {
+      font-size: 0.8rem;
+    }
+  }
+}
+
+@keyframes datetime-picker-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
