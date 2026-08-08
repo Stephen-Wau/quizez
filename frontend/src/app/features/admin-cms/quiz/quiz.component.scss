@@ -68,12 +68,22 @@
 .quiz__date-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0 var(--spacing-3);
+  gap: var(--spacing-2) var(--spacing-3);
+}
+
+@media (max-width: 768px) {
+  .quiz__date-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
-  .quiz__date-row {
-    grid-template-columns: 1fr;
+  .quiz__form-actions {
+    flex-direction: column-reverse;
+
+    app-button {
+      width: 100%;
+    }
   }
 }
 

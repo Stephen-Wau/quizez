@@ -5,6 +5,7 @@ import { LucideAngularModule } from 'lucide-angular';
 
 import { Quiz, QuizPayload, QuizService } from './quiz.service';
 import { InputComponent } from '../../../shared/ui/input/input.component';
+import { DatetimePickerComponent } from '../../../shared/ui/datetime-picker/datetime-picker.component';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
 import {
@@ -24,6 +25,7 @@ import { loadPagedList } from '../../../shared/utils/load-paged-list.util';
     CommonModule,
     ReactiveFormsModule,
     InputComponent,
+    DatetimePickerComponent,
     ButtonComponent,
     ModalComponent,
     LucideAngularModule,

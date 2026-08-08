@@ -56,39 +56,39 @@
     </div>
 
     <div class="quiz__date-row">
-      <app-input
+      <app-datetime-picker
         *ngIf="isQuizType"
         label="Jam Mulai"
+        mode="time"
         [required]="true"
-        type="time"
         formControlName="start_input"
         [errorMessage]="fieldError('start_input')"
-      ></app-input>
-      <app-input
+      ></app-datetime-picker>
+      <app-datetime-picker
         *ngIf="!isQuizType"
         label="Mulai"
+        mode="datetime"
         [required]="true"
-        type="datetime-local"
         formControlName="start_input"
         [errorMessage]="fieldError('start_input')"
-      ></app-input>
+      ></app-datetime-picker>
 
-      <app-input
+      <app-datetime-picker
         *ngIf="isQuizType"
         label="Jam Selesai"
+        mode="time"
         [required]="true"
-        type="time"
         formControlName="end_input"
         [errorMessage]="fieldError('end_input')"
-      ></app-input>
-      <app-input
+      ></app-datetime-picker>
+      <app-datetime-picker
         *ngIf="!isQuizType"
         label="Selesai"
+        mode="datetime"
         [required]="true"
-        type="datetime-local"
         formControlName="end_input"
         [errorMessage]="fieldError('end_input')"
-      ></app-input>
+      ></app-datetime-picker>
     </div>
 
     <app-input
