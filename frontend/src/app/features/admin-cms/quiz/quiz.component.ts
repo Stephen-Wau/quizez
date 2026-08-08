@@ -37,6 +37,7 @@ import { loadPagedList } from '../../../shared/utils/load-paged-list.util';
 export class QuizComponent implements OnInit {
   @ViewChild('typeTpl', { static: true }) typeTpl!: TemplateRef<unknown>;
   @ViewChild('periodTpl', { static: true }) periodTpl!: TemplateRef<unknown>;
+  @ViewChild('statusTpl', { static: true }) statusTpl!: TemplateRef<unknown>;
   @ViewChild('aksiTpl', { static: true }) aksiTpl!: TemplateRef<unknown>;
 
   quizzes: Quiz[] = [];
@@ -91,7 +92,7 @@ export class QuizComponent implements OnInit {
       { name: 'Title', prop: 'title' },
       { name: 'Type', prop: 'type', cellTemplate: this.typeTpl },
       { name: 'Period', prop: 'start_time', cellTemplate: this.periodTpl },
-      { name: 'Status', prop: 'status' },
+      { name: 'Status', prop: 'status', cellTemplate: this.statusTpl },
       { name: 'Action', sortable: false, cellTemplate: this.aksiTpl },
     ];
     this.loadQuizzes();

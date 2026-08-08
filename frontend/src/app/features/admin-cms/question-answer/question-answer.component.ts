@@ -100,6 +100,7 @@ export class QuestionAnswerComponent implements OnInit {
       { name: 'Title', prop: 'title' },
       { name: 'Type', prop: 'type', cellTemplate: this.typeTpl },
       { name: 'Period', prop: 'start_time', cellTemplate: this.periodTpl },
+      { name: 'Total Question', prop: 'total_question' },
       { name: 'Status', prop: 'status' },
       { name: 'Action', sortable: false, cellTemplate: this.actionTpl },
     ];
@@ -151,7 +152,8 @@ export class QuestionAnswerComponent implements OnInit {
     this.loadQuizzes();
   }
 
-  // Format kolom period sama seperti menu quiz: quiz tampil jam, survey tampil tanggal+jam.
+  // Format kolom period: quiz tampil jam, survey tampil tanggal yang lebih ramah dibaca
+  // (contoh: 8 May 2026 16:00).
   formatPeriod(row: Quiz): string {
     if (!row.start_time && !row.end_time) return '-';
     if (row.type === 'quiz') {
@@ -159,7 +161,7 @@ export class QuestionAnswerComponent implements OnInit {
       const end = row.end_time ? row.end_time.slice(11, 16) : '?';
       return `${start} - ${end}`;
     }
-    const fmt = (v: string | null) => (v ? `${v.slice(0, 10)} ${v.slice(11, 16)}` : '?');
+    const fmt = (v: string | null) => (v ? this.formatSurveyDateTime(v) : '?');
     return `${fmt(row.start_time)} - ${fmt(row.end_time)}`;
   }
 
@@ -483,6 +485,28 @@ export class QuestionAnswerComponent implements OnInit {
       .map((answer) => Number(answer.value ?? 0))
       .filter((value) => Number.isFinite(value) && value > 0);
     return values.length > 0 ? Math.max(...values) : 5;
+  }
+
+  // String datetime backend -> format UI "8 May 2026 16:00" khusus tampilan survey.
+  private formatSurveyDateTime(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return `${value.slice(0, 10)} ${value.slice(11, 16)}`;
+    }
+
+    const datePart = new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(date);
+
+    const timePart = new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(date);
+
+    return `${datePart} ${timePart}`;
   }
 
   // Factory 1 row opsi pilihan ganda: teks jawaban + flag benar/salah.

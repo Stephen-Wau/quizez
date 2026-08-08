@@ -19,14 +19,15 @@ var quizSortColumns = map[string]string{
 const dateTimeLayout = "2006-01-02T15:04:05"
 
 type Quiz struct {
-	ID          int64   `json:"id"`
-	Title       *string `json:"title"`
-	Type        *string `json:"type"`
-	StartTime   *string `json:"start_time"`
-	EndTime     *string `json:"end_time"`
-	Description *string `json:"description"`
-	MaxPoint    *int    `json:"max_point"`
-	Status      *string `json:"status"`
+	ID            int64   `json:"id"`
+	Title         *string `json:"title"`
+	Type          *string `json:"type"`
+	StartTime     *string `json:"start_time"`
+	EndTime       *string `json:"end_time"`
+	Description   *string `json:"description"`
+	MaxPoint      *int    `json:"max_point"`
+	TotalQuestion int     `json:"total_question"`
+	Status        *string `json:"status"`
 }
 
 type quizRowScanner interface {
@@ -51,7 +52,8 @@ func ListQuizzes(db *sql.DB, params listquery.Params) ([]Quiz, int, error) {
 	}
 
 	sortCol := params.SortColumn(quizSortColumns, "id")
-	query := "SELECT id, title, type, start_time, end_time, description, max_point, status FROM quizzes" + whereClause +
+	query := "SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, " +
+		"(SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS total_question, q.status FROM quizzes q" + whereClause +
 		fmt.Sprintf(" ORDER BY %s %s LIMIT ? OFFSET ?", sortCol, params.SortDirSQL())
 	args = append(args, params.PerPage, params.Offset())
 
@@ -82,7 +84,7 @@ func scanQuiz(row quizRowScanner) (Quiz, error) {
 		startTime, endTime   sql.NullTime
 		maxPoint             sql.NullInt64
 	)
-	if err := row.Scan(&q.ID, &title, &qType, &startTime, &endTime, &description, &maxPoint, &status); err != nil {
+	if err := row.Scan(&q.ID, &title, &qType, &startTime, &endTime, &description, &maxPoint, &q.TotalQuestion, &status); err != nil {
 		return Quiz{}, err
 	}
 	q.Title = nullableString(title)

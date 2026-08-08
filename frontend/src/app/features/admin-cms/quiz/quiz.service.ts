@@ -14,10 +14,11 @@ export interface Quiz {
   end_time: string | null;
   description: string | null;
   max_point: number | null;
+  total_question: number;
   status: string | null;
 }
 
-export type QuizPayload = Omit<Quiz, 'id'>;
+export type QuizPayload = Omit<Quiz, 'id' | 'total_question'>;
 
 @Injectable({ providedIn: 'root' })
 export class QuizService {

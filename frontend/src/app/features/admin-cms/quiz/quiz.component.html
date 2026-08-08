@@ -14,6 +14,10 @@
   {{ formatPeriod($any(row)) }}
 </ng-template>
 
+<ng-template #statusTpl let-value="value">
+  <span class="quiz__status-badge" [class.quiz__status-badge--inactive]="value !== 'active'">{{ value || '-' }}</span>
+</ng-template>
+
 <ng-template #aksiTpl let-row="row">
   <div class="quiz__actions">
     <app-button variant="ghost" size="sm" (click)="openEditModal($any(row))">
