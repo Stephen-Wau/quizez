@@ -31,6 +31,13 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/admin-cms/quiz/quiz.component').then((m) => m.QuizComponent),
       },
+      {
+        path: 'question-answer',
+        loadComponent: () =>
+          import('./features/admin-cms/question-answer/question-answer.component').then(
+            (m) => m.QuestionAnswerComponent
+          ),
+      },
     ],
   },
   // Fallback buat path yang ga dikenal, lempar balik ke admin-cms.

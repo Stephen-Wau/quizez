@@ -1,0 +1,201 @@
+<div class="question-page__header">
+  <div>
+    <h1>Question &amp; Answer</h1>
+    <p>Pilih quiz lalu kelola question dan answer-nya dari popup.</p>
+  </div>
+</div>
+
+<ng-template #typeTpl let-value="value">
+  <span class="question-page__badge" [class.question-page__badge--survey]="value === 'survey'">{{ value || '-' }}</span>
+</ng-template>
+
+<ng-template #periodTpl let-row="row">
+  {{ formatPeriod($any(row)) }}
+</ng-template>
+
+<ng-template #actionTpl let-row="row">
+  <app-button size="sm" (click)="openManageQuestions($any(row))">
+    <lucide-icon name="list-plus" [size]="14"></lucide-icon>
+    Add Question
+  </app-button>
+</ng-template>
+
+<app-data-table
+  [rows]="quizzes"
+  [columns]="columns"
+  [serverSide]="true"
+  [totalCount]="totalCount"
+  [pageSize]="pageSize"
+  (search)="onTableQueryChange($event)"
+  (refresh)="loadQuizzes()"
+  searchPlaceholder="Search title..."
+  emptyMessage="Belum ada quiz. Tambahkan quiz dulu sebelum bikin question."
+></app-data-table>
+
+<app-modal
+  [open]="isModalOpen"
+  [title]="selectedQuiz ? 'Question & Answer - ' + (selectedQuiz.title || 'Untitled Quiz') : 'Question & Answer'"
+  maxWidth="920px"
+  (closed)="closeModal()"
+>
+  <div *ngIf="selectedQuiz" class="question-page__modal">
+    <div class="question-page__summary">
+      <div>
+        <strong>{{ selectedQuiz.title || '-' }}</strong>
+        <p>{{ selectedQuiz.type || '-' }} • {{ formatPeriod(selectedQuiz) }}</p>
+      </div>
+
+      <app-button *ngIf="!isFormVisible" (click)="startCreateQuestion()">
+        <lucide-icon name="plus" [size]="16"></lucide-icon>
+        Add Question
+      </app-button>
+    </div>
+
+    <form *ngIf="isFormVisible" [formGroup]="form" class="question-form" (ngSubmit)="saveQuestion()">
+      <div class="question-form__grid">
+        <app-input
+          label="Question"
+          [required]="true"
+          [multiline]="true"
+          [rows]="3"
+          formControlName="question"
+          [errorMessage]="fieldError('question')"
+        ></app-input>
+
+        <div class="question-form__field">
+          <label>Type Answer<span class="question-form__required">*</span></label>
+          <select class="question-form__select" formControlName="type_answer">
+            <option value="multiple_choice">Pilihan Ganda</option>
+            <option value="rating">Rating</option>
+            <option value="free_text">Free Text</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="question-form__grid question-form__grid--compact">
+        <div class="question-form__field">
+          <label>Have Point<span class="question-form__required">*</span></label>
+          <select class="question-form__select" formControlName="have_point">
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+          </select>
+        </div>
+
+        <app-input
+          *ngIf="form.get('have_point')?.value === 'yes'"
+          label="Point"
+          [required]="true"
+          type="number"
+          formControlName="point"
+          [errorMessage]="pointError()"
+        ></app-input>
+
+        <app-input
+          *ngIf="isRating"
+          label="Rentang Rating"
+          [required]="true"
+          type="number"
+          formControlName="rating_max"
+          [errorMessage]="fieldError('rating_max')"
+        ></app-input>
+      </div>
+
+      <div *ngIf="isMultipleChoice" class="question-form__section">
+        <div class="question-form__section-header">
+          <div>
+            <h3>Jawaban Pilihan Ganda</h3>
+            <p>Minimal 2 jawaban dan salah satunya harus bernilai <code>true</code>.</p>
+          </div>
+          <app-button variant="ghost" size="sm" type="button" (click)="addMultipleChoiceAnswer()">
+            <lucide-icon name="plus" [size]="14"></lucide-icon>
+            Add Answer
+          </app-button>
+        </div>
+
+        <div formArrayName="answers" class="question-form__answers">
+          <div class="question-form__answer-row" *ngFor="let control of answersArray.controls; let i = index; trackBy: trackByIndex">
+            <div [formGroupName]="i" class="question-form__answer-fields">
+              <app-input
+                label="Teks Jawaban"
+                [required]="true"
+                formControlName="label"
+              ></app-input>
+              <div class="question-form__field question-form__field--grow">
+                <label>Status Benar/Salah</label>
+                <select class="question-form__select" formControlName="value">
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+              <div class="question-form__field question-form__field--action">
+                <label class="question-form__action-spacer" aria-hidden="true">&nbsp;</label>
+                <app-button
+                  variant="danger"
+                  size="sm"
+                  type="button"
+                  [disabled]="answersArray.length <= 2"
+                  (click)="removeMultipleChoiceAnswer(i)"
+                >
+                  <lucide-icon name="trash-2" [size]="14"></lucide-icon>
+                </app-button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="isRating" class="question-form__section">
+        <h3>Preview Jawaban Rating</h3>
+        <p>Jawaban akan dibuat otomatis dari 1 sampai rentang yang dipilih.</p>
+      </div>
+
+      <div *ngIf="answerSectionError" class="question-form__error">
+        {{ answerSectionError }}
+      </div>
+
+      <div class="question-form__actions">
+        <app-button variant="ghost" type="button" (click)="cancelQuestionForm()">Cancel</app-button>
+        <app-button type="submit" [disabled]="isQuestionSaving">
+          <lucide-icon name="save" [size]="16"></lucide-icon>
+          {{ isQuestionSaving ? 'Saving...' : 'Save Question' }}
+        </app-button>
+      </div>
+    </form>
+
+    <div class="question-list">
+      <div class="question-list__header">
+        <h3>Daftar Question</h3>
+        <span>{{ questions.length }} total</span>
+      </div>
+
+      <div *ngIf="questionsLoading" class="question-list__empty">Memuat question...</div>
+      <div *ngIf="!questionsLoading && questions.length === 0" class="question-list__empty">
+        Belum ada question untuk quiz ini.
+      </div>
+
+      <div *ngIf="!questionsLoading && questions.length > 0" class="question-list__items">
+        <article class="question-card" *ngFor="let question of questions">
+          <div class="question-card__body">
+            <div class="question-card__meta">
+              <span>{{ questionTypeLabel(question.type_answer) }}</span>
+              <span>Point: {{ question.point ?? '-' }}</span>
+            </div>
+            <h4>{{ question.question || '-' }}</h4>
+            <p>{{ answerSummary(question) }}</p>
+          </div>
+
+          <div class="question-card__actions">
+            <app-button variant="ghost" size="sm" type="button" (click)="editQuestion(question)">
+              <lucide-icon name="pencil" [size]="14"></lucide-icon>
+              Edit
+            </app-button>
+            <app-button variant="danger" size="sm" type="button" (click)="removeQuestion(question)">
+              <lucide-icon name="trash-2" [size]="14"></lucide-icon>
+              Delete
+            </app-button>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</app-modal>
