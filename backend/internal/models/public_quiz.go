@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	mathrand "math/rand"
 	"strings"
 	"time"
 )
@@ -43,6 +44,7 @@ type PublicQuiz struct {
 	StartTime     *string          `json:"start_time"`
 	EndTime       *string          `json:"end_time"`
 	MaxPoint      *int             `json:"max_point"`
+	PassingGrade  *int             `json:"passing_grade"`
 	TotalQuestion int              `json:"total_question"`
 	Status        *string          `json:"status"`
 	State         string           `json:"state"`
@@ -57,13 +59,31 @@ type PublicSubmissionAnswerInput struct {
 }
 
 type PublicSubmissionResult struct {
-	SubmissionID int64   `json:"submission_id"`
-	Title        *string `json:"title"`
-	Type         *string `json:"type"`
-	Score        *int    `json:"score"`
-	MaxPoint     *int    `json:"max_point"`
-	SubmittedAt  string  `json:"submitted_at"`
-	Message      string  `json:"message"`
+	SubmissionID     int64                          `json:"submission_id"`
+	Title            *string                        `json:"title"`
+	Type             *string                        `json:"type"`
+	Score            *int                           `json:"score"`
+	MaxPoint         *int                           `json:"max_point"`
+	PassingGrade     *int                           `json:"passing_grade"`
+	ScorePercentage  *float64                       `json:"score_percentage"`
+	Passed           *bool                          `json:"passed"`
+	CorrectAnswers   int                            `json:"correct_answers"`
+	AnsweredQuestions int                           `json:"answered_questions"`
+	TotalQuestions   int                            `json:"total_questions"`
+	SubmittedAt      string                         `json:"submitted_at"`
+	Message          string                         `json:"message"`
+	AnswerDetails    []PublicSubmissionAnswerResult `json:"answer_details"`
+}
+
+type PublicSubmissionAnswerResult struct {
+	QuestionID          int64    `json:"question_id"`
+	Question            *string  `json:"question"`
+	TypeAnswer          *string  `json:"type_answer"`
+	Point               *int     `json:"point"`
+	SelectedAnswerLabel *string  `json:"selected_answer_label"`
+	SelectedAnswerText  *string  `json:"selected_answer_text"`
+	IsCorrect           *bool    `json:"is_correct"`
+	CorrectAnswers      []string `json:"correct_answers"`
 }
 
 // GetOrCreateQuizShare ambil token share quiz yang sudah ada, atau bikin token acak baru kalau
@@ -119,7 +139,7 @@ func GetOrCreateQuizShare(db *sql.DB, quizID int64) (QuizShare, error) {
 // question/answer supaya FE publik tidak menerima flag benar-salah asli dari database.
 func GetPublicQuizByToken(db *sql.DB, token string, now time.Time) (PublicQuiz, error) {
 	row := db.QueryRow(
-		"SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, "+
+		"SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, "+
 			"(SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS total_question, q.status "+
 			"FROM quizzes q INNER JOIN quiz_shares qs ON qs.quiz_id = q.id WHERE qs.token = ? LIMIT 1",
 		token,
@@ -151,6 +171,9 @@ func GetPublicQuizByToken(db *sql.DB, token string, now time.Time) (PublicQuiz, 
 			Answers:    answers,
 		})
 	}
+	if stringPtrValue(quiz.Type) == "quiz" {
+		shufflePublicQuestions(publicQuestions)
+	}
 
 	tokenCopy := token
 	return PublicQuiz{
@@ -162,6 +185,7 @@ func GetPublicQuizByToken(db *sql.DB, token string, now time.Time) (PublicQuiz, 
 		StartTime:     quiz.StartTime,
 		EndTime:       quiz.EndTime,
 		MaxPoint:      quiz.MaxPoint,
+		PassingGrade:  quiz.PassingGrade,
 		TotalQuestion: quiz.TotalQuestion,
 		Status:        quiz.Status,
 		State:         ResolvePublicQuizState(quiz, now),
@@ -186,7 +210,7 @@ func HasSubmittedEmail(db *sql.DB, quizID int64, email string) (bool, error) {
 
 // SavePublicSubmission simpan satu submit publik beserta semua jawabannya dalam transaction yang
 // sama, sekaligus menghitung score quiz pilihan ganda tanpa membocorkan kunci jawaban ke FE.
-func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []PublicSubmissionAnswerInput, now time.Time) (PublicSubmissionResult, error) {
+func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []PublicSubmissionAnswerInput, startedAt *time.Time, now time.Time) (PublicSubmissionResult, error) {
 	questions, err := ListQuestionsByQuiz(db, quiz.ID)
 	if err != nil {
 		return PublicSubmissionResult{}, err
@@ -234,19 +258,31 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 
 	type storedAnswer struct {
 		QuestionID       int64
+		Question         *string
+		TypeAnswer       *string
+		Point            *int
 		QuestionAnswerID *int64
 		AnswerLabel      *string
 		AnswerValue      *string
 		AnswerText       *string
 		IsCorrect        *bool
+		CorrectAnswers   []string
 	}
 
 	storedAnswers := make([]storedAnswer, 0, len(questions))
 	score := 0
+	correctAnswers := 0
+	answeredQuestions := 0
 	for _, question := range questions {
 		input, hasInput := inputByQuestionID[question.ID]
 		if !hasInput && isQuizSubmission {
-			storedAnswers = append(storedAnswers, storedAnswer{QuestionID: question.ID})
+			storedAnswers = append(storedAnswers, storedAnswer{
+				QuestionID: question.ID,
+				Question:   question.Question,
+				TypeAnswer: question.TypeAnswer,
+				Point:      question.Point,
+				CorrectAnswers: collectCorrectAnswerLabels(question),
+			})
 			continue
 		}
 		if !hasInput {
@@ -257,20 +293,37 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 		case "free_text":
 			if input.AnswerText == nil || strings.TrimSpace(*input.AnswerText) == "" {
 				if isQuizSubmission {
-					storedAnswers = append(storedAnswers, storedAnswer{QuestionID: question.ID})
+					storedAnswers = append(storedAnswers, storedAnswer{
+						QuestionID: question.ID,
+						Question:   question.Question,
+						TypeAnswer: question.TypeAnswer,
+						Point:      question.Point,
+						CorrectAnswers: collectCorrectAnswerLabels(question),
+					})
 					continue
 				}
 				return PublicSubmissionResult{}, fmt.Errorf("Jawaban free text wajib diisi.")
 			}
 			answerText := strings.TrimSpace(stringPtrValue(input.AnswerText))
+			answeredQuestions++
 			storedAnswers = append(storedAnswers, storedAnswer{
 				QuestionID: question.ID,
+				Question:   question.Question,
+				TypeAnswer: question.TypeAnswer,
+				Point:      question.Point,
 				AnswerText: &answerText,
+				CorrectAnswers: collectCorrectAnswerLabels(question),
 			})
 		default:
 			if input.QuestionAnswerID == nil || *input.QuestionAnswerID <= 0 {
 				if isQuizSubmission {
-					storedAnswers = append(storedAnswers, storedAnswer{QuestionID: question.ID})
+					storedAnswers = append(storedAnswers, storedAnswer{
+						QuestionID: question.ID,
+						Question:   question.Question,
+						TypeAnswer: question.TypeAnswer,
+						Point:      question.Point,
+						CorrectAnswers: collectCorrectAnswerLabels(question),
+					})
 					continue
 				}
 				return PublicSubmissionResult{}, fmt.Errorf("Semua question pilihan wajib dijawab.")
@@ -283,18 +336,26 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 			if stringPtrValue(question.TypeAnswer) == "multiple_choice" {
 				correct := strings.EqualFold(stringPtrValue(selected.Value), "true")
 				isCorrect = &correct
+				if correct {
+					correctAnswers++
+				}
 				// Scoring otomatis hanya berlaku untuk pilihan ganda; tipe lain tetap tersimpan tapi
 				// tidak menambah poin karena tidak ada rule benar/salah yang eksplisit.
 				if correct && question.Point != nil {
 					score += *question.Point
 				}
 			}
+			answeredQuestions++
 			storedAnswers = append(storedAnswers, storedAnswer{
 				QuestionID:       question.ID,
+				Question:         question.Question,
+				TypeAnswer:       question.TypeAnswer,
+				Point:            question.Point,
 				QuestionAnswerID: &selected.ID,
 				AnswerLabel:      selected.Label,
 				AnswerValue:      selected.Value,
 				IsCorrect:        isCorrect,
+				CorrectAnswers:   collectCorrectAnswerLabels(question),
 			})
 		}
 	}
@@ -313,10 +374,14 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 	if email != nil && strings.TrimSpace(*email) != "" {
 		emailValue = strings.ToLower(strings.TrimSpace(*email))
 	}
+	startedAtValue := now
+	if startedAt != nil && !startedAt.IsZero() && !startedAt.After(now) {
+		startedAtValue = *startedAt
+	}
 
 	res, err := tx.Exec(
 		"INSERT INTO quiz_submissions (quiz_id, respondent_email, score, started_at, submitted_at) VALUES (?, ?, ?, ?, ?)",
-		quiz.ID, emailValue, scoreValue, now, now,
+		quiz.ID, emailValue, scoreValue, startedAtValue, now,
 	)
 	if err != nil {
 		return PublicSubmissionResult{}, err
@@ -353,20 +418,56 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 	}
 
 	var resultScore *int
+	var passed *bool
+	var scorePercentage *float64
 	message := "Terima kasih, jawaban berhasil dikirim."
 	if isQuizSubmission {
 		resultScore = &score
 		message = "Quiz selesai. Nilai kamu sudah dihitung."
+		if quiz.MaxPoint != nil && *quiz.MaxPoint > 0 {
+			percentage := roundFloat((float64(score) / float64(*quiz.MaxPoint)) * 100)
+			scorePercentage = &percentage
+		}
+		if quiz.PassingGrade != nil {
+			isPassed := score >= *quiz.PassingGrade
+			passed = &isPassed
+			if isPassed {
+				message = "Selamat, kamu lulus passing grade quiz ini."
+			} else {
+				message = "Quiz selesai. Kamu belum mencapai passing grade."
+			}
+		}
+	}
+
+	answerDetails := make([]PublicSubmissionAnswerResult, 0, len(storedAnswers))
+	for _, answer := range storedAnswers {
+		answerDetails = append(answerDetails, PublicSubmissionAnswerResult{
+			QuestionID:          answer.QuestionID,
+			Question:            answer.Question,
+			TypeAnswer:          answer.TypeAnswer,
+			Point:               answer.Point,
+			SelectedAnswerLabel: answer.AnswerLabel,
+			SelectedAnswerText:  answer.AnswerText,
+			IsCorrect:           answer.IsCorrect,
+			CorrectAnswers:      answer.CorrectAnswers,
+		})
 	}
 
 	return PublicSubmissionResult{
-		SubmissionID: submissionID,
-		Title:        quiz.Title,
-		Type:         quiz.Type,
-		Score:        resultScore,
-		MaxPoint:     quiz.MaxPoint,
-		SubmittedAt:  now.Format(dateTimeLayout),
-		Message:      message,
+		SubmissionID:      submissionID,
+		Title:             quiz.Title,
+		Type:              quiz.Type,
+		Score:             resultScore,
+		MaxPoint:          quiz.MaxPoint,
+		PassingGrade:      quiz.PassingGrade,
+		ScorePercentage:   scorePercentage,
+		Passed:            passed,
+		CorrectAnswers:    correctAnswers,
+		AnsweredQuestions: answeredQuestions,
+		TotalQuestions:    len(questions),
+		SubmittedAt:       now.Format(dateTimeLayout),
+		Message:           message,
+		AnswerDetails:     answerDetails,
 	}, nil
 }
 
@@ -457,6 +558,39 @@ func findQuestionAnswerByID(answers []QuestionAnswer, answerID *int64) (Question
 		}
 	}
 	return QuestionAnswer{}, fmt.Errorf("Ada jawaban yang tidak valid untuk question ini.")
+}
+
+// collectCorrectAnswerLabels disiapkan untuk result page publik dan detail submission admin
+// supaya user/admin bisa melihat kunci jawaban yang benar untuk soal pilihan ganda.
+func collectCorrectAnswerLabels(question Question) []string {
+	if stringPtrValue(question.TypeAnswer) != "multiple_choice" {
+		return []string{}
+	}
+
+	labels := []string{}
+	for _, answer := range question.Answers {
+		if strings.EqualFold(stringPtrValue(answer.Value), "true") {
+			label := strings.TrimSpace(stringPtrValue(answer.Label))
+			if label != "" {
+				labels = append(labels, label)
+			}
+		}
+	}
+	return labels
+}
+
+// shufflePublicQuestions hanya berlaku untuk quiz publik agar user tidak selalu melihat urutan
+// soal/opsi yang sama. Survey dibiarkan stabil sesuai susunan admin.
+func shufflePublicQuestions(questions []PublicQuestion) {
+	randomizer := mathrand.New(mathrand.NewSource(time.Now().UnixNano()))
+	for i := range questions {
+		randomizer.Shuffle(len(questions[i].Answers), func(a, b int) {
+			questions[i].Answers[a], questions[i].Answers[b] = questions[i].Answers[b], questions[i].Answers[a]
+		})
+	}
+	randomizer.Shuffle(len(questions), func(i, j int) {
+		questions[i], questions[j] = questions[j], questions[i]
+	})
 }
 
 // boolPtrValue konversi *bool ke argumen SQL; nil pointer jadi SQL NULL.

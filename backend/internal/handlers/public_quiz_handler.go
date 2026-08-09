@@ -14,8 +14,9 @@ import (
 )
 
 type publicSubmissionRequest struct {
-	Email   *string                         `json:"email"`
-	Answers []publicSubmissionAnswerRequest `json:"answers"`
+	Email     *string                         `json:"email"`
+	StartedAt *string                         `json:"started_at"`
+	Answers   []publicSubmissionAnswerRequest `json:"answers"`
 }
 
 type publicSubmissionAnswerRequest struct {
@@ -142,6 +143,11 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}
+		startedAt, msg := validatePublicSubmissionStartedAt(req.StartedAt)
+		if msg != "" {
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
 
 		if publicQuiz.Type != nil && *publicQuiz.Type == "quiz" && email != nil {
 			exists, err := models.HasSubmittedEmail(db, publicQuiz.ID, *email)
@@ -176,10 +182,11 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 			EndTime:     publicQuiz.EndTime,
 			Description: publicQuiz.Description,
 			MaxPoint:    publicQuiz.MaxPoint,
+			PassingGrade: publicQuiz.PassingGrade,
 			Status:      publicQuiz.Status,
 		}
 
-		result, err := models.SavePublicSubmission(db, quiz, email, inputs, now)
+		result, err := models.SavePublicSubmission(db, quiz, email, inputs, startedAt, now)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 				http.Error(w, "Email ini sudah pernah mengirim quiz ini.", http.StatusConflict)
@@ -193,6 +200,20 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(result)
 	}
+}
+
+// validatePublicSubmissionStartedAt parse waktu mulai quiz dari client agar backend bisa menyimpan
+// durasi/riwayat yang lebih akurat pada detail submission respondent.
+func validatePublicSubmissionStartedAt(value *string) (*time.Time, string) {
+	if value == nil || strings.TrimSpace(*value) == "" {
+		return nil, ""
+	}
+
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(*value))
+	if err != nil {
+		return nil, "Format started_at tidak valid."
+	}
+	return &parsed, ""
 }
 
 // validatePublicQuizAvailability jaga link publik cuma bisa dikerjakan saat period dan status-nya aktif.
