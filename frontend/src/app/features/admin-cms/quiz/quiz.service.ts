@@ -18,6 +18,11 @@ export interface Quiz {
   status: string | null;
 }
 
+export interface QuizShareResponse {
+  quiz_id: number;
+  token: string | null;
+}
+
 export type QuizPayload = Omit<Quiz, 'id' | 'total_question'>;
 
 @Injectable({ providedIn: 'root' })
@@ -51,5 +56,10 @@ export class QuizService {
   // Hapus quiz berdasarkan id.
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
+
+  // Generate atau ambil token share publik milik quiz tertentu.
+  shareLink(id: number): Observable<QuizShareResponse> {
+    return this.http.post<QuizShareResponse>(`${this.baseUrl}/${id}/share-link`, {});
   }
 }

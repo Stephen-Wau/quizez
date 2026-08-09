@@ -20,6 +20,9 @@
 
 <ng-template #aksiTpl let-row="row">
   <div class="quiz__actions">
+    <app-button variant="ghost" size="sm" (click)="share($any(row))" [disabled]="sharingQuizId === $any(row).id">
+      Share
+    </app-button>
     <app-button variant="ghost" size="sm" (click)="openEditModal($any(row))">
       <lucide-icon name="pencil" [size]="14"></lucide-icon>
       Edit

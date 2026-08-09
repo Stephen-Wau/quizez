@@ -6,6 +6,12 @@ import { authGuard } from './core/auth/auth.guard';
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'admin-cms' },
   {
+    path: 'public-form/:token',
+    // Route publik buat pengisian quiz/survey dari link share, sengaja tanpa authGuard.
+    loadComponent: () =>
+      import('./features/public-form/public-form.component').then((m) => m.PublicFormComponent),
+  },
+  {
     path: 'admin-cms/login',
     // Lazy load halaman login, ga perlu authGuard karena ini justru buat login.
     loadComponent: () =>

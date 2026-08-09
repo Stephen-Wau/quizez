@@ -46,6 +46,7 @@ export class QuizComponent implements OnInit {
   pageSize = 10;
   isModalOpen = false;
   isSaving = false;
+  sharingQuizId: number | null = null;
   editingId: number | null = null; // null = create
   private currentQuery: DataTableQuery = {};
 
@@ -231,6 +232,33 @@ export class QuizComponent implements OnInit {
       'Gagal menghapus quiz.',
       () => this.loadQuizzes(),
     );
+  }
+
+  // Generate token share publik lalu copy URL-nya ke clipboard supaya admin bisa langsung bagikan.
+  share(quiz: Quiz): void {
+    this.sharingQuizId = quiz.id;
+    this.quizService.shareLink(quiz.id).subscribe({
+      next: async (response) => {
+        this.sharingQuizId = null;
+        if (!response.token) {
+          this.toast.error('Token share tidak valid.');
+          return;
+        }
+
+        const shareUrl = `${window.location.origin}/public-form/${response.token}`;
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          this.toast.success('Link share berhasil dicopy.');
+        } catch {
+          this.toast.info(`Link siap dibagikan: ${shareUrl}`);
+        }
+      },
+      error: (err) => {
+        this.sharingQuizId = null;
+        const message = typeof err?.error === 'string' && err.error ? err.error : 'Gagal membuat link share.';
+        this.toast.error(message);
+      },
+    });
   }
 
   // "YYYY-MM-DDTHH:mm:ss" (BE) -> "HH:mm" (input time) kalau quiz, atau "YYYY-MM-DDTHH:mm" (input

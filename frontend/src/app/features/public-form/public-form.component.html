@@ -1,0 +1,139 @@
+<div class="public-form">
+  <div class="public-form__shell">
+    <div *ngIf="loading" class="public-form__card public-form__card--center">
+      <h1>Memuat Form</h1>
+      <p>Mohon tunggu, kami sedang menyiapkan quiz atau survey-nya.</p>
+    </div>
+
+    <div *ngIf="!loading && loadError" class="public-form__card public-form__card--center">
+      <h1>Link Tidak Tersedia</h1>
+      <p>{{ loadError }}</p>
+    </div>
+
+    <ng-container *ngIf="!loading && !loadError && detail as form">
+      <div *ngIf="submitResult && isQuiz" class="public-form__card public-form__card--center public-form__card--result">
+        <span class="public-form__eyebrow">Quiz Selesai</span>
+        <h1>{{ submitResult.title || 'Quiz' }}</h1>
+        <p>{{ submitResult.message }}</p>
+        <div class="public-form__score">
+          <strong>{{ submitResult.score ?? 0 }}</strong>
+          <span>/ {{ submitResult.max_point ?? 0 }}</span>
+        </div>
+        <p class="public-form__meta-line">Terkirim pada {{ submitResult.submitted_at }}</p>
+      </div>
+
+      <div *ngIf="submitResult && isSurvey" class="public-form__card public-form__card--center public-form__card--result">
+        <span class="public-form__eyebrow">Terima Kasih</span>
+        <h1>{{ submitResult.title || 'Survey' }}</h1>
+        <p>{{ submitResult.message }}</p>
+        <app-button type="button" (click)="refillSurvey()">Isi Kembali Survey</app-button>
+      </div>
+
+      <ng-container *ngIf="!submitResult">
+        <div *ngIf="!canFillNow" class="public-form__card public-form__card--center">
+          <span class="public-form__eyebrow">{{ form.type === 'quiz' ? 'Quiz Publik' : 'Survey Publik' }}</span>
+          <h1>{{ statusTitle() }}</h1>
+          <p>{{ statusDescription() }}</p>
+          <div class="public-form__period">{{ formatPeriod() }}</div>
+        </div>
+
+        <ng-container *ngIf="canFillNow">
+          <div class="public-form__card">
+            <span class="public-form__eyebrow">{{ form.type === 'quiz' ? 'Quiz Publik' : 'Survey Publik' }}</span>
+            <h1>{{ form.title || 'Form Publik' }}</h1>
+            <p *ngIf="form.description">{{ form.description }}</p>
+
+            <div class="public-form__meta">
+              <div class="public-form__meta-item">
+                <span>Periode</span>
+                <strong>{{ formatPeriod() }}</strong>
+              </div>
+              <div class="public-form__meta-item">
+                <span>Total Question</span>
+                <strong>{{ form.total_question }}</strong>
+              </div>
+              <div *ngIf="isQuiz" class="public-form__meta-item">
+                <span>Max Point</span>
+                <strong>{{ form.max_point ?? 0 }}</strong>
+              </div>
+              <div *ngIf="isQuiz && hasStartedQuiz" class="public-form__meta-item public-form__meta-item--danger">
+                <span>Sisa Waktu</span>
+                <strong>{{ countdownLabel }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="isQuiz && !hasStartedQuiz" class="public-form__card">
+            <h2>Mulai Quiz</h2>
+            <p>Masukkan email terlebih dahulu. Email yang sama tidak bisa mengirim quiz ini dua kali.</p>
+
+            <form [formGroup]="accessForm" (ngSubmit)="startQuiz()">
+              <app-input
+                label="Email"
+                type="email"
+                [required]="true"
+                formControlName="email"
+                [errorMessage]="accessForm.get('email')?.touched && accessForm.get('email')?.invalid ? 'Email wajib valid.' : ''"
+              ></app-input>
+
+              <div class="public-form__actions">
+                <app-button type="submit">Start Quiz</app-button>
+              </div>
+            </form>
+          </div>
+
+          <div *ngIf="isSurvey || hasStartedQuiz" class="public-form__card">
+            <form [formGroup]="questionForm" (ngSubmit)="submit()">
+              <div formArrayName="answers" class="public-form__questions">
+                <div
+                  *ngFor="let question of form.questions; let i = index; trackBy: trackByQuestionId"
+                  [formGroupName]="i"
+                  class="public-form__question"
+                >
+                  <div class="public-form__question-head">
+                    <h3>{{ i + 1 }}. {{ question.question || 'Question' }}</h3>
+                    <span class="public-form__question-type">{{ question.type_answer || '-' }}</span>
+                  </div>
+
+                  <div *ngIf="question.type_answer !== 'free_text'" class="public-form__option-list">
+                    <button
+                      *ngFor="let option of question.answers; trackBy: trackByOptionId"
+                      type="button"
+                      class="public-form__option"
+                      [class.public-form__option--active]="isSelected(i, option.id)"
+                      (click)="chooseOption(i, option.id)"
+                    >
+                      <span class="public-form__option-bullet"></span>
+                      <span>{{ option.label || '-' }}</span>
+                    </button>
+                  </div>
+
+                  <app-input
+                    *ngIf="question.type_answer === 'free_text'"
+                    label="Jawaban"
+                    [required]="true"
+                    [multiline]="true"
+                    formControlName="answer_text"
+                  ></app-input>
+
+                  <p
+                    *ngIf="answersArray.at(i).touched && answersArray.at(i).invalid"
+                    class="public-form__error"
+                  >
+                    Jawaban untuk question ini wajib diisi.
+                  </p>
+                </div>
+              </div>
+
+              <div class="public-form__actions">
+                <app-button type="submit" [disabled]="isSubmitting">
+                  {{ isSubmitting ? 'Mengirim...' : (isQuiz ? 'Submit Quiz' : 'Submit Survey') }}
+                </app-button>
+              </div>
+            </form>
+          </div>
+        </ng-container>
+      </ng-container>
+    </ng-container>
+  </div>
+</div>
