@@ -8,6 +8,8 @@ import {
   QuestionOptionSummary,
   QuestionSummary,
   QuizSummaryResponse,
+  SubmissionAnswerSummary,
+  SubmissionSummary,
   SummaryBucket,
   SummaryService,
 } from '../summary/summary.service';
@@ -24,6 +26,12 @@ export class SummaryDetailComponent implements OnInit {
   loadError = '';
   summary: QuizSummaryResponse | null = null;
   readonly chartColors = ['#4f46e5', '#7c3aed', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444'];
+  collapsedSections = {
+    overview: false,
+    respondent: false,
+    analytics: false,
+    submissions: false,
+  };
 
   constructor(
     private route: ActivatedRoute,
@@ -117,6 +125,11 @@ export class SummaryDetailComponent implements OnInit {
     this.router.navigate(['/admin-cms/summary']);
   }
 
+  // Toggle dipisah per section biar nanti mudah ditambah collapse panel baru tanpa ubah banyak template.
+  toggleSection(section: keyof typeof this.collapsedSections): void {
+    this.collapsedSections[section] = !this.collapsedSections[section];
+  }
+
   // Format period detail: quiz jam saja, survey tanggal+jam.
   formatPeriod(): string {
     if (!this.summary?.quiz.start_time && !this.summary?.quiz.end_time) return '-';
@@ -185,8 +198,18 @@ export class SummaryDetailComponent implements OnInit {
     return (question.correct_count / question.total_responses) * 100;
   }
 
+  answerPreview(answer: SubmissionAnswerSummary): string {
+    if (answer.answer_text) return answer.answer_text;
+    if (answer.answer_label) return answer.answer_label;
+    return '-';
+  }
+
   trackByQuestionId(_: number, item: QuestionSummary): number {
     return item.question_id;
+  }
+
+  trackBySubmissionId(_: number, item: SubmissionSummary): number {
+    return item.id;
   }
 
   trackByOptionLabel(_: number, item: QuestionOptionSummary): string {
@@ -238,7 +261,7 @@ export class SummaryDetailComponent implements OnInit {
 
   formatPercent(value: number | null): string {
     if (value === null || value === undefined) return '0';
-    return value.toFixed(2).replace(/\\.00$/, '');
+    return value.toFixed(2).replace(/\.00$/, '');
   }
 
   private humanizeType(value: string): string {
