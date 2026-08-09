@@ -1,0 +1,30 @@
+<div class="summary-page__header">
+  <div>
+    <h1>Summary</h1>
+    <p>Pilih quiz atau survey untuk melihat dashboard hasil jawaban, score, dan respons user.</p>
+  </div>
+</div>
+
+<ng-template #typeTpl let-value="value">
+  <span class="summary-page__badge" [class.summary-page__badge--survey]="value === 'survey'">{{ value || '-' }}</span>
+</ng-template>
+
+<ng-template #periodTpl let-row="row">
+  {{ formatPeriod($any(row)) }}
+</ng-template>
+
+<ng-template #actionTpl let-row="row">
+  <app-button size="sm" (click)="openSummary($any(row))">Show Summary</app-button>
+</ng-template>
+
+<app-data-table
+  [rows]="quizzes"
+  [columns]="columns"
+  [serverSide]="true"
+  [totalCount]="totalCount"
+  [pageSize]="pageSize"
+  (search)="onTableQueryChange($event)"
+  (refresh)="loadQuizzes()"
+  searchPlaceholder="Search title..."
+  emptyMessage="Belum ada quiz. Tambahkan quiz atau survey dulu sebelum membuka summary."
+></app-data-table>

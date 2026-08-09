@@ -27,6 +27,7 @@ export const routes: Routes = [
       {
         path: '',
         // Default child route, tampil pas buka /admin-cms tanpa path tambahan.
+        pathMatch: 'full',
         loadComponent: () =>
           import('./features/admin-cms/dashboard/dashboard.component').then(
             (m) => m.DashboardComponent
@@ -42,6 +43,18 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/admin-cms/question-answer/question-answer.component').then(
             (m) => m.QuestionAnswerComponent
+          ),
+      },
+      {
+        path: 'summary',
+        loadComponent: () =>
+          import('./features/admin-cms/summary/summary.component').then((m) => m.SummaryComponent),
+      },
+      {
+        path: 'summary/:id',
+        loadComponent: () =>
+          import('./features/admin-cms/summary-detail/summary-detail.component').then(
+            (m) => m.SummaryDetailComponent
           ),
       },
     ],

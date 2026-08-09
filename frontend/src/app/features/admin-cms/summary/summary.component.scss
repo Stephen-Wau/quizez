@@ -1,0 +1,34 @@
+.summary-page__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.summary-page__header h1 {
+  margin: 0;
+  font-size: 2.5rem;
+  color: #17325c;
+}
+
+.summary-page__header p {
+  margin: 8px 0 0;
+  color: #64748b;
+}
+
+.summary-page__badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: #4f46e5;
+  color: #fff;
+  padding: 4px 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.summary-page__badge--survey {
+  background: #64748b;
+}
