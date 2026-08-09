@@ -131,6 +131,25 @@ export class DataTableComponent implements OnChanges {
     this.refresh.emit();
   }
 
+  // Semua kolom aksi diseragamkan rata kanan dari komponen tabel reusable, jadi parent
+  // tidak perlu set class manual lagi untuk tiap halaman admin.
+  isActionColumn(column: DataTableColumn): boolean {
+    return column.name.trim().toLowerCase() === 'action';
+  }
+
+  // Kolom status yang tidak pakai template custom tetap dibungkus badge konsisten:
+  // active = hijau terang, inactive = abu secondary, selain itu pakai warna netral.
+  isStatusColumn(column: DataTableColumn): boolean {
+    return (column.prop ?? '').trim().toLowerCase() === 'status' && !column.cellTemplate;
+  }
+
+  statusBadgeClass(value: unknown): string {
+    const normalized = String(value ?? '').trim().toLowerCase();
+    if (normalized === 'active') return 'app-data-table__status-badge app-data-table__status-badge--active';
+    if (normalized === 'inactive') return 'app-data-table__status-badge app-data-table__status-badge--inactive';
+    return 'app-data-table__status-badge app-data-table__status-badge--neutral';
+  }
+
   // Kumpulin state search/sort/page jadi satu DataTableQuery & emit ke parent (mode serverSide).
   private emitQuery(): void {
     this.search.emit({

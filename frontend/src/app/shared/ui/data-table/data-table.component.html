@@ -41,8 +41,8 @@
       [name]="col.name"
       [prop]="col.prop || ''"
       [sortable]="col.sortable !== false"
-      [headerClass]="col.headerClass || ''"
-      [cellClass]="col.cellClass || ''"
+      [headerClass]="(isActionColumn(col) ? 'app-data-table__cell--actions ' : '') + (col.headerClass || '')"
+      [cellClass]="(isActionColumn(col) ? 'app-data-table__cell--actions ' : '') + (col.cellClass || '')"
     >
       <ng-template ngx-datatable-cell-template let-row="row" let-value="value">
         <ng-container *ngIf="col.cellTemplate; else plainValue">
@@ -50,7 +50,12 @@
             *ngTemplateOutlet="col.cellTemplate; context: { row: row, value: value }"
           ></ng-container>
         </ng-container>
-        <ng-template #plainValue>{{ value }}</ng-template>
+        <ng-template #plainValue>
+          <span *ngIf="isStatusColumn(col); else plainTextValue" [class]="statusBadgeClass(value)">
+            {{ value || '-' }}
+          </span>
+          <ng-template #plainTextValue>{{ value }}</ng-template>
+        </ng-template>
       </ng-template>
     </ngx-datatable-column>
 
