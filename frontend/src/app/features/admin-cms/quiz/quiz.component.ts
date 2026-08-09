@@ -64,27 +64,34 @@ export class QuizComponent implements OnInit {
       end_input: ['', Validators.required],
       description: [''],
       max_point: [null],
+      passing_grade: [null],
       status: ['active', Validators.required],
     });
 
     // Ganti tipe -> format start/end beda (jam vs tanggal+jam) & max_point cuma relevan buat quiz
     // (wajib diisi), jadi kosongin dulu biar gak ada value nyangkut dari format tipe sebelumnya.
     this.form.get('type')!.valueChanges.subscribe((type) => {
-      this.form.patchValue({ start_input: '', end_input: '', max_point: null });
+      this.form.patchValue({ start_input: '', end_input: '', max_point: null, passing_grade: null });
       this.applyMaxPointValidator(type);
     });
     this.applyMaxPointValidator(this.form.get('type')!.value);
   }
 
-  // max_point cuma wajib diisi kalau type=quiz; type=survey gak butuh field ini sama sekali.
+  // max_point dan passing_grade cuma wajib untuk quiz, sedangkan survey tidak memakai scoring lulus.
   private applyMaxPointValidator(type: string): void {
-    const control = this.form.get('max_point')!;
+    const maxPointControl = this.form.get('max_point')!;
+    const passingGradeControl = this.form.get('passing_grade')!;
     if (type === 'quiz') {
-      control.setValidators(Validators.required);
+      maxPointControl.setValidators([Validators.required, Validators.min(0)]);
+      passingGradeControl.setValidators([Validators.required, Validators.min(0)]);
     } else {
-      control.clearValidators();
+      maxPointControl.clearValidators();
+      passingGradeControl.clearValidators();
+      maxPointControl.setValue(null);
+      passingGradeControl.setValue(null);
     }
-    control.updateValueAndValidity();
+    maxPointControl.updateValueAndValidity();
+    passingGradeControl.updateValueAndValidity();
   }
 
   // Setup kolom tabel dan langsung load data pertama kali komponen dibuka.
@@ -152,7 +159,7 @@ export class QuizComponent implements OnInit {
   openCreateModal(): void {
     this.editingId = null;
     this.form.reset({
-      title: '', type: 'quiz', start_input: '', end_input: '', description: '', max_point: null, status: 'active',
+      title: '', type: 'quiz', start_input: '', end_input: '', description: '', max_point: null, passing_grade: null, status: 'active',
     });
     this.applyMaxPointValidator('quiz');
     this.isModalOpen = true;
@@ -169,6 +176,7 @@ export class QuizComponent implements OnInit {
       end_input: this.extractInputValue(quiz.end_time, isQuiz),
       description: quiz.description ?? '',
       max_point: quiz.max_point,
+      passing_grade: quiz.passing_grade,
       status: quiz.status ?? 'active',
     });
     this.applyMaxPointValidator(quiz.type ?? 'quiz');
@@ -198,12 +206,22 @@ export class QuizComponent implements OnInit {
       end_time: this.combineDateTime(raw.end_input!, isQuiz),
       description: raw.description || null,
       max_point: isQuiz && raw.max_point !== null && raw.max_point !== '' ? Number(raw.max_point) : null,
+      passing_grade: isQuiz && raw.passing_grade !== null && raw.passing_grade !== '' ? Number(raw.passing_grade) : null,
       status: raw.status || null,
     };
 
     // Validasi cross-field: end_time gak boleh lebih awal dari start_time.
     if (payload.start_time && payload.end_time && payload.start_time > payload.end_time) {
       this.toast.error('Waktu selesai tidak boleh sebelum waktu mulai.');
+      return;
+    }
+    if (
+      isQuiz &&
+      payload.max_point !== null &&
+      payload.passing_grade !== null &&
+      payload.passing_grade > payload.max_point
+    ) {
+      this.toast.error('Passing grade tidak boleh melebihi max point.');
       return;
     }
 

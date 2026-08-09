@@ -114,6 +114,15 @@
     ></app-input>
 
     <app-input
+      *ngIf="isQuizType"
+      label="Passing Grade"
+      [required]="true"
+      type="number"
+      formControlName="passing_grade"
+      [errorMessage]="fieldError('passing_grade')"
+    ></app-input>
+
+    <app-input
       label="Description"
       formControlName="description"
       [multiline]="true"

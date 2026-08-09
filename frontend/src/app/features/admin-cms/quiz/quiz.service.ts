@@ -14,6 +14,7 @@ export interface Quiz {
   end_time: string | null;
   description: string | null;
   max_point: number | null;
+  passing_grade: number | null;
   total_question: number;
   status: string | null;
 }
