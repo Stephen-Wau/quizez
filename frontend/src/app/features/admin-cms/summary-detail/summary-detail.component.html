@@ -1,9 +1,12 @@
-<div class="summary-detail">
+<div class="summary-detail" *ngIf="!loading && summary as data; else summaryState">
   <div class="summary-detail__header">
     <div>
       <button class="summary-detail__back" type="button" (click)="backToList()">Back to Summary</button>
-      <h1>Summary Detail</h1>
-      <p>Halaman detail summary sedang disiapkan. Pilih quiz lain atau kembali ke daftar summary.</p>
+      <h1>{{ data.quiz.title || 'Untitled Quiz' }}</h1>
+      <p>
+        {{ data.quiz.type || '-' }} • {{ formatPeriod() }} • {{ data.quiz.total_question }} question •
+        {{ data.quiz.status || '-' }}
+      </p>
     </div>
 
     <div class="summary-detail__header-actions">
@@ -11,7 +14,127 @@
     </div>
   </div>
 
-  <div class="summary-detail__empty">
-    Dashboard analytics untuk quiz atau survey ini akan tampil di sini.
+  <div class="summary-detail__cards">
+    <article
+      *ngFor="let card of summaryCards"
+      class="summary-detail__card"
+      [class.summary-detail__card--indigo]="card.accent === 'indigo'"
+      [class.summary-detail__card--emerald]="card.accent === 'emerald'"
+      [class.summary-detail__card--amber]="card.accent === 'amber'"
+      [class.summary-detail__card--rose]="card.accent === 'rose'"
+    >
+      <span>{{ card.label }}</span>
+      <strong>{{ card.value }}</strong>
+    </article>
   </div>
+
+  <div *ngIf="!hasSubmissions" class="summary-detail__empty">
+    Belum ada submission untuk quiz atau survey ini.
+  </div>
+
+  <ng-container *ngIf="hasSubmissions">
+    <div class="summary-detail__grid">
+      <section *ngIf="isQuiz" class="summary-detail__panel">
+        <div class="summary-detail__panel-head">
+          <h2>Score Distribution</h2>
+          <p>Sebaran skor submission dalam bucket persentase.</p>
+        </div>
+
+        <div class="summary-detail__bars">
+          <div class="summary-detail__bar-row" *ngFor="let bucket of data.score_distribution">
+            <div class="summary-detail__bar-label">
+              <span>{{ bucket.label }}</span>
+              <strong>{{ bucket.count }}</strong>
+            </div>
+            <div class="summary-detail__bar-track">
+              <div class="summary-detail__bar-fill" [style.width.%]="bucketWidth(bucket)"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="summary-detail__panel">
+        <div class="summary-detail__panel-head">
+          <h2>Recent Submission</h2>
+          <p>Snapshot singkat jawaban terakhir yang masuk.</p>
+        </div>
+
+        <div *ngIf="data.submission_summaries.length > 0" class="summary-detail__recent">
+          <div class="summary-detail__recent-meta">
+            <strong>{{ data.submission_summaries[0].respondent_email || 'Anonymous respondent' }}</strong>
+            <span>{{ data.submission_summaries[0].submitted_at || '-' }}</span>
+          </div>
+          <span class="summary-detail__recent-chip">
+            Completion {{ formatPercent(data.submission_summaries[0].completion_percentage) }}%
+          </span>
+          <span *ngIf="isQuiz" class="summary-detail__recent-chip">
+            Score {{ formatScore(data.submission_summaries[0].score) }}
+          </span>
+        </div>
+      </section>
+    </div>
+
+    <div class="summary-detail__grid">
+      <section *ngIf="isQuiz" class="summary-detail__panel">
+        <div class="summary-detail__panel-head">
+          <h2>Score Composition</h2>
+          <p>Donut chart untuk membaca bucket skor secara lebih cepat.</p>
+        </div>
+
+        <div class="summary-detail__chart-card">
+          <div class="summary-detail__donut-wrap">
+            <div class="summary-detail__donut" [style.background]="scoreDistributionChartStyle()">
+              <div class="summary-detail__donut-hole">
+                <strong>{{ data.stats.total_submissions }}</strong>
+                <span>submission</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-detail__legend">
+            <div class="summary-detail__legend-item" *ngFor="let bucket of data.score_distribution; let i = index">
+              <span class="summary-detail__legend-dot" [style.background]="chartColors[i % chartColors.length]"></span>
+              <div>
+                <strong>{{ bucket.label }}</strong>
+                <span>{{ bucket.count }} respondent</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="summary-detail__panel">
+        <div class="summary-detail__panel-head">
+          <h2>Question Mix</h2>
+          <p>Komposisi tipe question dalam quiz atau survey ini.</p>
+        </div>
+
+        <div class="summary-detail__chart-card">
+          <div class="summary-detail__donut-wrap">
+            <div class="summary-detail__donut summary-detail__donut--soft" [style.background]="questionTypeChartStyle()">
+              <div class="summary-detail__donut-hole">
+                <strong>{{ data.quiz.total_question }}</strong>
+                <span>question</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-detail__legend">
+            <div class="summary-detail__legend-item" *ngFor="let type of questionTypeBreakdown">
+              <span class="summary-detail__legend-dot" [style.background]="type.color"></span>
+              <div>
+                <strong>{{ type.label }}</strong>
+                <span>{{ type.count }} question</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </ng-container>
 </div>
+
+<ng-template #summaryState>
+  <div *ngIf="loading" class="summary-detail__empty">Memuat dashboard summary...</div>
+  <div *ngIf="!loading && loadError" class="summary-detail__empty">{{ loadError }}</div>
+</ng-template>
