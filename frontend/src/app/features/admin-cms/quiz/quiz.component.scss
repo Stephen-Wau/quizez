@@ -13,7 +13,9 @@
 
 .quiz__actions {
   display: flex;
+  justify-content: flex-end;
   gap: var(--spacing-2);
+  width: 100%;
 }
 
 .quiz__badge {

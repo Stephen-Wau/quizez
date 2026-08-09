@@ -12,6 +12,8 @@ export interface DataTableColumn {
   prop?: string;
   sortable?: boolean;
   cellTemplate?: TemplateRef<unknown>;
+  headerClass?: string;
+  cellClass?: string;
 }
 
 // Kontrak query param standar buat semua API list yang FE-nya pakai <app-data-table serverSide>.

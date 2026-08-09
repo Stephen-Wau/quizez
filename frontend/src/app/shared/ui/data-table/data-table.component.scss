@@ -97,6 +97,12 @@
       color: var(--color-text-muted);
     }
 
+    .datatable-header-cell.app-data-table__cell--actions .datatable-header-cell-template-wrap {
+      display: flex;
+      justify-content: flex-end;
+      width: 100%;
+    }
+
     // Indikator sort custom (panah atas/bawah pakai CSS border-triangle), gak perlu icon font
     // bawaan ngx-datatable. Default abu-abu redup, warna primary + solid pas kolom itu lagi di-sort.
     .sort-btn {
@@ -154,6 +160,10 @@
       padding: var(--spacing-3);
       display: flex;
       align-items: center;
+    }
+
+    .datatable-body-cell.app-data-table__cell--actions {
+      justify-content: flex-end;
     }
 
     .empty-row {

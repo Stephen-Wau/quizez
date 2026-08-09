@@ -94,7 +94,13 @@ export class QuizComponent implements OnInit {
       { name: 'Type', prop: 'type', cellTemplate: this.typeTpl },
       { name: 'Period', prop: 'start_time', cellTemplate: this.periodTpl },
       { name: 'Status', prop: 'status', cellTemplate: this.statusTpl },
-      { name: 'Action', sortable: false, cellTemplate: this.aksiTpl },
+      {
+        name: 'Action',
+        sortable: false,
+        cellTemplate: this.aksiTpl,
+        headerClass: 'app-data-table__cell--actions',
+        cellClass: 'app-data-table__cell--actions',
+      },
     ];
     this.loadQuizzes();
   }
@@ -236,6 +242,11 @@ export class QuizComponent implements OnInit {
 
   // Generate token share publik lalu copy URL-nya ke clipboard supaya admin bisa langsung bagikan.
   share(quiz: Quiz): void {
+    if (!this.canShareQuiz(quiz)) {
+      this.toast.error('Link share hanya bisa dibuat untuk quiz yang statusnya active.');
+      return;
+    }
+
     this.sharingQuizId = quiz.id;
     this.quizService.shareLink(quiz.id).subscribe({
       next: async (response) => {
@@ -259,6 +270,12 @@ export class QuizComponent implements OnInit {
         this.toast.error(message);
       },
     });
+  }
+
+  // Tombol share cuma relevan untuk quiz yang aktif; status inactive disembunyikan supaya admin
+  // tidak membagikan form yang memang sudah dinonaktifkan.
+  canShareQuiz(quiz: Quiz): boolean {
+    return (quiz.status ?? '').toLowerCase() === 'active';
   }
 
   // "YYYY-MM-DDTHH:mm:ss" (BE) -> "HH:mm" (input time) kalau quiz, atau "YYYY-MM-DDTHH:mm" (input

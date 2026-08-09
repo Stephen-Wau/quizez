@@ -41,6 +41,8 @@
       [name]="col.name"
       [prop]="col.prop || ''"
       [sortable]="col.sortable !== false"
+      [headerClass]="col.headerClass || ''"
+      [cellClass]="col.cellClass || ''"
     >
       <ng-template ngx-datatable-cell-template let-row="row" let-value="value">
         <ng-container *ngIf="col.cellTemplate; else plainValue">

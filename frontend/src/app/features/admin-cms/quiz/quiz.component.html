@@ -20,7 +20,13 @@
 
 <ng-template #aksiTpl let-row="row">
   <div class="quiz__actions">
-    <app-button variant="ghost" size="sm" (click)="share($any(row))" [disabled]="sharingQuizId === $any(row).id">
+    <app-button
+      *ngIf="canShareQuiz($any(row))"
+      variant="ghost"
+      size="sm"
+      (click)="share($any(row))"
+      [disabled]="sharingQuizId === $any(row).id"
+    >
       Share
     </app-button>
     <app-button variant="ghost" size="sm" (click)="openEditModal($any(row))">

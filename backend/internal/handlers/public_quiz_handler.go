@@ -52,6 +52,10 @@ func QuizShareHandler(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "failed to generate share link", http.StatusInternalServerError)
 			return
 		}
+		if !strings.EqualFold(strings.TrimSpace(stringValue(quiz.Status)), "active") {
+			http.Error(w, "Quiz inactive tidak bisa generate link share.", http.StatusConflict)
+			return
+		}
 
 		share, err := models.GetOrCreateQuizShare(db, quiz.ID)
 		if err != nil {
@@ -220,4 +224,12 @@ func validatePublicSubmissionEmail(quiz models.PublicQuiz, email *string) (*stri
 		return nil, "Format email tidak valid."
 	}
 	return &normalized, ""
+}
+
+// stringValue bantu baca pointer string handler tanpa perlu ngecek nil berulang.
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
