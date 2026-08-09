@@ -134,6 +134,14 @@
   background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
 }
 
+.summary-detail__bar-fill--emerald {
+  background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+}
+
+.summary-detail__bar-fill--sunset {
+  background: linear-gradient(90deg, #f97316 0%, #f59e0b 100%);
+}
+
 .summary-detail__recent {
   display: grid;
   gap: 12px;
@@ -235,6 +243,72 @@
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.08);
 }
 
+.summary-detail__performance-list {
+  display: grid;
+  gap: 16px;
+}
+
+.summary-detail__performance-item {
+  border: 1px solid #edf2f7;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  padding: 16px;
+}
+
+.summary-detail__performance-meta,
+.summary-detail__performance-badges {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.summary-detail__performance-meta strong {
+  display: block;
+  color: #17325c;
+}
+
+.summary-detail__performance-meta span {
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.summary-detail__performance-badges {
+  flex-wrap: wrap;
+}
+
+.summary-detail__performance-badges span {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.summary-detail__performance-bars {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.summary-detail__performance-bar {
+  display: grid;
+  gap: 8px;
+}
+
+.summary-detail__performance-bar label {
+  font-size: 0.84rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.summary-detail__bar-track--performance {
+  height: 14px;
+}
+
 .summary-detail__empty {
   border: 1px dashed #d8e0ee;
   border-radius: 20px;
@@ -254,7 +328,8 @@
 @media (max-width: 720px) {
   .summary-detail__header,
   .summary-detail__bar-label,
-  .summary-detail__recent-meta {
+  .summary-detail__recent-meta,
+  .summary-detail__performance-meta {
     flex-direction: column;
   }
 

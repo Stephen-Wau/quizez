@@ -62,6 +62,25 @@ export class SummaryDetailComponent implements OnInit {
     }));
   }
 
+  // Submission performance chart dipakai untuk membandingkan skor/completion antar user.
+  get submissionPerformance(): Array<{
+    id: number;
+    respondent: string;
+    score: number;
+    completion: number;
+    submittedAt: string | null;
+  }> {
+    if (!this.summary) return [];
+
+    return this.summary.submission_summaries.map((submission) => ({
+      id: submission.id,
+      respondent: submission.respondent_email || 'Anonymous respondent',
+      score: submission.score ?? 0,
+      completion: submission.completion_percentage,
+      submittedAt: submission.submitted_at,
+    }));
+  }
+
   // cards untuk header dashboard: disusun sebagai getter supaya template tetap ringkas.
   get summaryCards(): Array<{ label: string; value: string; accent?: 'indigo' | 'emerald' | 'amber' | 'rose' }> {
     if (!this.summary) return [];

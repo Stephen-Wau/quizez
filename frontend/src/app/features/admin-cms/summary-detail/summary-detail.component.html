@@ -131,6 +131,44 @@
         </div>
       </section>
     </div>
+
+    <section class="summary-detail__panel">
+      <div class="summary-detail__panel-head">
+        <h2>Respondent Performance</h2>
+        <p>Perbandingan completion dan skor antar respondent dalam bentuk chart bar.</p>
+      </div>
+
+      <div class="summary-detail__performance-list">
+        <article class="summary-detail__performance-item" *ngFor="let item of submissionPerformance">
+          <div class="summary-detail__performance-meta">
+            <div>
+              <strong>{{ item.respondent }}</strong>
+              <span>{{ formatDateTime(item.submittedAt) }}</span>
+            </div>
+            <div class="summary-detail__performance-badges">
+              <span>Completion {{ formatPercent(item.completion) }}%</span>
+              <span *ngIf="isQuiz">Score {{ formatScore(item.score) }}</span>
+            </div>
+          </div>
+
+          <div class="summary-detail__performance-bars">
+            <div class="summary-detail__performance-bar">
+              <label>Completion</label>
+              <div class="summary-detail__bar-track summary-detail__bar-track--performance">
+                <div class="summary-detail__bar-fill summary-detail__bar-fill--emerald" [style.width.%]="item.completion"></div>
+              </div>
+            </div>
+
+            <div *ngIf="isQuiz" class="summary-detail__performance-bar">
+              <label>Score</label>
+              <div class="summary-detail__bar-track summary-detail__bar-track--performance">
+                <div class="summary-detail__bar-fill summary-detail__bar-fill--sunset" [style.width.%]="item.score"></div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
   </ng-container>
 </div>
 
