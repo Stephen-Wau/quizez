@@ -11,6 +11,7 @@ type Config struct {
 	DBHost          string
 	DBPort          string
 	DBName          string
+	AppPort         string
 	FrontendOrigin  string
 	JWTSecret       string
 	JWTExpiryHours  int
@@ -25,6 +26,7 @@ func Load() Config {
 		DBHost:         getEnv("DB_HOST", "127.0.0.1"),
 		DBPort:         getEnv("DB_PORT", "3306"),
 		DBName:         getEnv("DB_NAME", "quizez_db"),
+		AppPort:        getEnv("APP_PORT", "18080"),
 		FrontendOrigin: getEnv("FRONTEND_ORIGIN", "http://localhost:4200"),
 		JWTSecret:      getEnv("JWT_SECRET", "change-me-to-a-long-random-string"),
 		JWTExpiryHours: getEnvInt("JWT_EXPIRY_HOURS", 24),

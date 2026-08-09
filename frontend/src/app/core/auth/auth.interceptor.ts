@@ -9,17 +9,19 @@ import { AuthService } from './auth.service';
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
+  const isPublicApiRequest = req.url.includes('/api/public/');
 
   const token = auth.getToken();
   // Cuma clone request buat nambahin header kalau emang ada token, biar request tanpa token tetep jalan normal.
-  const authedReq = token
+  const authedReq = token && !isPublicApiRequest
     ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
     : req;
 
   return next(authedReq).pipe(
     catchError((err) => {
-      // 401 dari backend berarti token invalid/expired, paksa logout dan lempar ke login.
-      if (err.status === 401) {
+      // Request publik harus tetap berdiri sendiri; jangan ikut dipaksa logout/redirect walau
+      // backend balikin 401/403, karena halaman share link memang bisa dibuka tanpa sesi CMS.
+      if (err.status === 401 && !isPublicApiRequest) {
         auth.logout();
         router.navigate(['/admin-cms/login']);
       }
