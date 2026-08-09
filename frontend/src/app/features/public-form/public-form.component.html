@@ -14,12 +14,53 @@
       <div *ngIf="submitResult && isQuiz" class="public-form__card public-form__card--center public-form__card--result">
         <span class="public-form__eyebrow">Quiz Selesai</span>
         <h1>{{ submitResult.title || 'Quiz' }}</h1>
+        <span
+          class="public-form__result-badge"
+          [class.public-form__result-badge--pass]="quizPassed === true"
+          [class.public-form__result-badge--fail]="quizPassed === false"
+        >
+          {{ quizPassed === true ? 'Passed' : (quizPassed === false ? 'Not Passed' : 'Completed') }}
+        </span>
         <p>{{ submitResult.message }}</p>
         <div class="public-form__score">
           <strong>{{ submitResult.score ?? 0 }}</strong>
           <span>/ {{ submitResult.max_point ?? 0 }}</span>
         </div>
+        <div class="public-form__result-stats">
+          <div class="public-form__result-stat">
+            <span>Score</span>
+            <strong>{{ formatScorePercent(submitResult.score_percentage) }}%</strong>
+          </div>
+          <div class="public-form__result-stat">
+            <span>Passing Grade</span>
+            <strong>{{ submitResult.passing_grade ?? 0 }}</strong>
+          </div>
+          <div class="public-form__result-stat">
+            <span>Correct</span>
+            <strong>{{ submitResult.correct_answers }}/{{ submitResult.total_questions }}</strong>
+          </div>
+          <div class="public-form__result-stat">
+            <span>Answered</span>
+            <strong>{{ submitResult.answered_questions }}/{{ submitResult.total_questions }}</strong>
+          </div>
+        </div>
         <p class="public-form__meta-line">Terkirim pada {{ submitResult.submitted_at }}</p>
+        <div class="public-form__result-review">
+          <article class="public-form__result-answer" *ngFor="let answer of submitResult.answer_details; let i = index">
+            <div class="public-form__result-answer-head">
+              <strong>{{ i + 1 }}. {{ answer.question || 'Question' }}</strong>
+              <span
+                *ngIf="answer.is_correct !== null"
+                [class.public-form__result-answer-pass]="answer.is_correct"
+                [class.public-form__result-answer-fail]="answer.is_correct === false"
+              >
+                {{ answer.is_correct ? 'Correct' : 'Incorrect' }}
+              </span>
+            </div>
+            <p>Jawaban kamu: {{ resultAnswerPreview(answer) }}</p>
+            <p *ngIf="answer.correct_answers.length > 0">Jawaban benar: {{ resultCorrectAnswer(answer) }}</p>
+          </article>
+        </div>
       </div>
 
       <div *ngIf="submitResult && isSurvey" class="public-form__card public-form__card--center public-form__card--result">
@@ -55,6 +96,10 @@
               <div *ngIf="isQuiz" class="public-form__meta-item">
                 <span>Max Point</span>
                 <strong>{{ form.max_point ?? 0 }}</strong>
+              </div>
+              <div *ngIf="isQuiz" class="public-form__meta-item">
+                <span>Passing Grade</span>
+                <strong>{{ form.passing_grade ?? 0 }}</strong>
               </div>
               <div *ngIf="isQuiz && hasStartedQuiz" class="public-form__meta-item public-form__meta-item--danger">
                 <span>Sisa Waktu</span>

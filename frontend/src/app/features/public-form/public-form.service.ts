@@ -29,6 +29,7 @@ export interface PublicFormDetail {
   start_time: string | null;
   end_time: string | null;
   max_point: number | null;
+  passing_grade: number | null;
   total_question: number;
   status: string | null;
   state: PublicFormState;
@@ -38,6 +39,7 @@ export interface PublicFormDetail {
 
 export interface PublicFormSubmitPayload {
   email: string | null;
+  started_at: string | null;
   answers: Array<{
     question_id: number;
     question_answer_id: number | null;
@@ -51,8 +53,26 @@ export interface PublicFormSubmitResult {
   type: PublicFormType | null;
   score: number | null;
   max_point: number | null;
+  passing_grade: number | null;
+  score_percentage: number | null;
+  passed: boolean | null;
+  correct_answers: number;
+  answered_questions: number;
+  total_questions: number;
   submitted_at: string;
   message: string;
+  answer_details: PublicFormSubmitAnswerDetail[];
+}
+
+export interface PublicFormSubmitAnswerDetail {
+  question_id: number;
+  question: string | null;
+  type_answer: PublicQuestionType | null;
+  point: number | null;
+  selected_answer_label: string | null;
+  selected_answer_text: string | null;
+  is_correct: boolean | null;
+  correct_answers: string[];
 }
 
 @Injectable({ providedIn: 'root' })

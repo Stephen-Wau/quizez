@@ -26,6 +26,7 @@ type QuestionFormGroup = FormGroup;
 interface StoredQuizSession {
   email: string;
   started: boolean;
+  started_at: string | null;
   answers: Array<{
     question_id: number;
     question_answer_id: number | null;
@@ -100,6 +101,10 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     return this.detail?.state === 'active';
   }
 
+  get quizPassed(): boolean | null {
+    return this.submitResult?.passed ?? null;
+  }
+
   // loadForm ambil detail link publik lalu siapkan form answer sesuai question yang diterima.
   loadForm(token: string): void {
     this.loading = true;
@@ -138,6 +143,11 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     if (this.accessForm.invalid) {
       this.accessForm.markAllAsTouched();
       return;
+    }
+    if (!this.accessForm.get('started_at')) {
+      this.accessForm.addControl('started_at', this.fb.control(new Date().toISOString()));
+    } else if (!this.readStartedAt()) {
+      this.accessForm.get('started_at')?.setValue(new Date().toISOString());
     }
     this.hasStartedQuiz = true;
     this.persistQuizSession();
@@ -284,6 +294,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
   private buildSubmitPayload(): PublicFormSubmitPayload {
     return {
       email: this.isQuiz ? (this.accessForm.get('email')?.value?.trim() || null) : null,
+      started_at: this.isQuiz ? this.readStartedAt() : null,
       answers: this.answersArray.getRawValue().map((answer) => ({
         question_id: Number(answer['question_id']),
         question_answer_id: answer['question_answer_id'] ? Number(answer['question_answer_id']) : null,
@@ -405,6 +416,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     const session: StoredQuizSession = {
       email: this.accessForm.get('email')?.value?.trim() || '',
       started: this.hasStartedQuiz,
+      started_at: this.readStartedAt(),
       answers: this.answersArray.getRawValue().map((answer) => ({
         question_id: Number(answer['question_id']),
         question_answer_id: answer['question_answer_id'] ? Number(answer['question_answer_id']) : null,
@@ -428,6 +440,13 @@ export class PublicFormComponent implements OnInit, OnDestroy {
       const session = JSON.parse(raw) as StoredQuizSession;
       if (session.email) {
         this.accessForm.patchValue({ email: session.email }, { emitEvent: false });
+      }
+      if (session.started_at) {
+        if (!this.accessForm.get('started_at')) {
+          this.accessForm.addControl('started_at', this.fb.control(session.started_at));
+        } else {
+          this.accessForm.get('started_at')?.setValue(session.started_at, { emitEvent: false });
+        }
       }
       if (Array.isArray(session.answers)) {
         const answersByQuestionId = new Map(
@@ -464,5 +483,26 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     if (key) {
       localStorage.removeItem(key);
     }
+  }
+
+  // readStartedAt ambil timestamp awal quiz dari sesi lokal agar backend bisa menyimpan durasi
+  // yang lebih representatif pada submission detail respondent.
+  private readStartedAt(): string | null {
+    return this.accessForm.get('started_at')?.value || null;
+  }
+
+  resultAnswerPreview(answer: PublicFormSubmitResult['answer_details'][number]): string {
+    if (answer.selected_answer_text) return answer.selected_answer_text;
+    if (answer.selected_answer_label) return answer.selected_answer_label;
+    return 'Tidak dijawab';
+  }
+
+  resultCorrectAnswer(answer: PublicFormSubmitResult['answer_details'][number]): string {
+    return answer.correct_answers.length > 0 ? answer.correct_answers.join(', ') : '-';
+  }
+
+  formatScorePercent(value: number | null): string {
+    if (value === null || value === undefined) return '0';
+    return value.toFixed(2).replace(/\.00$/, '');
   }
 }
