@@ -1,0 +1,98 @@
+<div class="submission-detail" *ngIf="!loading && detail as data; else detailState">
+  <div class="submission-detail__header">
+    <div>
+      <div class="submission-detail__breadcrumbs">
+        <button class="submission-detail__back" type="button" (click)="backToSummary()">Back to Summary</button>
+        <span>/</span>
+        <strong>{{ respondentName() }}</strong>
+      </div>
+      <h1>
+        {{ data.quiz.title || 'Submission Detail' }}
+        <strong>{{ respondentName() }}</strong>
+      </h1>
+      <p>
+        {{ respondentName() }} •
+        {{ formatDateTime(data.submission.submitted_at) }}
+      </p>
+    </div>
+
+    <app-button variant="ghost" type="button" (click)="backToSummary()">Back</app-button>
+  </div>
+
+  <section class="submission-detail__section">
+    <div class="submission-detail__cards">
+      <article class="submission-detail__card">
+        <span>Score</span>
+        <strong>{{ data.submission.score ?? 0 }}</strong>
+      </article>
+      <article class="submission-detail__card">
+        <span>Score Percent</span>
+        <strong>{{ formatPercent(data.submission.score_percentage) }}%</strong>
+      </article>
+      <article class="submission-detail__card">
+        <span>Passing Grade</span>
+        <strong>{{ data.submission.passing_grade ?? 0 }}</strong>
+      </article>
+      <article class="submission-detail__card">
+        <span>Status</span>
+        <strong>{{ data.submission.passed === true ? 'Passed' : (data.submission.passed === false ? 'Not Passed' : 'Completed') }}</strong>
+      </article>
+      <article class="submission-detail__card">
+        <span>Correct Answer</span>
+        <strong>{{ data.submission.correct_answers }}/{{ data.submission.total_questions }}</strong>
+      </article>
+      <article class="submission-detail__card">
+        <span>Duration</span>
+        <strong>{{ durationLabel() }}</strong>
+      </article>
+    </div>
+  </section>
+
+  <section class="submission-detail__section">
+    <div class="submission-detail__section-head">
+      <div>
+        <h2>Answer Review</h2>
+        <p>Detail jawaban respondent untuk setiap question di quiz ini.</p>
+      </div>
+    </div>
+
+    <div class="submission-detail__answers">
+      <article class="submission-detail__answer" *ngFor="let answer of data.submission.answers; let i = index">
+        <div class="submission-detail__answer-head">
+          <div>
+            <span class="submission-detail__type">{{ answer.type_answer || '-' }}</span>
+            <h3>{{ i + 1 }}. {{ answer.question || '-' }}</h3>
+          </div>
+          <span
+            *ngIf="answer.is_correct !== null"
+            class="submission-detail__badge"
+            [class.submission-detail__badge--pass]="answer.is_correct"
+            [class.submission-detail__badge--fail]="answer.is_correct === false"
+          >
+            {{ answer.is_correct ? 'Correct' : 'Incorrect' }}
+          </span>
+        </div>
+
+        <div class="submission-detail__answer-grid">
+          <div>
+            <label>Jawaban User</label>
+            <p>{{ answerPreview(answer) }}</p>
+          </div>
+          <div *ngIf="answer.correct_answers.length > 0">
+            <label>Jawaban Benar</label>
+            <p>{{ correctAnswerPreview(answer) }}</p>
+          </div>
+          <div *ngIf="answer.point !== null">
+            <label>Point</label>
+            <p>{{ answer.point }}</p>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+</div>
+
+<ng-template #detailState>
+  <div *ngIf="loading" class="submission-detail__empty">Memuat detail submission...</div>
+  <div *ngIf="!loading && loadError" class="submission-detail__empty">{{ loadError }}</div>
+</ng-template>

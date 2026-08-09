@@ -51,6 +51,13 @@ export const routes: Routes = [
           import('./features/admin-cms/summary/summary.component').then((m) => m.SummaryComponent),
       },
       {
+        path: 'summary/:quizId/submission/:submissionId',
+        loadComponent: () =>
+          import('./features/admin-cms/summary-submission-detail/summary-submission-detail.component').then(
+            (m) => m.SummarySubmissionDetailComponent
+          ),
+      },
+      {
         path: 'summary/:id',
         loadComponent: () =>
           import('./features/admin-cms/summary-detail/summary-detail.component').then(

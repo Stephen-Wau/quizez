@@ -335,6 +335,12 @@
               <div class="summary-detail__submission-badges">
                 <span>Completion {{ formatPercent(submission.completion_percentage) }}%</span>
                 <span *ngIf="isQuiz">Score {{ formatScore(submission.score) }}</span>
+                <span *ngIf="isQuiz && submission.passed !== null">
+                  {{ submission.passed ? 'Passed' : 'Not Passed' }}
+                </span>
+                <app-button variant="ghost" size="sm" type="button" (click)="openSubmissionDetail(submission)">
+                  Show Detail
+                </app-button>
               </div>
             </div>
 

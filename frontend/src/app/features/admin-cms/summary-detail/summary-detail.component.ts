@@ -110,12 +110,12 @@ export class SummaryDetailComponent implements OnInit {
         accent: 'rose',
       },
       {
-        label: this.isQuiz ? 'Highest Score' : 'Total Question',
-        value: this.isQuiz ? this.formatScore(stats.highest_score) : String(this.summary.quiz.total_question),
+        label: this.isQuiz ? 'Passing Rate' : 'Total Question',
+        value: this.isQuiz ? `${this.formatPercent(stats.passing_rate)}%` : String(this.summary.quiz.total_question),
       },
       {
-        label: this.isQuiz ? 'Lowest Score' : 'Current Status',
-        value: this.isQuiz ? this.formatScore(stats.lowest_score) : (this.summary.quiz.status ?? '-'),
+        label: this.isQuiz ? 'Highest Score' : 'Current Status',
+        value: this.isQuiz ? this.formatScore(stats.highest_score) : (this.summary.quiz.status ?? '-'),
       },
     ];
   }
@@ -210,6 +210,12 @@ export class SummaryDetailComponent implements OnInit {
 
   trackBySubmissionId(_: number, item: SubmissionSummary): number {
     return item.id;
+  }
+
+  // Drill-down ke halaman submission detail per respondent untuk membaca jawaban lengkap.
+  openSubmissionDetail(submission: SubmissionSummary): void {
+    if (!this.summary) return;
+    this.router.navigate(['/admin-cms/summary', this.summary.quiz.id, 'submission', submission.id]);
   }
 
   trackByOptionLabel(_: number, item: QuestionOptionSummary): string {

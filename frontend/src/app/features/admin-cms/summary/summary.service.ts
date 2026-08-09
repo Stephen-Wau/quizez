@@ -13,6 +13,9 @@ export interface QuizSummaryStats {
   lowest_score: number | null;
   average_completion: number;
   latest_submission_at: string | null;
+  passing_count: number;
+  failing_count: number;
+  passing_rate: number | null;
 }
 
 export interface SummaryBucket {
@@ -49,15 +52,24 @@ export interface SubmissionAnswerSummary {
   question_id: number;
   question: string | null;
   type_answer: string | null;
+  point: number | null;
   answer_label: string | null;
   answer_text: string | null;
   is_correct: boolean | null;
+  correct_answers: string[];
 }
 
 export interface SubmissionSummary {
   id: number;
   respondent_email: string | null;
   score: number | null;
+  passing_grade: number | null;
+  passed: boolean | null;
+  score_percentage: number | null;
+  correct_answers: number;
+  incorrect_answers: number;
+  total_questions: number;
+  started_at: string | null;
   submitted_at: string | null;
   completion_percentage: number;
   answers: SubmissionAnswerSummary[];
@@ -71,6 +83,11 @@ export interface QuizSummaryResponse {
   submission_summaries: SubmissionSummary[];
 }
 
+export interface QuizSubmissionDetailResponse {
+  quiz: Quiz;
+  submission: SubmissionSummary;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SummaryService {
   private baseUrl = `${environment.apiUrl}/api/quizzes`;
@@ -80,5 +97,10 @@ export class SummaryService {
   // Ambil analytics summary lengkap untuk 1 quiz/survey.
   getSummary(quizId: number): Observable<QuizSummaryResponse> {
     return this.http.get<QuizSummaryResponse>(`${this.baseUrl}/${quizId}/summary`);
+  }
+
+  // Drill-down detail satu submission respondent dari halaman summary.
+  getSubmissionDetail(quizId: number, submissionId: number): Observable<QuizSubmissionDetailResponse> {
+    return this.http.get<QuizSubmissionDetailResponse>(`${this.baseUrl}/${quizId}/submissions/${submissionId}`);
   }
 }
