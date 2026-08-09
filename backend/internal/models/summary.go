@@ -9,11 +9,16 @@ import (
 )
 
 type QuizSummary struct {
-	Quiz               Quiz                   `json:"quiz"`
-	Stats              QuizSummaryStats       `json:"stats"`
-	ScoreDistribution  []SummaryBucket        `json:"score_distribution"`
-	QuestionSummaries  []QuestionSummary      `json:"question_summaries"`
-	SubmissionSummaries []SubmissionSummary   `json:"submission_summaries"`
+	Quiz                Quiz                 `json:"quiz"`
+	Stats               QuizSummaryStats     `json:"stats"`
+	ScoreDistribution   []SummaryBucket      `json:"score_distribution"`
+	QuestionSummaries   []QuestionSummary    `json:"question_summaries"`
+	SubmissionSummaries []SubmissionSummary  `json:"submission_summaries"`
+}
+
+type QuizSubmissionDetail struct {
+	Quiz       Quiz              `json:"quiz"`
+	Submission SubmissionSummary `json:"submission"`
 }
 
 type QuizSummaryStats struct {
@@ -24,6 +29,9 @@ type QuizSummaryStats struct {
 	LowestScore        *int     `json:"lowest_score"`
 	AverageCompletion  float64  `json:"average_completion"`
 	LatestSubmissionAt *string  `json:"latest_submission_at"`
+	PassingCount       int      `json:"passing_count"`
+	FailingCount       int      `json:"failing_count"`
+	PassingRate        *float64 `json:"passing_rate"`
 }
 
 type SummaryBucket struct {
@@ -60,18 +68,27 @@ type SubmissionSummary struct {
 	ID                   int64                    `json:"id"`
 	RespondentEmail      *string                  `json:"respondent_email"`
 	Score                *int                     `json:"score"`
+	PassingGrade         *int                     `json:"passing_grade"`
+	Passed               *bool                    `json:"passed"`
+	ScorePercentage      *float64                 `json:"score_percentage"`
+	CorrectAnswers       int                      `json:"correct_answers"`
+	IncorrectAnswers     int                      `json:"incorrect_answers"`
+	TotalQuestions       int                      `json:"total_questions"`
+	StartedAt            *string                  `json:"started_at"`
 	SubmittedAt          *string                  `json:"submitted_at"`
 	CompletionPercentage float64                  `json:"completion_percentage"`
 	Answers              []SubmissionAnswerSummary `json:"answers"`
 }
 
 type SubmissionAnswerSummary struct {
-	QuestionID int64   `json:"question_id"`
-	Question   *string `json:"question"`
-	TypeAnswer *string `json:"type_answer"`
-	AnswerLabel *string `json:"answer_label"`
-	AnswerText *string `json:"answer_text"`
-	IsCorrect  *bool   `json:"is_correct"`
+	QuestionID      int64    `json:"question_id"`
+	Question        *string  `json:"question"`
+	TypeAnswer      *string  `json:"type_answer"`
+	Point           *int     `json:"point"`
+	AnswerLabel     *string  `json:"answer_label"`
+	AnswerText      *string  `json:"answer_text"`
+	IsCorrect       *bool    `json:"is_correct"`
+	CorrectAnswers  []string `json:"correct_answers"`
 }
 
 type summaryAnswerRow struct {
@@ -85,6 +102,7 @@ type summaryAnswerRow struct {
 	AnswerText      *string
 	IsCorrect       *bool
 	RespondentEmail *string
+	StartedAt       *string
 	SubmittedAt     *string
 }
 
@@ -111,7 +129,7 @@ func GetQuizSummary(db *sql.DB, quizID int64) (QuizSummary, error) {
 		return QuizSummary{}, err
 	}
 
-	attachAnswersToSubmissions(submissions, answerRows, len(questions))
+	attachAnswersToSubmissions(quiz, questions, submissions, answerRows, len(questions))
 	stats := buildQuizSummaryStats(quiz, submissions)
 	questionSummaries := buildQuestionSummaries(questions, answerRows)
 
@@ -124,11 +142,32 @@ func GetQuizSummary(db *sql.DB, quizID int64) (QuizSummary, error) {
 	}, nil
 }
 
+// GetQuizSubmissionDetail ambil 1 submission spesifik milik quiz beserta seluruh jawaban detailnya.
+// Untuk ukuran data saat ini, detail diturunkan dari summary builder yang sama supaya rule analytic
+// dan perhitungan skor/correctness tetap satu sumber.
+func GetQuizSubmissionDetail(db *sql.DB, quizID int64, submissionID int64) (QuizSubmissionDetail, error) {
+	summary, err := GetQuizSummary(db, quizID)
+	if err != nil {
+		return QuizSubmissionDetail{}, err
+	}
+
+	for _, submission := range summary.SubmissionSummaries {
+		if submission.ID == submissionID {
+			return QuizSubmissionDetail{
+				Quiz:       summary.Quiz,
+				Submission: submission,
+			}, nil
+		}
+	}
+
+	return QuizSubmissionDetail{}, sql.ErrNoRows
+}
+
 // listSubmissionSummaries ambil daftar submission inti untuk 1 quiz, diurutkan terbaru dulu supaya
 // tabel summary FE langsung enak dipindai tanpa sort tambahan.
 func listSubmissionSummaries(db *sql.DB, quizID int64) ([]SubmissionSummary, error) {
 	rows, err := db.Query(
-		"SELECT id, respondent_email, score, submitted_at FROM quiz_submissions WHERE quiz_id = ? ORDER BY submitted_at DESC, id DESC",
+		"SELECT id, respondent_email, score, started_at, submitted_at FROM quiz_submissions WHERE quiz_id = ? ORDER BY submitted_at DESC, id DESC",
 		quizID,
 	)
 	if err != nil {
@@ -142,9 +181,10 @@ func listSubmissionSummaries(db *sql.DB, quizID int64) ([]SubmissionSummary, err
 			item        SubmissionSummary
 			email       sql.NullString
 			score       sql.NullInt64
+			startedAt   sql.NullTime
 			submittedAt sql.NullTime
 		)
-		if err := rows.Scan(&item.ID, &email, &score, &submittedAt); err != nil {
+		if err := rows.Scan(&item.ID, &email, &score, &startedAt, &submittedAt); err != nil {
 			return nil, err
 		}
 		item.RespondentEmail = nullableString(email)
@@ -152,6 +192,7 @@ func listSubmissionSummaries(db *sql.DB, quizID int64) ([]SubmissionSummary, err
 			v := int(score.Int64)
 			item.Score = &v
 		}
+		item.StartedAt = nullableTime(startedAt)
 		item.SubmittedAt = nullableTime(submittedAt)
 		summaries = append(summaries, item)
 	}
@@ -173,6 +214,7 @@ func listSubmissionAnswerRows(db *sql.DB, quizID int64) ([]summaryAnswerRow, err
 			qsa.answer_text,
 			qsa.is_correct,
 			qs.respondent_email,
+			qs.started_at,
 			qs.submitted_at
 		FROM quiz_submission_answers qsa
 		INNER JOIN questions q ON q.id = qsa.question_id
@@ -196,6 +238,7 @@ func listSubmissionAnswerRows(db *sql.DB, quizID int64) ([]summaryAnswerRow, err
 			answerValue    sql.NullString
 			answerText     sql.NullString
 			respondent     sql.NullString
+			startedAt      sql.NullTime
 			submittedAt    sql.NullTime
 			point          sql.NullInt64
 			isCorrect      sql.NullBool
@@ -211,6 +254,7 @@ func listSubmissionAnswerRows(db *sql.DB, quizID int64) ([]summaryAnswerRow, err
 			&answerText,
 			&isCorrect,
 			&respondent,
+			&startedAt,
 			&submittedAt,
 		); err != nil {
 			return nil, err
@@ -225,6 +269,7 @@ func listSubmissionAnswerRows(db *sql.DB, quizID int64) ([]summaryAnswerRow, err
 		row.AnswerValue = nullableString(answerValue)
 		row.AnswerText = nullableString(answerText)
 		row.RespondentEmail = nullableString(respondent)
+		row.StartedAt = nullableTime(startedAt)
 		row.SubmittedAt = nullableTime(submittedAt)
 		if isCorrect.Valid {
 			v := isCorrect.Bool
@@ -287,6 +332,27 @@ func buildQuizSummaryStats(quiz Quiz, submissions []SubmissionSummary) QuizSumma
 		stats.AverageScore = &avg
 	}
 	stats.AverageCompletion = roundFloat(completionTotal / float64(len(submissions)))
+
+	if quiz.Type != nil && *quiz.Type == "quiz" {
+		passingCount := 0
+		failingCount := 0
+		for _, submission := range submissions {
+			if submission.Passed == nil {
+				continue
+			}
+			if *submission.Passed {
+				passingCount++
+			} else {
+				failingCount++
+			}
+		}
+		stats.PassingCount = passingCount
+		stats.FailingCount = failingCount
+		if passingCount+failingCount > 0 {
+			rate := roundFloat((float64(passingCount) / float64(passingCount+failingCount)) * 100)
+			stats.PassingRate = &rate
+		}
+	}
 	return stats
 }
 
@@ -425,12 +491,18 @@ func buildQuestionSummaries(questions []Question, answerRows []summaryAnswerRow)
 
 // attachAnswersToSubmissions tempelkan jawaban ke masing-masing submission sekaligus hitung
 // completion percentage per-user berdasarkan berapa question yang benar-benar terisi.
-func attachAnswersToSubmissions(submissions []SubmissionSummary, answerRows []summaryAnswerRow, totalQuestions int) {
+func attachAnswersToSubmissions(quiz Quiz, questions []Question, submissions []SubmissionSummary, answerRows []summaryAnswerRow, totalQuestions int) {
 	submissionMap := map[int64]*SubmissionSummary{}
 	answeredCounters := map[int64]int{}
+	correctAnswersByQuestion := map[int64][]string{}
+	for _, question := range questions {
+		correctAnswersByQuestion[question.ID] = collectCorrectAnswerLabels(question)
+	}
 	for i := range submissions {
 		submissionMap[submissions[i].ID] = &submissions[i]
 		submissions[i].Answers = []SubmissionAnswerSummary{}
+		submissions[i].TotalQuestions = totalQuestions
+		submissions[i].PassingGrade = quiz.PassingGrade
 	}
 
 	for _, row := range answerRows {
@@ -439,24 +511,41 @@ func attachAnswersToSubmissions(submissions []SubmissionSummary, answerRows []su
 			continue
 		}
 		submission.Answers = append(submission.Answers, SubmissionAnswerSummary{
-			QuestionID:  row.QuestionID,
-			Question:    row.Question,
-			TypeAnswer:  row.TypeAnswer,
-			AnswerLabel: row.AnswerLabel,
-			AnswerText:  row.AnswerText,
-			IsCorrect:   row.IsCorrect,
+			QuestionID:     row.QuestionID,
+			Question:       row.Question,
+			TypeAnswer:     row.TypeAnswer,
+			Point:          row.Point,
+			AnswerLabel:    row.AnswerLabel,
+			AnswerText:     row.AnswerText,
+			IsCorrect:      row.IsCorrect,
+			CorrectAnswers: correctAnswersByQuestion[row.QuestionID],
 		})
 		if isAnsweredRow(row) {
 			answeredCounters[row.SubmissionID]++
+		}
+		if row.IsCorrect != nil {
+			if *row.IsCorrect {
+				submission.CorrectAnswers++
+			} else {
+				submission.IncorrectAnswers++
+			}
 		}
 	}
 
 	for i := range submissions {
 		if totalQuestions <= 0 {
 			submissions[i].CompletionPercentage = 0
-			continue
+		} else {
+			submissions[i].CompletionPercentage = roundFloat((float64(answeredCounters[submissions[i].ID]) / float64(totalQuestions)) * 100)
 		}
-		submissions[i].CompletionPercentage = roundFloat((float64(answeredCounters[submissions[i].ID]) / float64(totalQuestions)) * 100)
+		if quiz.MaxPoint != nil && *quiz.MaxPoint > 0 && submissions[i].Score != nil {
+			percentage := roundFloat((float64(*submissions[i].Score) / float64(*quiz.MaxPoint)) * 100)
+			submissions[i].ScorePercentage = &percentage
+		}
+		if quiz.PassingGrade != nil && submissions[i].Score != nil {
+			passed := *submissions[i].Score >= *quiz.PassingGrade
+			submissions[i].Passed = &passed
+		}
 	}
 }
 

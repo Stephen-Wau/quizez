@@ -38,3 +38,37 @@ func QuizSummaryHandler(db *sql.DB) http.HandlerFunc {
 		json.NewEncoder(w).Encode(summary)
 	}
 }
+
+// QuizSubmissionDetailHandler balikin detail lengkap satu submission untuk drill-down per respondent.
+func QuizSubmissionDetailHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		quizID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid quiz id", http.StatusBadRequest)
+			return
+		}
+		submissionID, err := strconv.ParseInt(r.PathValue("submissionId"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid submission id", http.StatusBadRequest)
+			return
+		}
+
+		detail, err := models.GetQuizSubmissionDetail(db, quizID, submissionID)
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "Submission tidak ditemukan.", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, "failed to load submission detail", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(detail)
+	}
+}
