@@ -30,7 +30,7 @@ func withCORS(frontendOrigin string, next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// main nyiapin config, koneksi DB, dan daftar semua route sebelum server jalan di :8080.
+// main nyiapin config, koneksi DB, dan daftar semua route sebelum server jalan di port aplikasi.
 func main() {
 	_ = godotenv.Load()
 	cfg := config.Load()
@@ -52,9 +52,13 @@ func main() {
 
 	mux.HandleFunc("/api/quizzes", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuizzesHandler(conn))))
 	mux.HandleFunc("/api/quizzes/{id}", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuizHandler(conn))))
+	mux.HandleFunc("/api/quizzes/{id}/share-link", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuizShareHandler(conn))))
 	mux.HandleFunc("/api/questions", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuestionsHandler(conn))))
 	mux.HandleFunc("/api/questions/{id}", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuestionHandler(conn))))
+	mux.HandleFunc("/api/public/quizzes/{token}", withCORS(cfg.FrontendOrigin, handlers.PublicQuizHandler(conn)))
+	mux.HandleFunc("/api/public/quizzes/{token}/submit", withCORS(cfg.FrontendOrigin, handlers.PublicQuizSubmitHandler(conn)))
 
-	log.Println("quizez backend listening on localhost:8080")
-	log.Fatal(http.ListenAndServe("localhost:8080", mux))
+	addr := "127.0.0.1:" + cfg.AppPort
+	log.Printf("quizez backend listening on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, mux))
 }

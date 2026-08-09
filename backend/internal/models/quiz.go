@@ -34,6 +34,18 @@ type quizRowScanner interface {
 	Scan(dest ...interface{}) error
 }
 
+// GetQuizByID ambil 1 quiz lengkap dengan total question. Dipakai saat butuh detail quiz per-id
+// (misal generate share link atau alur publik berdasarkan token share).
+func GetQuizByID(db *sql.DB, id int64) (Quiz, error) {
+	row := db.QueryRow(
+		"SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, "+
+			"(SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS total_question, q.status "+
+			"FROM quizzes q WHERE q.id = ? LIMIT 1",
+		id,
+	)
+	return scanQuiz(row)
+}
+
 // ListQuizzes ambil daftar quiz buat DataTable FE: support search title, sort kolom whitelist,
 // dan pagination. Total dihitung terpisah (COUNT query) biar meta pagination-nya akurat.
 func ListQuizzes(db *sql.DB, params listquery.Params) ([]Quiz, int, error) {
