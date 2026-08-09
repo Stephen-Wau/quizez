@@ -169,6 +169,54 @@
         </article>
       </div>
     </section>
+
+    <section class="summary-detail__panel">
+      <div class="summary-detail__panel-head">
+        <h2>Question Analytics</h2>
+        <p>Ringkasan performa tiap question, distribusi jawaban, dan free text response.</p>
+      </div>
+
+      <div class="summary-detail__questions">
+        <article class="summary-detail__question-card" *ngFor="let question of data.question_summaries; trackBy: trackByQuestionId">
+          <div class="summary-detail__question-head">
+            <div>
+              <span class="summary-detail__question-type">{{ question.type_answer || '-' }}</span>
+              <h3>{{ question.question || '-' }}</h3>
+            </div>
+            <div class="summary-detail__question-stats">
+              <span>Response: {{ question.total_responses }}</span>
+              <span *ngIf="question.point !== null">Point: {{ question.point }}</span>
+              <span *ngIf="question.average_rating !== null">Avg Rating: {{ question.average_rating }}</span>
+              <span *ngIf="question.correct_count || question.incorrect_count">
+                Correct Rate: {{ formatPercent(correctRate(question)) }}%
+              </span>
+            </div>
+          </div>
+
+          <div *ngIf="question.option_summaries.length > 0" class="summary-detail__option-list">
+            <div class="summary-detail__option-row" *ngFor="let option of question.option_summaries; trackBy: trackByOptionLabel">
+              <div class="summary-detail__option-meta">
+                <span>{{ option.label }}</span>
+                <strong>{{ option.count }} • {{ formatPercent(option.percentage) }}%</strong>
+              </div>
+              <div class="summary-detail__bar-track summary-detail__bar-track--thin">
+                <div class="summary-detail__bar-fill summary-detail__bar-fill--soft" [style.width.%]="optionWidth(option, question)"></div>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="question.text_responses.length > 0" class="summary-detail__text-list">
+            <article class="summary-detail__text-item" *ngFor="let response of question.text_responses">
+              <div class="summary-detail__text-meta">
+                <strong>{{ response.respondent_email || 'Anonymous respondent' }}</strong>
+                <span>{{ response.submitted_at || '-' }}</span>
+              </div>
+              <p>{{ response.answer_text }}</p>
+            </article>
+          </div>
+        </article>
+      </div>
+    </section>
   </ng-container>
 </div>
 

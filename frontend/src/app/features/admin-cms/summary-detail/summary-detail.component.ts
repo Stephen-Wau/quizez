@@ -4,7 +4,13 @@ import { ActivatedRoute, Router } from '@angular/router';
 
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
-import { QuizSummaryResponse, SummaryService, SummaryBucket } from '../summary/summary.service';
+import {
+  QuestionOptionSummary,
+  QuestionSummary,
+  QuizSummaryResponse,
+  SummaryBucket,
+  SummaryService,
+} from '../summary/summary.service';
 
 @Component({
   selector: 'app-summary-detail',
@@ -167,6 +173,24 @@ export class SummaryDetailComponent implements OnInit {
     });
 
     return `conic-gradient(${parts.join(', ')})`;
+  }
+
+  optionWidth(option: QuestionOptionSummary, question: QuestionSummary): number {
+    if (question.total_responses <= 0) return 0;
+    return option.percentage;
+  }
+
+  correctRate(question: QuestionSummary): number {
+    if (question.total_responses <= 0) return 0;
+    return (question.correct_count / question.total_responses) * 100;
+  }
+
+  trackByQuestionId(_: number, item: QuestionSummary): number {
+    return item.question_id;
+  }
+
+  trackByOptionLabel(_: number, item: QuestionOptionSummary): string {
+    return item.label;
   }
 
   private loadSummary(quizId: number): void {
