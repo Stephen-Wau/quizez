@@ -18,6 +18,7 @@ type quizRequest struct {
 	EndTime     *string `json:"end_time"`
 	Description *string `json:"description"`
 	MaxPoint    *int    `json:"max_point"`
+	PassingGrade *int   `json:"passing_grade"`
 	Status      *string `json:"status"`
 }
 
@@ -99,6 +100,20 @@ func validateQuizRequest(req quizRequest) string {
 	if *req.Type == "quiz" && req.MaxPoint == nil {
 		return "Max point wajib diisi untuk tipe quiz."
 	}
+	// Passing grade opsional untuk survey, tapi untuk quiz dipakai sebagai threshold lulus/tidak lulus
+	// sehingga harus konsisten dan tidak boleh lebih besar dari max point.
+	if *req.Type == "quiz" && req.PassingGrade == nil {
+		return "Passing grade wajib diisi untuk tipe quiz."
+	}
+	if req.MaxPoint != nil && *req.MaxPoint < 0 {
+		return "Max point tidak boleh negatif."
+	}
+	if req.PassingGrade != nil && *req.PassingGrade < 0 {
+		return "Passing grade tidak boleh negatif."
+	}
+	if *req.Type == "quiz" && req.MaxPoint != nil && req.PassingGrade != nil && *req.PassingGrade > *req.MaxPoint {
+		return "Passing grade tidak boleh melebihi max point."
+	}
 	return ""
 }
 
@@ -117,7 +132,7 @@ func createQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	q := models.Quiz{
 		Title: normalizeStr(req.Title), Type: normalizeStr(req.Type),
 		StartTime: req.StartTime, EndTime: req.EndTime,
-		Description: normalizeStr(req.Description), MaxPoint: req.MaxPoint, Status: normalizeStr(req.Status),
+		Description: normalizeStr(req.Description), MaxPoint: req.MaxPoint, PassingGrade: req.PassingGrade, Status: normalizeStr(req.Status),
 	}
 	id, err := models.CreateQuiz(db, q)
 	if err != nil {
@@ -145,7 +160,7 @@ func updateQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 	q := models.Quiz{
 		ID: id, Title: normalizeStr(req.Title), Type: normalizeStr(req.Type),
 		StartTime: req.StartTime, EndTime: req.EndTime,
-		Description: normalizeStr(req.Description), MaxPoint: req.MaxPoint, Status: normalizeStr(req.Status),
+		Description: normalizeStr(req.Description), MaxPoint: req.MaxPoint, PassingGrade: req.PassingGrade, Status: normalizeStr(req.Status),
 	}
 	if err := models.UpdateQuiz(db, q); err != nil {
 		http.Error(w, "failed to update quiz", http.StatusInternalServerError)
