@@ -10,6 +10,10 @@ import { InputComponent } from '../../../shared/ui/input/input.component';
 import { DatetimePickerComponent } from '../../../shared/ui/datetime-picker/datetime-picker.component';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 
+// Palet warna chart konsisten sama summary-detail (donut CSS conic-gradient) biar visual selaras
+// di seluruh menu analytics/summary.
+const CHART_COLORS = ['#4f46e5', '#7c3aed', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444'];
+
 @Component({
   selector: 'app-analytics',
   standalone: true,
@@ -24,6 +28,7 @@ export class AnalyticsComponent implements OnInit {
   isLoading = false;
 
   filterForm: ReturnType<FormBuilder['group']>;
+  chartColors = CHART_COLORS;
 
   constructor(
     private fb: FormBuilder,
@@ -109,5 +114,10 @@ export class AnalyticsComponent implements OnInit {
     if (!this.analytics || this.analytics.trend.length === 0) return 0;
     const max = Math.max(...this.analytics.trend.map((t) => t.count), 1);
     return Math.round((count / max) * 100);
+  }
+
+  // Warna chart per-index, diulang (modulo) kalau jumlah opsi/kategori lebih banyak dari palet.
+  colorFor(index: number): string {
+    return this.chartColors[index % this.chartColors.length];
   }
 }

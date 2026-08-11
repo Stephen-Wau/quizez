@@ -225,3 +225,62 @@
     background: var(--color-danger);
   }
 }
+
+.analytics__question-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.analytics__question-card {
+  padding: var(--spacing-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.analytics__question-title {
+  margin: 0 0 var(--spacing-1);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.analytics__question-meta {
+  margin: 0 0 var(--spacing-2);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.analytics__option-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.analytics__option-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 110px;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.analytics__option-label {
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analytics__option-count {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.analytics__rating-avg,
+.analytics__free-text-count {
+  margin: var(--spacing-2) 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}

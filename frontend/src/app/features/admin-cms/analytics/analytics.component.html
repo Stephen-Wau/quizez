@@ -94,4 +94,31 @@
     </div>
     <ng-template #noIncorrect><p class="analytics__empty">Belum cukup data pilihan ganda buat dianalisa.</p></ng-template>
   </div>
+
+  <!-- Answer distribution -->
+  <div class="analytics__section">
+    <h2>Answer Distribution</h2>
+    <div class="analytics__question-list">
+      <div class="analytics__question-card" *ngFor="let q of data.question_summaries">
+        <p class="analytics__question-title">{{ q.question }}</p>
+        <p class="analytics__question-meta">{{ q.type_answer }} &middot; {{ q.total_responses }} jawaban</p>
+
+        <div *ngIf="q.option_summaries.length > 0" class="analytics__option-list">
+          <div class="analytics__option-row" *ngFor="let opt of q.option_summaries; let i = index">
+            <span class="analytics__option-label">{{ opt.label }}</span>
+            <div class="analytics__bar-track">
+              <div class="analytics__bar-fill" [style.width.%]="opt.percentage" [style.background]="colorFor(i)"></div>
+            </div>
+            <span class="analytics__option-count">{{ opt.count }} ({{ opt.percentage }}%)</span>
+          </div>
+        </div>
+
+        <p *ngIf="q.average_rating !== null" class="analytics__rating-avg">Rata-rata rating: {{ q.average_rating }}</p>
+
+        <p *ngIf="q.type_answer === 'free_text'" class="analytics__free-text-count">
+          {{ q.text_responses.length }} jawaban teks bebas
+        </p>
+      </div>
+    </div>
+  </div>
 </ng-container>
