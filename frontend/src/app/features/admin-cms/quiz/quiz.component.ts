@@ -275,11 +275,13 @@ export class QuizComponent implements OnInit {
         }
 
         const shareUrl = `${window.location.origin}/public-form/${response.token}`;
+        const accessCode = response.access_code ?? '-';
+        const shareMessage = `Link: ${shareUrl}\nPIN: ${accessCode}`;
         try {
-          await navigator.clipboard.writeText(shareUrl);
-          this.toast.success('Link share berhasil dicopy.');
+          await navigator.clipboard.writeText(shareMessage);
+          this.toast.success('Link share dan PIN berhasil dicopy.');
         } catch {
-          this.toast.info(`Link siap dibagikan: ${shareUrl}`);
+          this.toast.info(`Link: ${shareUrl} | PIN: ${accessCode}`);
         }
       },
       error: (err) => {

@@ -79,104 +79,207 @@
         </div>
 
         <ng-container *ngIf="canFillNow">
-          <div class="public-form__card">
+          <div *ngIf="form.access_code_required && !accessVerified" class="public-form__card public-form__card--center public-form__card--access">
             <span class="public-form__eyebrow">{{ form.type === 'quiz' ? 'Quiz Publik' : 'Survey Publik' }}</span>
-            <h1>{{ form.title || 'Form Publik' }}</h1>
-            <p *ngIf="form.description">{{ form.description }}</p>
-
-            <div class="public-form__meta">
-              <div class="public-form__meta-item">
-                <span>Periode</span>
-                <strong>{{ formatPeriod() }}</strong>
-              </div>
-              <div class="public-form__meta-item">
-                <span>Total Question</span>
-                <strong>{{ form.total_question }}</strong>
-              </div>
-              <div *ngIf="isQuiz" class="public-form__meta-item">
-                <span>Max Point</span>
-                <strong>{{ form.max_point ?? 0 }}</strong>
-              </div>
-              <div *ngIf="isQuiz" class="public-form__meta-item">
-                <span>Passing Grade</span>
-                <strong>{{ form.passing_grade ?? 0 }}</strong>
-              </div>
-              <div *ngIf="isQuiz && hasStartedQuiz" class="public-form__meta-item public-form__meta-item--danger">
-                <span>Sisa Waktu</span>
-                <strong>{{ countdownLabel }}</strong>
-              </div>
-            </div>
-          </div>
-
-          <div *ngIf="isQuiz && !hasStartedQuiz" class="public-form__card">
-            <h2>Mulai Quiz</h2>
-            <p>Masukkan email terlebih dahulu. Email yang sama tidak bisa mengirim quiz ini dua kali.</p>
-
-            <form [formGroup]="accessForm" (ngSubmit)="startQuiz()">
+            <h1>Akses Dengan PIN</h1>
+            <p>{{ form.access_message || 'Masukkan PIN unik untuk membuka form ini.' }}</p>
+            <form [formGroup]="accessForm" (ngSubmit)="submitAccessCode()" class="public-form__access-form">
               <app-input
-                label="Email"
-                type="email"
+                label="Access Code / PIN"
                 [required]="true"
-                formControlName="email"
-                [errorMessage]="accessForm.get('email')?.touched && accessForm.get('email')?.invalid ? 'Email wajib valid.' : ''"
+                formControlName="access_code"
+                [errorMessage]="accessForm.get('access_code')?.touched && !accessForm.get('access_code')?.value ? 'PIN wajib diisi.' : ''"
               ></app-input>
-
-              <div class="public-form__actions">
-                <app-button type="submit">Start Quiz</app-button>
+              <div class="public-form__actions public-form__actions--center">
+                <app-button type="submit">Buka Form</app-button>
               </div>
             </form>
           </div>
 
-          <div *ngIf="isSurvey || hasStartedQuiz" class="public-form__card">
-            <form [formGroup]="questionForm" (ngSubmit)="submit()">
-              <div formArrayName="answers" class="public-form__questions">
-                <div
-                  *ngFor="let question of form.questions; let i = index; trackBy: trackByQuestionId"
-                  [formGroupName]="i"
-                  class="public-form__question"
-                >
-                  <div class="public-form__question-head">
-                    <h3>{{ i + 1 }}. {{ question.question || 'Question' }}</h3>
-                    <span class="public-form__question-type">{{ question.type_answer || '-' }}</span>
-                  </div>
+          <ng-container *ngIf="accessVerified">
+            <div class="public-form__card">
+              <span class="public-form__eyebrow">{{ form.type === 'quiz' ? 'Quiz Publik' : 'Survey Publik' }}</span>
+              <h1>{{ form.title || 'Form Publik' }}</h1>
+              <p *ngIf="form.description">{{ form.description }}</p>
 
-                  <div *ngIf="question.type_answer !== 'free_text'" class="public-form__option-list">
-                    <button
-                      *ngFor="let option of question.answers; trackBy: trackByOptionId"
-                      type="button"
-                      class="public-form__option"
-                      [class.public-form__option--active]="isSelected(i, option.id)"
-                      (click)="chooseOption(i, option.id)"
-                    >
-                      <span class="public-form__option-bullet"></span>
-                      <span>{{ option.label || '-' }}</span>
-                    </button>
-                  </div>
+              <div class="public-form__meta">
+                <div class="public-form__meta-item">
+                  <span>Periode</span>
+                  <strong>{{ formatPeriod() }}</strong>
+                </div>
+                <div class="public-form__meta-item">
+                  <span>Total Question</span>
+                  <strong>{{ form.total_question }}</strong>
+                </div>
+                <div *ngIf="isQuiz" class="public-form__meta-item">
+                  <span>Max Point</span>
+                  <strong>{{ form.max_point ?? 0 }}</strong>
+                </div>
+                <div *ngIf="isQuiz" class="public-form__meta-item">
+                  <span>Passing Grade</span>
+                  <strong>{{ form.passing_grade ?? 0 }}</strong>
+                </div>
+                <div *ngIf="isQuiz && hasStartedQuiz" class="public-form__meta-item public-form__meta-item--danger">
+                  <span>Sisa Waktu</span>
+                  <strong>{{ countdownLabel }}</strong>
+                </div>
+                <div class="public-form__meta-item" *ngIf="progressRestored">
+                  <span>Progress</span>
+                  <strong>Dipulihkan dari sesi terakhir</strong>
+                </div>
+              </div>
+            </div>
 
-                  <app-input
-                    *ngIf="question.type_answer === 'free_text'"
-                    label="Jawaban"
-                    [required]="true"
-                    [multiline]="true"
-                    formControlName="answer_text"
-                  ></app-input>
+            <div *ngIf="isQuiz && !hasStartedQuiz" class="public-form__card public-form__card--welcome">
+              <div class="public-form__welcome-head">
+                <div>
+                  <h2>Welcome Page & Instruction</h2>
+                  <p>Baca aturan quiz dulu, lalu mulai dengan email yang valid.</p>
+                </div>
+                <span class="public-form__welcome-badge">Ready to start</span>
+              </div>
 
-                  <p
-                    *ngIf="answersArray.at(i).touched && answersArray.at(i).invalid"
-                    class="public-form__error"
-                  >
-                    Jawaban untuk question ini wajib diisi.
-                  </p>
+              <div class="public-form__welcome-grid">
+                <div class="public-form__welcome-card">
+                  <span>Durasi Quiz</span>
+                  <strong>{{ formatPeriod() }}</strong>
+                </div>
+                <div class="public-form__welcome-card">
+                  <span>Jumlah Soal</span>
+                  <strong>{{ form.total_question }}</strong>
+                </div>
+                <div class="public-form__welcome-card">
+                  <span>Passing Grade</span>
+                  <strong>{{ form.passing_grade ?? 0 }}</strong>
                 </div>
               </div>
 
-              <div class="public-form__actions">
-                <app-button type="submit" [disabled]="isSubmitting">
-                  {{ isSubmitting ? 'Mengirim...' : (isQuiz ? 'Submit Quiz' : 'Submit Survey') }}
+              <ul class="public-form__welcome-list">
+                <li>Urutan soal dan pilihan jawaban dapat berbeda untuk setiap peserta.</li>
+                <li>Jawaban akan tersimpan di browser ini selama form belum dikirim.</li>
+                <li>Jika browser direfresh, quiz akan dipulihkan dari sesi terakhir selama waktunya masih aktif.</li>
+                <li>Email yang sama tidak bisa mengirim quiz ini dua kali.</li>
+                <li>Sebelum submit final, kamu bisa review semua jawaban lebih dulu.</li>
+              </ul>
+
+              <div class="public-form__actions public-form__actions--start">
+                <app-button variant="ghost" type="button" (click)="acknowledgeWelcome()">
+                  {{ welcomeAcknowledged ? 'Instruksi Sudah Dibaca' : 'Saya Sudah Baca Instruksi' }}
                 </app-button>
               </div>
-            </form>
-          </div>
+
+              <form [formGroup]="accessForm" (ngSubmit)="startQuiz()">
+                <app-input
+                  label="Email"
+                  type="email"
+                  [required]="true"
+                  formControlName="email"
+                  [errorMessage]="accessForm.get('email')?.touched && accessForm.get('email')?.invalid ? 'Email wajib valid.' : ''"
+                ></app-input>
+
+                <div class="public-form__actions">
+                  <app-button type="submit">Start Quiz</app-button>
+                </div>
+              </form>
+            </div>
+
+            <div *ngIf="(isSurvey || hasStartedQuiz) && !isReviewStep" class="public-form__card">
+              <div class="public-form__pager">
+                <div>
+                  <span class="public-form__pager-label">Question {{ currentQuestionNumber }} of {{ totalQuestions }}</span>
+                  <strong>{{ progressPercent }}% selesai</strong>
+                </div>
+                <div class="public-form__pager-status">
+                  <span>{{ answeredCount }} terjawab</span>
+                </div>
+              </div>
+
+              <div class="public-form__progress">
+                <div class="public-form__progress-bar" [style.width.%]="progressPercent"></div>
+              </div>
+
+              <form [formGroup]="questionForm">
+                <div formArrayName="answers" class="public-form__questions" *ngIf="activeQuestion as question">
+                  <div [formGroupName]="currentQuestionIndex" class="public-form__question">
+                    <div class="public-form__question-head">
+                      <h3>{{ currentQuestionNumber }}. {{ question.question || 'Question' }}</h3>
+                      <span class="public-form__question-type">{{ question.type_answer || '-' }}</span>
+                    </div>
+
+                    <div *ngIf="question.type_answer !== 'free_text'" class="public-form__option-list">
+                      <button
+                        *ngFor="let option of question.answers; trackBy: trackByOptionId"
+                        type="button"
+                        class="public-form__option"
+                        [class.public-form__option--active]="isSelected(currentQuestionIndex, option.id)"
+                        (click)="chooseOption(currentQuestionIndex, option.id)"
+                      >
+                        <span class="public-form__option-bullet"></span>
+                        <span>{{ option.label || '-' }}</span>
+                      </button>
+                    </div>
+
+                    <app-input
+                      *ngIf="question.type_answer === 'free_text'"
+                      label="Jawaban"
+                      [required]="true"
+                      [multiline]="true"
+                      formControlName="answer_text"
+                    ></app-input>
+
+                    <p
+                      *ngIf="activeAnswerGroup?.touched && activeAnswerGroup?.invalid"
+                      class="public-form__error"
+                    >
+                      Jawaban untuk question ini wajib diisi.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="public-form__actions public-form__actions--between">
+                  <app-button variant="ghost" type="button" (click)="previousQuestion()" [disabled]="currentQuestionIndex === 0">
+                    Previous
+                  </app-button>
+
+                  <app-button *ngIf="!isLastQuestion" type="button" (click)="nextQuestion()">Next Question</app-button>
+                  <app-button *ngIf="isLastQuestion" type="button" (click)="openReview()">Review Before Submit</app-button>
+                </div>
+              </form>
+            </div>
+
+            <div *ngIf="(isSurvey || hasStartedQuiz) && isReviewStep" class="public-form__card">
+              <div class="public-form__review-head">
+                <div>
+                  <h2>Review Before Submit</h2>
+                  <p>Cek ulang semua jawaban sebelum dikirim final.</p>
+                </div>
+                <span class="public-form__welcome-badge">{{ answeredCount }}/{{ totalQuestions }} terjawab</span>
+              </div>
+
+              <div class="public-form__review-list">
+                <article class="public-form__review-item" *ngFor="let item of reviewItems">
+                  <div class="public-form__review-item-head">
+                    <div>
+                      <strong>{{ item.index + 1 }}. {{ item.question.question || 'Question' }}</strong>
+                      <span class="public-form__question-type">{{ item.question.type_answer || '-' }}</span>
+                    </div>
+                    <span class="public-form__review-badge" [class.public-form__review-badge--done]="item.answered">
+                      {{ item.answered ? 'Answered' : 'Missing' }}
+                    </span>
+                  </div>
+                  <p>{{ item.answerPreview }}</p>
+                  <button type="button" class="public-form__text-button" (click)="jumpToQuestion(item.index)">Edit Jawaban</button>
+                </article>
+              </div>
+
+              <div class="public-form__actions public-form__actions--between">
+                <app-button variant="ghost" type="button" (click)="backToQuestions()">Back to Questions</app-button>
+                <app-button type="button" [disabled]="isSubmitting" (click)="submit()">
+                  {{ isSubmitting ? 'Mengirim...' : (isQuiz ? 'Submit Quiz Final' : 'Submit Survey Final') }}
+                </app-button>
+              </div>
+            </div>
+          </ng-container>
         </ng-container>
       </ng-container>
     </ng-container>

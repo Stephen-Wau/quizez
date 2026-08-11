@@ -22,6 +22,7 @@ export interface Quiz {
 export interface QuizShareResponse {
   quiz_id: number;
   token: string | null;
+  access_code: string | null;
 }
 
 export type QuizPayload = Omit<Quiz, 'id' | 'total_question'>;

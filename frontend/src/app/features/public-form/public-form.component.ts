@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormArray,
@@ -23,10 +23,20 @@ import { ToastService } from '../../shared/ui/toast/toast.service';
 
 type QuestionFormGroup = FormGroup;
 
-interface StoredQuizSession {
+interface StoredPublicSession {
   email: string;
   started: boolean;
   started_at: string | null;
+  access_code: string | null;
+  access_granted: boolean;
+  welcome_seen: boolean;
+  current_question_index: number;
+  review_mode: boolean;
+  question_order: number[];
+  answer_orders: Array<{
+    question_id: number;
+    option_ids: number[];
+  }>;
   answers: Array<{
     question_id: number;
     question_answer_id: number | null;
@@ -49,6 +59,11 @@ export class PublicFormComponent implements OnInit, OnDestroy {
   countdownLabel = '';
   submitResult: PublicFormSubmitResult | null = null;
   detail: PublicFormDetail | null = null;
+  accessVerified = false;
+  welcomeAcknowledged = false;
+  isReviewStep = false;
+  currentQuestionIndex = 0;
+  progressRestored = false;
   accessForm: ReturnType<FormBuilder['group']>;
   questionForm: ReturnType<FormBuilder['group']>;
   private autoSubmitTriggered = false;
@@ -63,6 +78,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
   ) {
     this.accessForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
+      access_code: [''],
     });
 
     this.questionForm = this.fb.group({
@@ -77,12 +93,21 @@ export class PublicFormComponent implements OnInit, OnDestroy {
       this.loadError = 'Link publik tidak valid.';
       return;
     }
-    this.loadForm(token);
+    const stored = this.readStoredSession();
+    this.loadForm(token, stored?.access_code ?? null);
   }
 
   ngOnDestroy(): void {
     this.clearCountdown();
     this.formSubscription.unsubscribe();
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  handleBeforeUnload(event: BeforeUnloadEvent): void {
+    if (!this.shouldProtectRefresh()) return;
+    this.persistFormSession();
+    event.preventDefault();
+    event.returnValue = '';
   }
 
   get answersArray(): FormArray<QuestionFormGroup> {
@@ -105,24 +130,84 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     return this.submitResult?.passed ?? null;
   }
 
-  // loadForm ambil detail link publik lalu siapkan form answer sesuai question yang diterima.
-  loadForm(token: string): void {
+  get totalQuestions(): number {
+    return this.detail?.questions.length ?? 0;
+  }
+
+  get activeQuestion(): PublicQuestion | null {
+    return this.detail?.questions[this.currentQuestionIndex] ?? null;
+  }
+
+  get activeAnswerGroup(): QuestionFormGroup | null {
+    return this.answersArray.at(this.currentQuestionIndex) ?? null;
+  }
+
+  get isLastQuestion(): boolean {
+    return this.currentQuestionIndex >= Math.max(this.totalQuestions - 1, 0);
+  }
+
+  get currentQuestionNumber(): number {
+    return this.currentQuestionIndex + 1;
+  }
+
+  get progressPercent(): number {
+    if (this.totalQuestions <= 0) return 0;
+    return Math.round((this.currentQuestionNumber / this.totalQuestions) * 100);
+  }
+
+  get answeredCount(): number {
+    return this.answersArray.controls.filter((control) => this.isAnsweredGroup(control)).length;
+  }
+
+  get reviewItems(): Array<{
+    question: PublicQuestion;
+    index: number;
+    answered: boolean;
+    answerPreview: string;
+  }> {
+    if (!this.detail) return [];
+
+    return this.detail.questions.map((question, index) => {
+      const group = this.answersArray.at(index);
+      return {
+        question,
+        index,
+        answered: this.isAnsweredGroup(group),
+        answerPreview: this.answerPreview(index, question),
+      };
+    });
+  }
+
+  // loadForm ambil detail publik, lalu kalau kode akses valid form akan disiapkan penuh beserta restore state.
+  loadForm(token: string, accessCode: string | null = null): void {
     this.loading = true;
     this.loadError = '';
-    this.publicFormService.getByToken(token).subscribe({
+    this.publicFormService.getByToken(token, accessCode).subscribe({
       next: (detail) => {
         this.loading = false;
-        this.detail = detail;
         this.submitResult = null;
-        this.hasStartedQuiz = false;
+        this.detail = this.applyStoredPresentation(detail);
         this.autoSubmitTriggered = false;
-        this.buildAnswerControls(detail.questions);
-        this.restoreQuizSession();
+        this.accessForm.patchValue(
+          { access_code: accessCode ?? this.accessForm.get('access_code')?.value ?? '' },
+          { emitEvent: false },
+        );
+
+        this.accessVerified = !detail.access_code_required || detail.access_granted;
+        if (!this.accessVerified) {
+          this.resetRuntimeState();
+          this.answersArray.clear();
+          return;
+        }
+
+        this.buildAnswerControls(this.detail.questions);
+        this.restoreFormSession();
 
         if (detail.type === 'quiz' && detail.state !== 'active') {
-          this.clearQuizSession();
+          this.clearFormSession();
         }
         if (detail.type === 'survey' && detail.state === 'active') {
+          this.persistFormSession();
           return;
         }
         if (detail.type !== 'quiz' || this.hasStartedQuiz) {
@@ -137,11 +222,31 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     });
   }
 
-  // startQuiz ngecek email dulu, baru nyalain timer visual dan munculkan daftar question quiz.
+  submitAccessCode(): void {
+    const token = this.route.snapshot.paramMap.get('token') ?? '';
+    const accessCode = this.readAccessCode();
+    if (!accessCode) {
+      this.accessForm.get('access_code')?.markAsTouched();
+      this.toast.error('PIN akses wajib diisi.');
+      return;
+    }
+    this.loadForm(token, accessCode);
+  }
+
+  acknowledgeWelcome(): void {
+    this.welcomeAcknowledged = true;
+    this.persistFormSession();
+  }
+
+  // startQuiz ngecek email dulu, lalu menandai quiz benar-benar dimulai setelah user melihat instruksi.
   startQuiz(): void {
-    if (!this.isQuiz) return;
-    if (this.accessForm.invalid) {
-      this.accessForm.markAllAsTouched();
+    if (!this.isQuiz || !this.detail) return;
+    if (!this.welcomeAcknowledged) {
+      this.toast.info('Baca instruksi dulu sebelum mulai quiz.');
+      return;
+    }
+    if (this.accessForm.get('email')?.invalid) {
+      this.accessForm.get('email')?.markAsTouched();
       return;
     }
     if (!this.accessForm.get('started_at')) {
@@ -150,16 +255,45 @@ export class PublicFormComponent implements OnInit, OnDestroy {
       this.accessForm.get('started_at')?.setValue(new Date().toISOString());
     }
     this.hasStartedQuiz = true;
-    this.persistQuizSession();
+    this.currentQuestionIndex = 0;
+    this.isReviewStep = false;
+    this.persistFormSession();
     this.startCountdown();
   }
 
-  // submit dipakai tombol kirim manual maupun auto-submit saat timer quiz habis.
+  nextQuestion(): void {
+    if (!this.validateCurrentQuestion()) return;
+    this.currentQuestionIndex = Math.min(this.currentQuestionIndex + 1, Math.max(this.totalQuestions - 1, 0));
+    this.persistFormSession();
+  }
+
+  previousQuestion(): void {
+    this.currentQuestionIndex = Math.max(this.currentQuestionIndex - 1, 0);
+    this.persistFormSession();
+  }
+
+  jumpToQuestion(index: number): void {
+    this.isReviewStep = false;
+    this.currentQuestionIndex = index;
+    this.persistFormSession();
+  }
+
+  openReview(): void {
+    if (!this.validateCurrentQuestion()) return;
+    this.isReviewStep = true;
+    this.persistFormSession();
+  }
+
+  backToQuestions(): void {
+    this.isReviewStep = false;
+    this.persistFormSession();
+  }
+
+  // submit dipakai tombol final submit atau auto-submit saat timer quiz habis.
   submit(autoSubmit = false): void {
     if (!this.detail) return;
-    if (!autoSubmit && this.questionForm.invalid) {
-      this.questionForm.markAllAsTouched();
-      this.toast.error('Semua jawaban wajib diisi.');
+    if (!autoSubmit && !this.canSubmitAllAnswers()) {
+      this.toast.error('Masih ada jawaban yang belum lengkap.');
       return;
     }
 
@@ -170,7 +304,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
         this.isSubmitting = false;
         this.submitResult = result;
         this.clearCountdown();
-        this.clearQuizSession();
+        this.clearFormSession();
         if (this.isSurvey) {
           this.toast.success('Survey berhasil dikirim.');
         }
@@ -183,26 +317,28 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     });
   }
 
-  // refillSurvey reset jawaban supaya link survey yang sama bisa dipakai isi ulang lagi.
   refillSurvey(): void {
     if (!this.detail) return;
     this.submitResult = null;
     this.autoSubmitTriggered = false;
+    this.currentQuestionIndex = 0;
+    this.isReviewStep = false;
+    this.progressRestored = false;
     this.buildAnswerControls(this.detail.questions);
+    this.clearFormSession();
+    this.persistFormSession();
   }
 
-  // isSelected dipakai template radio supaya pilihan tersinkron dengan FormControl dynamic.
   isSelected(index: number, optionId: number): boolean {
     return Number(this.answersArray.at(index).get('question_answer_id')?.value) === optionId;
   }
 
-  // chooseOption set nilai radio manual agar tetap konsisten walau option dirender custom card.
   chooseOption(index: number, optionId: number): void {
     this.answersArray.at(index).get('question_answer_id')?.setValue(optionId);
     this.answersArray.at(index).get('question_answer_id')?.markAsTouched();
+    this.persistFormSession();
   }
 
-  // formatPeriod tampilkan period publik yang lebih mudah dibaca.
   formatPeriod(): string {
     if (!this.detail?.start_time && !this.detail?.end_time) return '-';
     if (this.isQuiz) {
@@ -214,7 +350,6 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     return `${fmt(this.detail?.start_time ?? null)} - ${fmt(this.detail?.end_time ?? null)}`;
   }
 
-  // statusTitle kasih judul pendek untuk state non-aktif seperti expired atau belum mulai.
   statusTitle(): string {
     switch (this.detail?.state) {
       case 'upcoming':
@@ -228,7 +363,6 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     }
   }
 
-  // statusDescription kasih penjelasan beda antara quiz dan survey saat link tidak bisa diisi.
   statusDescription(): string {
     if (!this.detail) return '';
     const quizTimeOnly = this.isQuiz
@@ -248,6 +382,33 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     return 'Admin sedang menonaktifkan form ini untuk sementara.';
   }
 
+  answerPreview(index: number, question: PublicQuestion): string {
+    const group = this.answersArray.at(index);
+    if (!group) return 'Belum dijawab';
+    if (question.type_answer === 'free_text') {
+      return group.get('answer_text')?.value?.trim() || 'Belum dijawab';
+    }
+
+    const optionId = Number(group.get('question_answer_id')?.value ?? 0);
+    const selected = question.answers.find((option) => option.id === optionId);
+    return selected?.label || 'Belum dijawab';
+  }
+
+  resultAnswerPreview(answer: PublicFormSubmitResult['answer_details'][number]): string {
+    if (answer.selected_answer_text) return answer.selected_answer_text;
+    if (answer.selected_answer_label) return answer.selected_answer_label;
+    return 'Tidak dijawab';
+  }
+
+  resultCorrectAnswer(answer: PublicFormSubmitResult['answer_details'][number]): string {
+    return answer.correct_answers.length > 0 ? answer.correct_answers.join(', ') : '-';
+  }
+
+  formatScorePercent(value: number | null): string {
+    if (value === null || value === undefined) return '0';
+    return value.toFixed(2).replace(/\.00$/, '');
+  }
+
   trackByQuestionId(_: number, question: PublicQuestion): number {
     return question.id;
   }
@@ -256,7 +417,6 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     return option.id;
   }
 
-  // buildAnswerControls bikin 1 FormGroup per question agar validasi dan payload submit konsisten.
   private buildAnswerControls(questions: PublicQuestion[]): void {
     this.formSubscription.unsubscribe();
     this.formSubscription = new Subscription();
@@ -276,25 +436,25 @@ export class PublicFormComponent implements OnInit, OnDestroy {
 
     this.formSubscription.add(
       this.accessForm.valueChanges.subscribe(() => {
-        if (this.isQuiz && this.hasStartedQuiz) {
-          this.persistQuizSession();
+        if (this.accessVerified) {
+          this.persistFormSession();
         }
       }),
     );
     this.formSubscription.add(
       this.questionForm.valueChanges.subscribe(() => {
-        if (this.isQuiz && this.hasStartedQuiz) {
-          this.persistQuizSession();
+        if (this.accessVerified) {
+          this.persistFormSession();
         }
       }),
     );
   }
 
-  // buildSubmitPayload ubah FormArray dynamic menjadi payload API publik yang simpel.
   private buildSubmitPayload(): PublicFormSubmitPayload {
     return {
       email: this.isQuiz ? (this.accessForm.get('email')?.value?.trim() || null) : null,
       started_at: this.isQuiz ? this.readStartedAt() : null,
+      access_code: this.readAccessCode(),
       answers: this.answersArray.getRawValue().map((answer) => ({
         question_id: Number(answer['question_id']),
         question_answer_id: answer['question_answer_id'] ? Number(answer['question_answer_id']) : null,
@@ -303,7 +463,6 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     };
   }
 
-  // startCountdown jaga sisa waktu quiz tetap sinkron dan auto-submit begitu deadline tercapai.
   private startCountdown(): void {
     this.clearCountdown();
     this.autoSubmitTriggered = false;
@@ -330,7 +489,6 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     }
   }
 
-  // updateCountdown hitung selisih real-time ke end_time. Saat waktu habis, label dikunci ke nol.
   private updateCountdown(): void {
     if (!this.detail?.end_time) {
       this.countdownLabel = '--:--:--';
@@ -351,7 +509,6 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     this.countdownLabel = [hours, minutes, seconds].map((value) => String(value).padStart(2, '0')).join(':');
   }
 
-  // formatDateTime ubah string backend menjadi format UI seperti "8 Aug 2026 16:00".
   private formatDateTime(value: string | null): string {
     if (!value) return '-';
     const date = new Date(value);
@@ -372,8 +529,6 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     return `${datePart} ${timePart}`;
   }
 
-  // resolveCountdownEndTime buat quiz, deadline dihitung dari jam hari ini; survey tetap pakai
-  // datetime penuh dari backend karena period-nya memang berbasis tanggal+jam.
   private resolveCountdownEndTime(): Date {
     if (!this.detail?.end_time) {
       return new Date(Number.NaN);
@@ -400,23 +555,30 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     );
   }
 
-  // quizSessionKey bikin key localStorage per-token supaya tiap link quiz punya sesi sendiri.
-  private quizSessionKey(): string | null {
+  private sessionKey(): string | null {
     const token = this.detail?.token ?? this.route.snapshot.paramMap.get('token');
-    return token ? `public-quiz-session:${token}` : null;
+    return token ? `public-form-session:${token}` : null;
   }
 
-  // persistQuizSession simpan email, status started, dan jawaban sementara agar refresh tidak
-  // melempar user balik ke layar start quiz.
-  private persistQuizSession(): void {
-    if (!this.isQuiz || !this.detail) return;
-    const key = this.quizSessionKey();
+  private persistFormSession(): void {
+    if (!this.detail || !this.accessVerified || !this.canFillNow || this.submitResult) return;
+    const key = this.sessionKey();
     if (!key) return;
 
-    const session: StoredQuizSession = {
+    const session: StoredPublicSession = {
       email: this.accessForm.get('email')?.value?.trim() || '',
       started: this.hasStartedQuiz,
       started_at: this.readStartedAt(),
+      access_code: this.readAccessCode(),
+      access_granted: this.accessVerified,
+      welcome_seen: this.welcomeAcknowledged,
+      current_question_index: this.currentQuestionIndex,
+      review_mode: this.isReviewStep,
+      question_order: (this.detail.questions ?? []).map((question) => question.id),
+      answer_orders: (this.detail.questions ?? []).map((question) => ({
+        question_id: question.id,
+        option_ids: question.answers.map((option) => option.id),
+      })),
       answers: this.answersArray.getRawValue().map((answer) => ({
         question_id: Number(answer['question_id']),
         question_answer_id: answer['question_answer_id'] ? Number(answer['question_answer_id']) : null,
@@ -427,82 +589,175 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     localStorage.setItem(key, JSON.stringify(session));
   }
 
-  // restoreQuizSession balikin state quiz yang sempat mulai sebelumnya, termasuk email dan jawaban.
-  private restoreQuizSession(): void {
-    if (!this.isQuiz || !this.detail || this.detail.state !== 'active') return;
-    const key = this.quizSessionKey();
-    if (!key) return;
+  private restoreFormSession(): void {
+    if (!this.detail || !this.canFillNow || !this.accessVerified) return;
+    const session = this.readStoredSession();
+    if (!session) {
+      this.persistFormSession();
+      return;
+    }
+
+    this.progressRestored = false;
+    if (session.email) {
+      this.accessForm.patchValue({ email: session.email }, { emitEvent: false });
+    }
+    if (session.access_code) {
+      this.accessForm.patchValue({ access_code: session.access_code }, { emitEvent: false });
+    }
+    if (session.started_at) {
+      if (!this.accessForm.get('started_at')) {
+        this.accessForm.addControl('started_at', this.fb.control(session.started_at));
+      } else {
+        this.accessForm.get('started_at')?.setValue(session.started_at, { emitEvent: false });
+      }
+    }
+    this.welcomeAcknowledged = !!session.welcome_seen;
+
+    if (Array.isArray(session.answers)) {
+      const answersByQuestionId = new Map(session.answers.map((answer) => [Number(answer.question_id), answer]));
+      this.answersArray.controls.forEach((control) => {
+        const questionId = Number(control.get('question_id')?.value);
+        const savedAnswer = answersByQuestionId.get(questionId);
+        if (!savedAnswer) return;
+
+        control.patchValue(
+          {
+            question_answer_id: savedAnswer.question_answer_id,
+            answer_text: savedAnswer.answer_text ?? '',
+          },
+          { emitEvent: false },
+        );
+      });
+      this.progressRestored = session.answers.some(
+        (answer) => answer.question_answer_id !== null || !!answer.answer_text?.trim(),
+      );
+    }
+
+    this.currentQuestionIndex = Math.min(
+      Math.max(session.current_question_index ?? 0, 0),
+      Math.max(this.totalQuestions - 1, 0),
+    );
+    this.isReviewStep = !!session.review_mode;
+
+    if (session.started && this.isQuiz) {
+      this.hasStartedQuiz = true;
+      this.startCountdown();
+    }
+
+    this.persistFormSession();
+  }
+
+  private readStoredSession(): StoredPublicSession | null {
+    const key = this.sessionKey();
+    if (!key) return null;
 
     const raw = localStorage.getItem(key);
-    if (!raw) return;
+    if (!raw) return null;
 
     try {
-      const session = JSON.parse(raw) as StoredQuizSession;
-      if (session.email) {
-        this.accessForm.patchValue({ email: session.email }, { emitEvent: false });
-      }
-      if (session.started_at) {
-        if (!this.accessForm.get('started_at')) {
-          this.accessForm.addControl('started_at', this.fb.control(session.started_at));
-        } else {
-          this.accessForm.get('started_at')?.setValue(session.started_at, { emitEvent: false });
-        }
-      }
-      if (Array.isArray(session.answers)) {
-        const answersByQuestionId = new Map(
-          session.answers.map((answer) => [Number(answer.question_id), answer]),
-        );
-
-        this.answersArray.controls.forEach((control) => {
-          const questionId = Number(control.get('question_id')?.value);
-          const savedAnswer = answersByQuestionId.get(questionId);
-          if (!savedAnswer) return;
-
-          control.patchValue(
-            {
-              question_answer_id: savedAnswer.question_answer_id,
-              answer_text: savedAnswer.answer_text ?? '',
-            },
-            { emitEvent: false },
-          );
-        });
-      }
-
-      if (session.started) {
-        this.hasStartedQuiz = true;
-        this.startCountdown();
-      }
+      return JSON.parse(raw) as StoredPublicSession;
     } catch {
-      this.clearQuizSession();
+      localStorage.removeItem(key);
+      return null;
     }
   }
 
-  // clearQuizSession hapus sesi quiz lokal setelah submit sukses atau saat link sudah tidak aktif.
-  private clearQuizSession(): void {
-    const key = this.quizSessionKey();
+  private clearFormSession(): void {
+    const key = this.sessionKey();
     if (key) {
       localStorage.removeItem(key);
     }
   }
 
-  // readStartedAt ambil timestamp awal quiz dari sesi lokal agar backend bisa menyimpan durasi
-  // yang lebih representatif pada submission detail respondent.
+  private applyStoredPresentation(detail: PublicFormDetail): PublicFormDetail {
+    const session = this.readStoredSession();
+    if (!session || !Array.isArray(session.question_order) || session.question_order.length === 0) {
+      return detail;
+    }
+
+    const questionMap = new Map(detail.questions.map((question) => [question.id, question]));
+    const answerOrderMap = new Map(session.answer_orders.map((item) => [item.question_id, item.option_ids]));
+    const orderedQuestions: PublicQuestion[] = [];
+
+    for (const questionID of session.question_order) {
+      const question = questionMap.get(questionID);
+      if (!question) continue;
+      questionMap.delete(questionID);
+      orderedQuestions.push(this.applyStoredAnswerOrder(question, answerOrderMap.get(questionID) ?? []));
+    }
+
+    for (const question of questionMap.values()) {
+      orderedQuestions.push(this.applyStoredAnswerOrder(question, answerOrderMap.get(question.id) ?? []));
+    }
+
+    return {
+      ...detail,
+      questions: orderedQuestions,
+    };
+  }
+
+  private applyStoredAnswerOrder(question: PublicQuestion, optionOrder: number[]): PublicQuestion {
+    if (!Array.isArray(optionOrder) || optionOrder.length === 0) {
+      return question;
+    }
+
+    const optionMap = new Map(question.answers.map((option) => [option.id, option]));
+    const orderedAnswers = [];
+    for (const optionID of optionOrder) {
+      const option = optionMap.get(optionID);
+      if (!option) continue;
+      optionMap.delete(optionID);
+      orderedAnswers.push(option);
+    }
+    for (const option of optionMap.values()) {
+      orderedAnswers.push(option);
+    }
+
+    return {
+      ...question,
+      answers: orderedAnswers,
+    };
+  }
+
+  private validateCurrentQuestion(): boolean {
+    const control = this.activeAnswerGroup;
+    if (!control) return true;
+    if (control.valid) return true;
+    control.markAllAsTouched();
+    this.toast.error('Jawaban untuk question ini wajib diisi sebelum lanjut.');
+    return false;
+  }
+
+  private canSubmitAllAnswers(): boolean {
+    this.questionForm.markAllAsTouched();
+    return this.questionForm.valid;
+  }
+
+  private isAnsweredGroup(control: QuestionFormGroup | null): boolean {
+    if (!control) return false;
+    const answerID = control.get('question_answer_id')?.value;
+    const answerText = control.get('answer_text')?.value?.trim();
+    return !!answerID || !!answerText;
+  }
+
+  private shouldProtectRefresh(): boolean {
+    return !!this.detail && this.canFillNow && !this.submitResult && this.accessVerified && (this.isSurvey || this.hasStartedQuiz);
+  }
+
   private readStartedAt(): string | null {
     return this.accessForm.get('started_at')?.value || null;
   }
 
-  resultAnswerPreview(answer: PublicFormSubmitResult['answer_details'][number]): string {
-    if (answer.selected_answer_text) return answer.selected_answer_text;
-    if (answer.selected_answer_label) return answer.selected_answer_label;
-    return 'Tidak dijawab';
+  private readAccessCode(): string | null {
+    return this.accessForm.get('access_code')?.value?.trim() || null;
   }
 
-  resultCorrectAnswer(answer: PublicFormSubmitResult['answer_details'][number]): string {
-    return answer.correct_answers.length > 0 ? answer.correct_answers.join(', ') : '-';
-  }
-
-  formatScorePercent(value: number | null): string {
-    if (value === null || value === undefined) return '0';
-    return value.toFixed(2).replace(/\.00$/, '');
+  private resetRuntimeState(): void {
+    this.clearCountdown();
+    this.hasStartedQuiz = false;
+    this.welcomeAcknowledged = false;
+    this.isReviewStep = false;
+    this.currentQuestionIndex = 0;
+    this.progressRestored = false;
   }
 }

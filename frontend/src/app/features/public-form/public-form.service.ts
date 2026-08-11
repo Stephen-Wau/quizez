@@ -34,12 +34,16 @@ export interface PublicFormDetail {
   status: string | null;
   state: PublicFormState;
   server_time: string;
+  access_code_required: boolean;
+  access_granted: boolean;
+  access_message: string | null;
   questions: PublicQuestion[];
 }
 
 export interface PublicFormSubmitPayload {
   email: string | null;
   started_at: string | null;
+  access_code: string | null;
   answers: Array<{
     question_id: number;
     question_answer_id: number | null;
@@ -82,8 +86,9 @@ export class PublicFormService {
   constructor(private http: HttpClient) {}
 
   // Ambil detail form publik berdasarkan token share.
-  getByToken(token: string): Observable<PublicFormDetail> {
-    return this.http.get<PublicFormDetail>(`${this.baseUrl}/${token}`);
+  getByToken(token: string, accessCode: string | null = null): Observable<PublicFormDetail> {
+    const query = accessCode ? `?code=${encodeURIComponent(accessCode)}` : '';
+    return this.http.get<PublicFormDetail>(`${this.baseUrl}/${token}${query}`);
   }
 
   // Submit jawaban publik untuk quiz/survey aktif.

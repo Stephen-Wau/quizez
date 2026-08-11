@@ -32,8 +32,11 @@
   padding: 44px 28px;
 }
 
-.public-form__card--result {
-  gap: 12px;
+.public-form__card--result,
+.public-form__card--access,
+.public-form__card--welcome {
+  display: grid;
+  gap: 16px;
 }
 
 .public-form__eyebrow {
@@ -57,7 +60,8 @@
   margin: 0;
 }
 
-.public-form p {
+.public-form p,
+.public-form li {
   margin: 0;
   color: #52607a;
   line-height: 1.6;
@@ -70,28 +74,37 @@
   font-weight: 600;
 }
 
-.public-form__meta {
+.public-form__meta,
+.public-form__result-stats,
+.public-form__welcome-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
   margin-top: 22px;
 }
 
-.public-form__meta-item {
+.public-form__meta-item,
+.public-form__result-stat,
+.public-form__welcome-card {
   padding: 16px 18px;
   border-radius: 18px;
   background: #f8faff;
   border: 1px solid #e5e9f5;
 }
 
-.public-form__meta-item span {
+.public-form__meta-item span,
+.public-form__result-stat span,
+.public-form__welcome-card span,
+.public-form__pager-label {
   display: block;
   font-size: 0.82rem;
   color: #6b7280;
   margin-bottom: 6px;
 }
 
-.public-form__meta-item strong {
+.public-form__meta-item strong,
+.public-form__result-stat strong,
+.public-form__welcome-card strong {
   font-size: 1rem;
 }
 
@@ -120,11 +133,12 @@
   color: #6b7280;
 }
 
-.public-form__result-badge {
+.public-form__result-badge,
+.public-form__welcome-badge,
+.public-form__review-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin: 4px auto 0;
   padding: 8px 14px;
   border-radius: 999px;
   font-size: 0.82rem;
@@ -133,7 +147,12 @@
   color: #334155;
 }
 
-.public-form__result-badge--pass {
+.public-form__result-badge {
+  margin: 4px auto 0;
+}
+
+.public-form__result-badge--pass,
+.public-form__review-badge--done {
   background: #dcfce7;
   color: #166534;
 }
@@ -143,52 +162,43 @@
   color: #b91c1c;
 }
 
-.public-form__result-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 14px;
-  margin-top: 20px;
-  text-align: left;
-}
-
-.public-form__result-stat {
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: #f8faff;
-  border: 1px solid #e5e9f5;
-}
-
-.public-form__result-stat span {
-  display: block;
-  font-size: 0.82rem;
-  color: #64748b;
-  margin-bottom: 6px;
-}
-
-.public-form__result-stat strong {
-  color: #1f2937;
-  font-size: 1.1rem;
-}
-
-.public-form__result-review {
+.public-form__result-review,
+.public-form__review-list,
+.public-form__questions,
+.public-form__welcome-list {
   display: grid;
   gap: 12px;
+}
+
+.public-form__result-review,
+.public-form__review-list {
   margin-top: 24px;
   text-align: left;
 }
 
-.public-form__result-answer {
-  padding: 16px 18px;
-  border-radius: 18px;
+.public-form__welcome-list {
+  padding-left: 18px;
+  text-align: left;
+}
+
+.public-form__result-answer,
+.public-form__review-item,
+.public-form__question {
+  padding: 18px 20px;
+  border-radius: 20px;
   border: 1px solid #e5e9f5;
   background: #fbfcff;
 }
 
-.public-form__result-answer-head {
+.public-form__result-answer-head,
+.public-form__review-item-head,
+.public-form__question-head,
+.public-form__welcome-head,
+.public-form__pager {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  align-items: flex-start;
 }
 
 .public-form__result-answer-pass,
@@ -211,28 +221,39 @@
   color: #b91c1c;
 }
 
-.public-form__questions {
-  display: grid;
-  gap: 18px;
+.public-form__pager {
+  margin-bottom: 12px;
 }
 
-.public-form__question {
-  padding: 20px;
-  border: 1px solid #e5e9f5;
-  border-radius: 20px;
-  background: #fbfcff;
+.public-form__pager strong {
+  color: #17325c;
+  font-size: 1rem;
 }
 
-.public-form__question-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 18px;
+.public-form__pager-status {
+  color: #64748b;
+  font-weight: 700;
 }
 
-.public-form__question-head h3 {
+.public-form__progress {
+  height: 10px;
+  border-radius: 999px;
+  background: #e5e9f5;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.public-form__progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+  transition: width 220ms ease;
+}
+
+.public-form__question-head h3,
+.public-form__review-item-head strong {
   font-size: 1.05rem;
+  color: #17325c;
 }
 
 .public-form__question-type {
@@ -287,10 +308,46 @@
   background: radial-gradient(circle, #4f46e5 0 45%, #fff 48% 100%);
 }
 
+.public-form__review-item-head {
+  margin-bottom: 10px;
+}
+
+.public-form__review-item-head > div {
+  display: grid;
+  gap: 8px;
+}
+
+.public-form__text-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #4f46e5;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .public-form__actions {
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
   margin-top: 24px;
+}
+
+.public-form__actions--center {
+  justify-content: center;
+}
+
+.public-form__actions--between {
+  justify-content: space-between;
+}
+
+.public-form__actions--start {
+  justify-content: flex-start;
+}
+
+.public-form__access-form {
+  display: grid;
+  gap: 10px;
 }
 
 .public-form__error {
@@ -309,7 +366,12 @@
     border-radius: 20px;
   }
 
-  .public-form__question-head {
+  .public-form__result-answer-head,
+  .public-form__review-item-head,
+  .public-form__question-head,
+  .public-form__welcome-head,
+  .public-form__pager,
+  .public-form__actions--between {
     flex-direction: column;
   }
 
