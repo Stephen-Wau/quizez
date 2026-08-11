@@ -65,16 +65,27 @@ type TrendPoint struct {
 	Count int    `json:"count"`
 }
 
+// QuestionIncorrectRank rangking question yang paling sering dijawab salah, dipakai widget
+// "Top incorrect questions".
+type QuestionIncorrectRank struct {
+	QuestionID     int64   `json:"question_id"`
+	Question       *string `json:"question"`
+	TotalResponses int     `json:"total_responses"`
+	IncorrectCount int     `json:"incorrect_count"`
+	IncorrectRate  float64 `json:"incorrect_rate"`
+}
+
 // QuizAnalytics gabungan data buat halaman Analytics & Reporting: dasar dari QuizSummary (stats,
-// distribusi skor, ringkasan question, tabel submission) ditambah trend submission — semua sudah
-// kena filter (period/respondent/skor) yang sama.
+// distribusi skor, ringkasan question, tabel submission) ditambah trend submission dan ranking
+// top incorrect question — semua sudah kena filter (period/respondent/skor) yang sama.
 type QuizAnalytics struct {
-	Quiz                Quiz                `json:"quiz"`
-	Stats               QuizSummaryStats    `json:"stats"`
-	ScoreDistribution   []SummaryBucket     `json:"score_distribution"`
-	QuestionSummaries   []QuestionSummary   `json:"question_summaries"`
-	SubmissionSummaries []SubmissionSummary `json:"submission_summaries"`
-	Trend               []TrendPoint        `json:"trend"`
+	Quiz                  Quiz                    `json:"quiz"`
+	Stats                 QuizSummaryStats        `json:"stats"`
+	ScoreDistribution     []SummaryBucket         `json:"score_distribution"`
+	QuestionSummaries     []QuestionSummary       `json:"question_summaries"`
+	SubmissionSummaries   []SubmissionSummary     `json:"submission_summaries"`
+	Trend                 []TrendPoint            `json:"trend"`
+	TopIncorrectQuestions []QuestionIncorrectRank `json:"top_incorrect_questions"`
 }
 
 // GetQuizAnalytics rangkum data Analytics & Reporting untuk 1 quiz, dengan submission yang sudah
@@ -110,12 +121,13 @@ func GetQuizAnalytics(db *sql.DB, quizID int64, filter AnalyticsFilter) (QuizAna
 	questionSummaries := buildQuestionSummaries(questions, answerRows)
 
 	return QuizAnalytics{
-		Quiz:                quiz,
-		Stats:               stats,
-		ScoreDistribution:   buildScoreDistribution(quiz, submissions),
-		QuestionSummaries:   questionSummaries,
-		SubmissionSummaries: submissions,
-		Trend:               buildTrendPoints(submissions, filter.GroupBy),
+		Quiz:                  quiz,
+		Stats:                 stats,
+		ScoreDistribution:     buildScoreDistribution(quiz, submissions),
+		QuestionSummaries:     questionSummaries,
+		SubmissionSummaries:   submissions,
+		Trend:                 buildTrendPoints(submissions, filter.GroupBy),
+		TopIncorrectQuestions: buildTopIncorrectQuestions(questionSummaries),
 	}, nil
 }
 
@@ -292,4 +304,40 @@ func buildTrendPoints(submissions []SubmissionSummary, groupBy string) []TrendPo
 		points = append(points, TrendPoint{Label: label, Count: counts[label]})
 	}
 	return points
+}
+
+// buildTopIncorrectQuestions rangking question pilihan ganda berdasarkan rate jawaban salah,
+// dari yang paling sering salah ke paling jarang. Dibatasi 10 teratas biar widget tetap ringkas.
+// Cuma question dengan minimal 1 jawaban yang dihitung — question yang belum pernah dijawab siapa
+// pun tidak informatif buat ranking ini.
+func buildTopIncorrectQuestions(questionSummaries []QuestionSummary) []QuestionIncorrectRank {
+	ranks := make([]QuestionIncorrectRank, 0, len(questionSummaries))
+	for _, q := range questionSummaries {
+		totalGraded := q.CorrectCount + q.IncorrectCount
+		if totalGraded == 0 {
+			continue
+		}
+		rank := QuestionIncorrectRank{
+			QuestionID:     q.QuestionID,
+			Question:       q.Question,
+			TotalResponses: totalGraded,
+			IncorrectCount: q.IncorrectCount,
+			IncorrectRate:  roundFloat((float64(q.IncorrectCount) / float64(totalGraded)) * 100),
+		}
+		ranks = append(ranks, rank)
+	}
+
+	sort.Slice(ranks, func(i, j int) bool {
+		// Urutan utama: rate salah tertinggi dulu. Kalau seri, question dengan lebih banyak
+		// responden yang dinilai dianggap lebih meyakinkan untuk ditampilkan lebih dulu.
+		if ranks[i].IncorrectRate != ranks[j].IncorrectRate {
+			return ranks[i].IncorrectRate > ranks[j].IncorrectRate
+		}
+		return ranks[i].TotalResponses > ranks[j].TotalResponses
+	})
+
+	if len(ranks) > 10 {
+		ranks = ranks[:10]
+	}
+	return ranks
 }

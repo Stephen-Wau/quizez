@@ -16,6 +16,14 @@ export interface TrendPoint {
   count: number;
 }
 
+export interface QuestionIncorrectRank {
+  question_id: number;
+  question: string | null;
+  total_responses: number;
+  incorrect_count: number;
+  incorrect_rate: number;
+}
+
 export interface QuizAnalyticsResponse {
   quiz: Quiz;
   stats: QuizSummaryStats;
@@ -23,6 +31,7 @@ export interface QuizAnalyticsResponse {
   question_summaries: QuestionSummary[];
   submission_summaries: SubmissionSummary[];
   trend: TrendPoint[];
+  top_incorrect_questions: QuestionIncorrectRank[];
 }
 
 // Filter halaman Analytics & Reporting: semua field opsional, kosong/undefined berarti "semua data".

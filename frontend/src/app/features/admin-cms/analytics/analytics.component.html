@@ -76,4 +76,22 @@
     </div>
     <ng-template #noTrend><p class="analytics__empty">Belum ada submission pada rentang filter ini.</p></ng-template>
   </div>
+
+  <!-- Top incorrect questions -->
+  <div class="analytics__section">
+    <h2>Top Incorrect Questions</h2>
+    <div *ngIf="data.top_incorrect_questions.length > 0; else noIncorrect" class="analytics__incorrect-list">
+      <div class="analytics__incorrect-row" *ngFor="let q of data.top_incorrect_questions; let i = index">
+        <span class="analytics__incorrect-rank">#{{ i + 1 }}</span>
+        <div class="analytics__incorrect-body">
+          <p class="analytics__incorrect-question">{{ q.question }}</p>
+          <div class="analytics__bar-track">
+            <div class="analytics__bar-fill analytics__bar-fill--danger" [style.width.%]="q.incorrect_rate"></div>
+          </div>
+        </div>
+        <span class="analytics__incorrect-rate">{{ q.incorrect_rate }}% salah ({{ q.incorrect_count }}/{{ q.total_responses }})</span>
+      </div>
+    </div>
+    <ng-template #noIncorrect><p class="analytics__empty">Belum cukup data pilihan ganda buat dianalisa.</p></ng-template>
+  </div>
 </ng-container>
