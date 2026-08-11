@@ -64,6 +64,13 @@ export const routes: Routes = [
             (m) => m.SummaryDetailComponent
           ),
       },
+      {
+        path: 'analytics',
+        loadComponent: () =>
+          import('./features/admin-cms/analytics/analytics.component').then(
+            (m) => m.AnalyticsComponent
+          ),
+      },
     ],
   },
   // Fallback buat path yang ga dikenal, lempar balik ke admin-cms.

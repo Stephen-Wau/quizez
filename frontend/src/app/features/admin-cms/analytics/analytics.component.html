@@ -1,0 +1,57 @@
+<div class="analytics__header">
+  <div>
+    <h1>Analytics &amp; Reporting</h1>
+    <p class="analytics__subtitle">Analisa mendalam submission per quiz/survey.</p>
+  </div>
+
+  <div class="analytics__quiz-picker">
+    <label>Quiz</label>
+    <select class="analytics__select" [(ngModel)]="selectedQuizId" [ngModelOptions]="{ standalone: true }" (change)="onQuizChange()">
+      <option *ngFor="let quiz of quizzes" [ngValue]="quiz.id">{{ quiz.title || '(Tanpa judul)' }}</option>
+    </select>
+  </div>
+</div>
+
+<form class="analytics__filters" [formGroup]="filterForm" (ngSubmit)="applyFilter()">
+  <app-datetime-picker label="Dari Tanggal" mode="date" formControlName="start_date"></app-datetime-picker>
+  <app-datetime-picker label="Sampai Tanggal" mode="date" formControlName="end_date"></app-datetime-picker>
+  <app-input label="Respondent" formControlName="respondent" placeholder="Cari email..."></app-input>
+  <app-input label="Skor Min" type="number" formControlName="min_score"></app-input>
+  <app-input label="Skor Max" type="number" formControlName="max_score"></app-input>
+
+  <div class="analytics__filter-actions">
+    <app-button type="submit">
+      <lucide-icon name="filter" [size]="14"></lucide-icon>
+      Terapkan
+    </app-button>
+    <app-button variant="ghost" type="button" (click)="resetFilter()">Reset</app-button>
+  </div>
+</form>
+
+<div *ngIf="isLoading" class="analytics__loading">Memuat data...</div>
+
+<ng-container *ngIf="!isLoading && analytics as data">
+  <!-- KPI cards -->
+  <div class="analytics__cards">
+    <div class="analytics__card">
+      <span class="analytics__card-label">Total Submission</span>
+      <span class="analytics__card-value">{{ data.stats.total_submissions }}</span>
+    </div>
+    <div class="analytics__card">
+      <span class="analytics__card-label">Unique Respondent</span>
+      <span class="analytics__card-value">{{ data.stats.unique_respondents }}</span>
+    </div>
+    <div class="analytics__card">
+      <span class="analytics__card-label">Avg Completion</span>
+      <span class="analytics__card-value">{{ data.stats.average_completion }}%</span>
+    </div>
+    <div class="analytics__card" *ngIf="data.quiz.type === 'quiz'">
+      <span class="analytics__card-label">Avg Score</span>
+      <span class="analytics__card-value">{{ data.stats.average_score ?? '-' }}</span>
+    </div>
+    <div class="analytics__card" *ngIf="data.quiz.type === 'quiz'">
+      <span class="analytics__card-label">Passing Rate</span>
+      <span class="analytics__card-value">{{ data.stats.passing_rate !== null ? data.stats.passing_rate + '%' : '-' }}</span>
+    </div>
+  </div>
+</ng-container>
