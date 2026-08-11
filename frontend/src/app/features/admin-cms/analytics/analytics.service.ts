@@ -59,6 +59,8 @@ export interface AnalyticsFilter {
   group_by?: 'day' | 'hour';
 }
 
+export type AnalyticsExportFormat = 'csv' | 'xlsx' | 'pdf';
+
 @Injectable({ providedIn: 'root' })
 export class AnalyticsService {
   private baseUrl = `${environment.apiUrl}/api/quizzes`;
@@ -69,6 +71,15 @@ export class AnalyticsService {
   getAnalytics(quizId: number, filter: AnalyticsFilter): Observable<QuizAnalyticsResponse> {
     return this.http.get<QuizAnalyticsResponse>(`${this.baseUrl}/${quizId}/analytics`, {
       params: this.buildParams(filter),
+    });
+  }
+
+  // Unduh hasil analytics (summary + raw submission) dalam format csv/xlsx/pdf sesuai filter aktif.
+  // responseType 'blob' karena hasilnya file binary, bukan JSON.
+  exportAnalytics(quizId: number, format: AnalyticsExportFormat, filter: AnalyticsFilter): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${quizId}/analytics/export`, {
+      params: this.buildParams(filter).set('format', format),
+      responseType: 'blob',
     });
   }
 

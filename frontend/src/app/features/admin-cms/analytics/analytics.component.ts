@@ -4,7 +4,12 @@ import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 
 import { Quiz, QuizService } from '../quiz/quiz.service';
-import { AnalyticsFilter, AnalyticsService, QuizAnalyticsResponse } from './analytics.service';
+import {
+  AnalyticsExportFormat,
+  AnalyticsFilter,
+  AnalyticsService,
+  QuizAnalyticsResponse,
+} from './analytics.service';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
 import { DatetimePickerComponent } from '../../../shared/ui/datetime-picker/datetime-picker.component';
@@ -26,6 +31,7 @@ export class AnalyticsComponent implements OnInit {
   selectedQuizId: number | null = null;
   analytics: QuizAnalyticsResponse | null = null;
   isLoading = false;
+  isExporting: AnalyticsExportFormat | null = null;
 
   filterForm: ReturnType<FormBuilder['group']>;
   chartColors = CHART_COLORS;
@@ -119,5 +125,29 @@ export class AnalyticsComponent implements OnInit {
   // Warna chart per-index, diulang (modulo) kalau jumlah opsi/kategori lebih banyak dari palet.
   colorFor(index: number): string {
     return this.chartColors[index % this.chartColors.length];
+  }
+
+  // Ekspor hasil analytics (summary + raw submission) sesuai filter aktif, lalu trigger download
+  // langsung di browser lewat Blob URL sementara (di-revoke setelah klik biar gak nyangkut di memory).
+  export(format: AnalyticsExportFormat): void {
+    if (this.selectedQuizId === null) return;
+
+    this.isExporting = format;
+    this.analyticsService.exportAnalytics(this.selectedQuizId, format, this.currentFilter()).subscribe({
+      next: (blob) => {
+        this.isExporting = null;
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `analytics-quiz-${this.selectedQuizId}.${format}`;
+        anchor.click();
+        window.URL.revokeObjectURL(url);
+        this.toast.success('Export berhasil diunduh.');
+      },
+      error: () => {
+        this.isExporting = null;
+        this.toast.error('Gagal export data.');
+      },
+    });
   }
 }

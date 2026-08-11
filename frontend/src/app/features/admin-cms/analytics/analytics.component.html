@@ -36,6 +36,22 @@
   </div>
 </form>
 
+<div class="analytics__export-bar">
+  <span>Export:</span>
+  <app-button variant="ghost" size="sm" [disabled]="isExporting === 'csv'" (click)="export('csv')">
+    <lucide-icon name="file-down" [size]="14"></lucide-icon>
+    {{ isExporting === 'csv' ? 'Mengunduh...' : 'CSV' }}
+  </app-button>
+  <app-button variant="ghost" size="sm" [disabled]="isExporting === 'xlsx'" (click)="export('xlsx')">
+    <lucide-icon name="file-down" [size]="14"></lucide-icon>
+    {{ isExporting === 'xlsx' ? 'Mengunduh...' : 'Excel' }}
+  </app-button>
+  <app-button variant="ghost" size="sm" [disabled]="isExporting === 'pdf'" (click)="export('pdf')">
+    <lucide-icon name="file-down" [size]="14"></lucide-icon>
+    {{ isExporting === 'pdf' ? 'Mengunduh...' : 'PDF' }}
+  </app-button>
+</div>
+
 <div *ngIf="isLoading" class="analytics__loading">Memuat data...</div>
 
 <ng-container *ngIf="!isLoading && analytics as data">
