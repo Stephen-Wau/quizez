@@ -102,4 +102,12 @@ export class AnalyticsComponent implements OnInit {
       },
     });
   }
+
+  // Tinggi bar trend chart dalam persen, dinormalisasi ke titik dengan jumlah submission terbanyak
+  // biar bar tertinggi selalu penuh (100%) dan yang lain proporsional.
+  trendBarHeight(count: number): number {
+    if (!this.analytics || this.analytics.trend.length === 0) return 0;
+    const max = Math.max(...this.analytics.trend.map((t) => t.count), 1);
+    return Math.round((count / max) * 100);
+  }
 }

@@ -58,13 +58,27 @@
   margin-bottom: var(--spacing-3);
 }
 
+.analytics__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin-bottom: var(--spacing-3);
+
+  label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+  }
+}
+
 .analytics__filter-actions {
   display: flex;
   gap: var(--spacing-2);
   margin-bottom: var(--spacing-3);
 }
 
-.analytics__loading {
+.analytics__loading,
+.analytics__empty {
   color: var(--color-text-muted);
   font-size: 0.9rem;
   padding: var(--spacing-3) 0;
@@ -96,4 +110,59 @@
 .analytics__card-value {
   font-size: 1.5rem;
   font-weight: 700;
+}
+
+.analytics__section {
+  margin-bottom: var(--spacing-4);
+
+  h2 {
+    font-size: 1.05rem;
+    margin: 0 0 var(--spacing-3);
+  }
+}
+
+// Trend chart: bar chart CSS sederhana, tinggi bar dihitung proporsional di component (trendBarHeight).
+.analytics__trend {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-3);
+  height: 180px;
+  padding: var(--spacing-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+.analytics__trend-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1 0 48px;
+  height: 100%;
+}
+
+.analytics__trend-bar {
+  width: 32px;
+  min-height: 4px;
+  background: var(--color-primary);
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  transition: height 0.2s ease;
+}
+
+.analytics__trend-count {
+  font-size: 0.7rem;
+  color: #fff;
+  transform: translateY(-16px);
+}
+
+.analytics__trend-label {
+  margin-top: var(--spacing-2);
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }

@@ -11,12 +11,18 @@ import {
   SummaryBucket,
 } from '../summary/summary.service';
 
+export interface TrendPoint {
+  label: string;
+  count: number;
+}
+
 export interface QuizAnalyticsResponse {
   quiz: Quiz;
   stats: QuizSummaryStats;
   score_distribution: SummaryBucket[];
   question_summaries: QuestionSummary[];
   submission_summaries: SubmissionSummary[];
+  trend: TrendPoint[];
 }
 
 // Filter halaman Analytics & Reporting: semua field opsional, kosong/undefined berarti "semua data".

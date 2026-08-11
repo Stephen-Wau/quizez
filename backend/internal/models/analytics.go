@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -58,14 +59,22 @@ func ParseAnalyticsFilter(r *http.Request) AnalyticsFilter {
 	return filter
 }
 
+// TrendPoint 1 titik data trend chart: label tanggal/jam beserta jumlah submission di periode itu.
+type TrendPoint struct {
+	Label string `json:"label"`
+	Count int    `json:"count"`
+}
+
 // QuizAnalytics gabungan data buat halaman Analytics & Reporting: dasar dari QuizSummary (stats,
-// distribusi skor, ringkasan question, tabel submission) — semua sudah kena filter (period/respondent/skor).
+// distribusi skor, ringkasan question, tabel submission) ditambah trend submission — semua sudah
+// kena filter (period/respondent/skor) yang sama.
 type QuizAnalytics struct {
 	Quiz                Quiz                `json:"quiz"`
 	Stats               QuizSummaryStats    `json:"stats"`
 	ScoreDistribution   []SummaryBucket     `json:"score_distribution"`
 	QuestionSummaries   []QuestionSummary   `json:"question_summaries"`
 	SubmissionSummaries []SubmissionSummary `json:"submission_summaries"`
+	Trend               []TrendPoint        `json:"trend"`
 }
 
 // GetQuizAnalytics rangkum data Analytics & Reporting untuk 1 quiz, dengan submission yang sudah
@@ -106,6 +115,7 @@ func GetQuizAnalytics(db *sql.DB, quizID int64, filter AnalyticsFilter) (QuizAna
 		ScoreDistribution:   buildScoreDistribution(quiz, submissions),
 		QuestionSummaries:   questionSummaries,
 		SubmissionSummaries: submissions,
+		Trend:               buildTrendPoints(submissions, filter.GroupBy),
 	}, nil
 }
 
@@ -250,4 +260,36 @@ func listAnswerRowsForSubmissionIDs(db *sql.DB, submissionIDs []int64) ([]summar
 		answerRows = append(answerRows, row)
 	}
 	return answerRows, rows.Err()
+}
+
+// buildTrendPoints kelompokkan submission per hari (default) atau per jam ("hour") jadi rangkaian
+// titik trend chart, diurutkan dari periode paling lama ke paling baru biar grafik enak dibaca kiri-kanan.
+func buildTrendPoints(submissions []SubmissionSummary, groupBy string) []TrendPoint {
+	counts := map[string]int{}
+	for _, submission := range submissions {
+		if submission.SubmittedAt == nil {
+			continue
+		}
+		t, err := time.ParseInLocation(dateTimeLayout, *submission.SubmittedAt, time.Local)
+		if err != nil {
+			continue
+		}
+		label := t.Format("2006-01-02")
+		if groupBy == "hour" {
+			label = t.Format("2006-01-02 15:00")
+		}
+		counts[label]++
+	}
+
+	labels := make([]string, 0, len(counts))
+	for label := range counts {
+		labels = append(labels, label)
+	}
+	sort.Strings(labels)
+
+	points := make([]TrendPoint, 0, len(labels))
+	for _, label := range labels {
+		points = append(points, TrendPoint{Label: label, Count: counts[label]})
+	}
+	return points
 }

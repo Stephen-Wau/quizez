@@ -19,6 +19,14 @@
   <app-input label="Skor Min" type="number" formControlName="min_score"></app-input>
   <app-input label="Skor Max" type="number" formControlName="max_score"></app-input>
 
+  <div class="analytics__field">
+    <label>Trend Per</label>
+    <select class="analytics__select" formControlName="group_by">
+      <option value="day">Hari</option>
+      <option value="hour">Jam</option>
+    </select>
+  </div>
+
   <div class="analytics__filter-actions">
     <app-button type="submit">
       <lucide-icon name="filter" [size]="14"></lucide-icon>
@@ -53,5 +61,19 @@
       <span class="analytics__card-label">Passing Rate</span>
       <span class="analytics__card-value">{{ data.stats.passing_rate !== null ? data.stats.passing_rate + '%' : '-' }}</span>
     </div>
+  </div>
+
+  <!-- Trend chart -->
+  <div class="analytics__section">
+    <h2>Trend Submission</h2>
+    <div class="analytics__trend" *ngIf="data.trend.length > 0; else noTrend">
+      <div class="analytics__trend-bar-wrap" *ngFor="let point of data.trend">
+        <div class="analytics__trend-bar" [style.height.%]="trendBarHeight(point.count)">
+          <span class="analytics__trend-count">{{ point.count }}</span>
+        </div>
+        <span class="analytics__trend-label">{{ point.label }}</span>
+      </div>
+    </div>
+    <ng-template #noTrend><p class="analytics__empty">Belum ada submission pada rentang filter ini.</p></ng-template>
   </div>
 </ng-container>
