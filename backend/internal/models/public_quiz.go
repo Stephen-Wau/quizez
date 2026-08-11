@@ -18,9 +18,10 @@ const (
 )
 
 type QuizShare struct {
-	ID     int64   `json:"id"`
-	QuizID *int64  `json:"quiz_id"`
-	Token  *string `json:"token"`
+	ID         int64   `json:"id"`
+	QuizID     *int64  `json:"quiz_id"`
+	Token      *string `json:"token"`
+	AccessCode *string `json:"access_code"`
 }
 
 type PublicQuestion struct {
@@ -36,20 +37,23 @@ type PublicQuestionAnswer struct {
 }
 
 type PublicQuiz struct {
-	ID            int64            `json:"id"`
-	Token         *string          `json:"token"`
-	Title         *string          `json:"title"`
-	Type          *string          `json:"type"`
-	Description   *string          `json:"description"`
-	StartTime     *string          `json:"start_time"`
-	EndTime       *string          `json:"end_time"`
-	MaxPoint      *int             `json:"max_point"`
-	PassingGrade  *int             `json:"passing_grade"`
-	TotalQuestion int              `json:"total_question"`
-	Status        *string          `json:"status"`
-	State         string           `json:"state"`
-	ServerTime    string           `json:"server_time"`
-	Questions     []PublicQuestion `json:"questions"`
+	ID                 int64            `json:"id"`
+	Token              *string          `json:"token"`
+	Title              *string          `json:"title"`
+	Type               *string          `json:"type"`
+	Description        *string          `json:"description"`
+	StartTime          *string          `json:"start_time"`
+	EndTime            *string          `json:"end_time"`
+	MaxPoint           *int             `json:"max_point"`
+	PassingGrade       *int             `json:"passing_grade"`
+	TotalQuestion      int              `json:"total_question"`
+	Status             *string          `json:"status"`
+	State              string           `json:"state"`
+	ServerTime         string           `json:"server_time"`
+	AccessCodeRequired bool             `json:"access_code_required"`
+	AccessGranted      bool             `json:"access_granted"`
+	AccessMessage      *string          `json:"access_message"`
+	Questions          []PublicQuestion `json:"questions"`
 }
 
 type PublicSubmissionAnswerInput struct {
@@ -59,20 +63,20 @@ type PublicSubmissionAnswerInput struct {
 }
 
 type PublicSubmissionResult struct {
-	SubmissionID     int64                          `json:"submission_id"`
-	Title            *string                        `json:"title"`
-	Type             *string                        `json:"type"`
-	Score            *int                           `json:"score"`
-	MaxPoint         *int                           `json:"max_point"`
-	PassingGrade     *int                           `json:"passing_grade"`
-	ScorePercentage  *float64                       `json:"score_percentage"`
-	Passed           *bool                          `json:"passed"`
-	CorrectAnswers   int                            `json:"correct_answers"`
-	AnsweredQuestions int                           `json:"answered_questions"`
-	TotalQuestions   int                            `json:"total_questions"`
-	SubmittedAt      string                         `json:"submitted_at"`
-	Message          string                         `json:"message"`
-	AnswerDetails    []PublicSubmissionAnswerResult `json:"answer_details"`
+	SubmissionID      int64                          `json:"submission_id"`
+	Title             *string                        `json:"title"`
+	Type              *string                        `json:"type"`
+	Score             *int                           `json:"score"`
+	MaxPoint          *int                           `json:"max_point"`
+	PassingGrade      *int                           `json:"passing_grade"`
+	ScorePercentage   *float64                       `json:"score_percentage"`
+	Passed            *bool                          `json:"passed"`
+	CorrectAnswers    int                            `json:"correct_answers"`
+	AnsweredQuestions int                            `json:"answered_questions"`
+	TotalQuestions    int                            `json:"total_questions"`
+	SubmittedAt       string                         `json:"submitted_at"`
+	Message           string                         `json:"message"`
+	AnswerDetails     []PublicSubmissionAnswerResult `json:"answer_details"`
 }
 
 type PublicSubmissionAnswerResult struct {
@@ -91,16 +95,28 @@ type PublicSubmissionAnswerResult struct {
 func GetOrCreateQuizShare(db *sql.DB, quizID int64) (QuizShare, error) {
 	var share QuizShare
 	var token sql.NullString
+	var accessCode sql.NullString
 	var storedQuizID sql.NullInt64
 
-	err := db.QueryRow("SELECT id, quiz_id, token FROM quiz_shares WHERE quiz_id = ? LIMIT 1", quizID).
-		Scan(&share.ID, &storedQuizID, &token)
+	err := db.QueryRow("SELECT id, quiz_id, token, access_code FROM quiz_shares WHERE quiz_id = ? LIMIT 1", quizID).
+		Scan(&share.ID, &storedQuizID, &token, &accessCode)
 	if err == nil {
 		if storedQuizID.Valid {
 			v := storedQuizID.Int64
 			share.QuizID = &v
 		}
 		share.Token = nullableString(token)
+		share.AccessCode = nullableString(accessCode)
+		if share.AccessCode == nil || strings.TrimSpace(stringPtrValue(share.AccessCode)) == "" {
+			code, err := generateAccessCode(db)
+			if err != nil {
+				return QuizShare{}, err
+			}
+			if _, err := db.Exec("UPDATE quiz_shares SET access_code = ? WHERE id = ?", code, share.ID); err != nil {
+				return QuizShare{}, err
+			}
+			share.AccessCode = &code
+		}
 		return share, nil
 	}
 	if err != sql.ErrNoRows {
@@ -113,7 +129,12 @@ func GetOrCreateQuizShare(db *sql.DB, quizID int64) (QuizShare, error) {
 			return QuizShare{}, err
 		}
 
-		res, err := db.Exec("INSERT INTO quiz_shares (quiz_id, token) VALUES (?, ?)", quizID, nextToken)
+		accessCode, err := generateAccessCode(db)
+		if err != nil {
+			return QuizShare{}, err
+		}
+
+		res, err := db.Exec("INSERT INTO quiz_shares (quiz_id, token, access_code) VALUES (?, ?, ?)", quizID, nextToken, accessCode)
 		if err != nil {
 			// Token bentrok itu sangat jarang, tapi kalau kejadian cukup generate ulang.
 			if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
@@ -129,6 +150,7 @@ func GetOrCreateQuizShare(db *sql.DB, quizID int64) (QuizShare, error) {
 		share.ID = shareID
 		share.QuizID = &quizID
 		share.Token = &nextToken
+		share.AccessCode = &accessCode
 		return share, nil
 	}
 
@@ -137,7 +159,7 @@ func GetOrCreateQuizShare(db *sql.DB, quizID int64) (QuizShare, error) {
 
 // GetPublicQuizByToken cari quiz dari token publik, hitung state period-nya, lalu sanitasi semua
 // question/answer supaya FE publik tidak menerima flag benar-salah asli dari database.
-func GetPublicQuizByToken(db *sql.DB, token string, now time.Time) (PublicQuiz, error) {
+func GetPublicQuizByToken(db *sql.DB, token string, accessCode *string, now time.Time) (PublicQuiz, error) {
 	row := db.QueryRow(
 		"SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, "+
 			"(SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS total_question, q.status "+
@@ -150,48 +172,77 @@ func GetPublicQuizByToken(db *sql.DB, token string, now time.Time) (PublicQuiz, 
 		return PublicQuiz{}, err
 	}
 
-	questions, err := ListQuestionsByQuiz(db, quiz.ID)
+	share, err := getQuizShareByToken(db, token)
 	if err != nil {
 		return PublicQuiz{}, err
 	}
 
-	publicQuestions := make([]PublicQuestion, 0, len(questions))
-	for _, question := range questions {
-		answers := make([]PublicQuestionAnswer, 0, len(question.Answers))
-		for _, answer := range question.Answers {
-			answers = append(answers, PublicQuestionAnswer{
-				ID:    answer.ID,
-				Label: answer.Label,
+	accessRequired := share.AccessCode != nil && strings.TrimSpace(stringPtrValue(share.AccessCode)) != ""
+	accessGranted := !accessRequired
+	if accessRequired {
+		accessGranted = strings.EqualFold(
+			strings.TrimSpace(stringPtrValue(share.AccessCode)),
+			strings.TrimSpace(stringPtrValue(accessCode)),
+		)
+	}
+
+	publicQuestions := []PublicQuestion{}
+	if accessGranted {
+		questions, err := ListQuestionsByQuiz(db, quiz.ID)
+		if err != nil {
+			return PublicQuiz{}, err
+		}
+
+		publicQuestions = make([]PublicQuestion, 0, len(questions))
+		for _, question := range questions {
+			answers := make([]PublicQuestionAnswer, 0, len(question.Answers))
+			for _, answer := range question.Answers {
+				answers = append(answers, PublicQuestionAnswer{
+					ID:    answer.ID,
+					Label: answer.Label,
+				})
+			}
+			publicQuestions = append(publicQuestions, PublicQuestion{
+				ID:         question.ID,
+				Question:   question.Question,
+				TypeAnswer: question.TypeAnswer,
+				Answers:    answers,
 			})
 		}
-		publicQuestions = append(publicQuestions, PublicQuestion{
-			ID:         question.ID,
-			Question:   question.Question,
-			TypeAnswer: question.TypeAnswer,
-			Answers:    answers,
-		})
-	}
-	if stringPtrValue(quiz.Type) == "quiz" {
-		shufflePublicQuestions(publicQuestions)
+		if stringPtrValue(quiz.Type) == "quiz" {
+			shufflePublicQuestions(publicQuestions)
+		}
 	}
 
 	tokenCopy := token
+	accessMessage := (*string)(nil)
+	if accessRequired && !accessGranted {
+		msg := "Masukkan PIN akses yang benar untuk membuka form ini."
+		accessMessage = &msg
+	}
 	return PublicQuiz{
-		ID:            quiz.ID,
-		Token:         &tokenCopy,
-		Title:         quiz.Title,
-		Type:          quiz.Type,
-		Description:   quiz.Description,
-		StartTime:     quiz.StartTime,
-		EndTime:       quiz.EndTime,
-		MaxPoint:      quiz.MaxPoint,
-		PassingGrade:  quiz.PassingGrade,
-		TotalQuestion: quiz.TotalQuestion,
-		Status:        quiz.Status,
-		State:         ResolvePublicQuizState(quiz, now),
-		ServerTime:    now.Format(dateTimeLayout),
-		Questions:     publicQuestions,
+		ID:                 quiz.ID,
+		Token:              &tokenCopy,
+		Title:              quiz.Title,
+		Type:               quiz.Type,
+		Description:        quiz.Description,
+		StartTime:          quiz.StartTime,
+		EndTime:            quiz.EndTime,
+		MaxPoint:           quiz.MaxPoint,
+		PassingGrade:       quiz.PassingGrade,
+		TotalQuestion:      quiz.TotalQuestion,
+		Status:             quiz.Status,
+		State:              ResolvePublicQuizState(quiz, now),
+		ServerTime:         now.Format(dateTimeLayout),
+		AccessCodeRequired: accessRequired,
+		AccessGranted:      accessGranted,
+		AccessMessage:      accessMessage,
+		Questions:          publicQuestions,
 	}, nil
+}
+
+func GetQuizShareByToken(db *sql.DB, token string) (QuizShare, error) {
+	return getQuizShareByToken(db, token)
 }
 
 // HasSubmittedEmail dipakai alur quiz publik untuk mencegah email yang sama submit dua kali.
@@ -206,6 +257,16 @@ func HasSubmittedEmail(db *sql.DB, quizID int64, email string) (bool, error) {
 		return false, nil
 	}
 	return err == nil, err
+}
+
+func ValidateQuizShareAccessCode(share QuizShare, accessCode *string) bool {
+	if share.AccessCode == nil || strings.TrimSpace(stringPtrValue(share.AccessCode)) == "" {
+		return true
+	}
+	return strings.EqualFold(
+		strings.TrimSpace(stringPtrValue(share.AccessCode)),
+		strings.TrimSpace(stringPtrValue(accessCode)),
+	)
 }
 
 // SavePublicSubmission simpan satu submit publik beserta semua jawabannya dalam transaction yang
@@ -277,10 +338,10 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 		input, hasInput := inputByQuestionID[question.ID]
 		if !hasInput && isQuizSubmission {
 			storedAnswers = append(storedAnswers, storedAnswer{
-				QuestionID: question.ID,
-				Question:   question.Question,
-				TypeAnswer: question.TypeAnswer,
-				Point:      question.Point,
+				QuestionID:     question.ID,
+				Question:       question.Question,
+				TypeAnswer:     question.TypeAnswer,
+				Point:          question.Point,
 				CorrectAnswers: collectCorrectAnswerLabels(question),
 			})
 			continue
@@ -294,10 +355,10 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 			if input.AnswerText == nil || strings.TrimSpace(*input.AnswerText) == "" {
 				if isQuizSubmission {
 					storedAnswers = append(storedAnswers, storedAnswer{
-						QuestionID: question.ID,
-						Question:   question.Question,
-						TypeAnswer: question.TypeAnswer,
-						Point:      question.Point,
+						QuestionID:     question.ID,
+						Question:       question.Question,
+						TypeAnswer:     question.TypeAnswer,
+						Point:          question.Point,
 						CorrectAnswers: collectCorrectAnswerLabels(question),
 					})
 					continue
@@ -307,21 +368,21 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 			answerText := strings.TrimSpace(stringPtrValue(input.AnswerText))
 			answeredQuestions++
 			storedAnswers = append(storedAnswers, storedAnswer{
-				QuestionID: question.ID,
-				Question:   question.Question,
-				TypeAnswer: question.TypeAnswer,
-				Point:      question.Point,
-				AnswerText: &answerText,
+				QuestionID:     question.ID,
+				Question:       question.Question,
+				TypeAnswer:     question.TypeAnswer,
+				Point:          question.Point,
+				AnswerText:     &answerText,
 				CorrectAnswers: collectCorrectAnswerLabels(question),
 			})
 		default:
 			if input.QuestionAnswerID == nil || *input.QuestionAnswerID <= 0 {
 				if isQuizSubmission {
 					storedAnswers = append(storedAnswers, storedAnswer{
-						QuestionID: question.ID,
-						Question:   question.Question,
-						TypeAnswer: question.TypeAnswer,
-						Point:      question.Point,
+						QuestionID:     question.ID,
+						Question:       question.Question,
+						TypeAnswer:     question.TypeAnswer,
+						Point:          question.Point,
 						CorrectAnswers: collectCorrectAnswerLabels(question),
 					})
 					continue
@@ -545,6 +606,47 @@ func generateShareToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(buf), nil
+}
+
+func generateAccessCode(db *sql.DB) (string, error) {
+	for i := 0; i < 5; i++ {
+		buf := make([]byte, 4)
+		if _, err := rand.Read(buf); err != nil {
+			return "", err
+		}
+		value := (int(buf[0]) << 24) | (int(buf[1]) << 16) | (int(buf[2]) << 8) | int(buf[3])
+		code := fmt.Sprintf("%06d", value%1000000)
+		var exists int
+		err := db.QueryRow("SELECT 1 FROM quiz_shares WHERE access_code = ? LIMIT 1", code).Scan(&exists)
+		if err == sql.ErrNoRows {
+			return code, nil
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("failed to generate unique access code")
+}
+
+func getQuizShareByToken(db *sql.DB, token string) (QuizShare, error) {
+	var share QuizShare
+	var quizID sql.NullInt64
+	var storedToken sql.NullString
+	var accessCode sql.NullString
+	err := db.QueryRow(
+		"SELECT id, quiz_id, token, access_code FROM quiz_shares WHERE token = ? LIMIT 1",
+		token,
+	).Scan(&share.ID, &quizID, &storedToken, &accessCode)
+	if err != nil {
+		return QuizShare{}, err
+	}
+	if quizID.Valid {
+		value := quizID.Int64
+		share.QuizID = &value
+	}
+	share.Token = nullableString(storedToken)
+	share.AccessCode = nullableString(accessCode)
+	return share, nil
 }
 
 // findQuestionAnswerByID memastikan opsi jawaban yang dipilih publik memang milik question terkait.

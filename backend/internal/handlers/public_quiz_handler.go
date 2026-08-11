@@ -14,9 +14,10 @@ import (
 )
 
 type publicSubmissionRequest struct {
-	Email     *string                         `json:"email"`
-	StartedAt *string                         `json:"started_at"`
-	Answers   []publicSubmissionAnswerRequest `json:"answers"`
+	Email      *string                         `json:"email"`
+	StartedAt  *string                         `json:"started_at"`
+	AccessCode *string                         `json:"access_code"`
+	Answers    []publicSubmissionAnswerRequest `json:"answers"`
 }
 
 type publicSubmissionAnswerRequest struct {
@@ -26,8 +27,9 @@ type publicSubmissionAnswerRequest struct {
 }
 
 type quizShareResponse struct {
-	QuizID int64   `json:"quiz_id"`
-	Token  *string `json:"token"`
+	QuizID     int64   `json:"quiz_id"`
+	Token      *string `json:"token"`
+	AccessCode *string `json:"access_code"`
 }
 
 // QuizShareHandler generate atau ambil token share publik untuk 1 quiz dari menu admin.
@@ -66,8 +68,9 @@ func QuizShareHandler(db *sql.DB) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(quizShareResponse{
-			QuizID: quiz.ID,
-			Token:  share.Token,
+			QuizID:     quiz.ID,
+			Token:      share.Token,
+			AccessCode: share.AccessCode,
 		})
 	}
 }
@@ -86,7 +89,8 @@ func PublicQuizHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		quiz, err := models.GetPublicQuizByToken(db, token, time.Now())
+		accessCode := normalizeStrPtr(r.URL.Query().Get("code"))
+		quiz, err := models.GetPublicQuizByToken(db, token, accessCode, time.Now())
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "Link tidak ditemukan.", http.StatusNotFound)
 			return
@@ -123,7 +127,7 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		now := time.Now()
-		publicQuiz, err := models.GetPublicQuizByToken(db, token, now)
+		publicQuiz, err := models.GetPublicQuizByToken(db, token, req.AccessCode, now)
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "Link tidak ditemukan.", http.StatusNotFound)
 			return
@@ -135,6 +139,10 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 
 		if msg, status := validatePublicQuizAvailability(publicQuiz); msg != "" {
 			http.Error(w, msg, status)
+			return
+		}
+		if publicQuiz.AccessCodeRequired && !publicQuiz.AccessGranted {
+			http.Error(w, "PIN akses form tidak valid.", http.StatusForbidden)
 			return
 		}
 
@@ -175,15 +183,15 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		quiz := models.Quiz{
-			ID:          publicQuiz.ID,
-			Title:       publicQuiz.Title,
-			Type:        publicQuiz.Type,
-			StartTime:   publicQuiz.StartTime,
-			EndTime:     publicQuiz.EndTime,
-			Description: publicQuiz.Description,
-			MaxPoint:    publicQuiz.MaxPoint,
+			ID:           publicQuiz.ID,
+			Title:        publicQuiz.Title,
+			Type:         publicQuiz.Type,
+			StartTime:    publicQuiz.StartTime,
+			EndTime:      publicQuiz.EndTime,
+			Description:  publicQuiz.Description,
+			MaxPoint:     publicQuiz.MaxPoint,
 			PassingGrade: publicQuiz.PassingGrade,
-			Status:      publicQuiz.Status,
+			Status:       publicQuiz.Status,
 		}
 
 		result, err := models.SavePublicSubmission(db, quiz, email, inputs, startedAt, now)
@@ -253,4 +261,12 @@ func stringValue(value *string) string {
 		return ""
 	}
 	return *value
+}
+
+func normalizeStrPtr(value string) *string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
 }
