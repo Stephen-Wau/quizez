@@ -121,4 +121,22 @@
       </div>
     </div>
   </div>
+
+  <!-- Survey sentiment summary -->
+  <div class="analytics__section" *ngIf="data.sentiment_summaries.length > 0">
+    <h2>Survey Sentiment Summary</h2>
+    <div class="analytics__sentiment-list">
+      <div class="analytics__sentiment-card" *ngFor="let s of data.sentiment_summaries">
+        <p class="analytics__question-title">{{ s.question }}</p>
+        <div class="analytics__sentiment-counts">
+          <span class="analytics__sentiment-chip analytics__sentiment-chip--positive">Positif: {{ s.positive }}</span>
+          <span class="analytics__sentiment-chip analytics__sentiment-chip--neutral">Netral: {{ s.neutral }}</span>
+          <span class="analytics__sentiment-chip analytics__sentiment-chip--negative">Negatif: {{ s.negative }}</span>
+        </div>
+        <div class="analytics__keywords" *ngIf="s.top_keywords.length > 0">
+          <span class="analytics__keyword-chip" *ngFor="let kw of s.top_keywords">{{ kw.keyword }} ({{ kw.count }})</span>
+        </div>
+      </div>
+    </div>
+  </div>
 </ng-container>

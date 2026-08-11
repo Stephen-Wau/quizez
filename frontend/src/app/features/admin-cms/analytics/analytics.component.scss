@@ -284,3 +284,59 @@
   font-size: 0.85rem;
   color: var(--color-text-muted);
 }
+
+.analytics__sentiment-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.analytics__sentiment-card {
+  padding: var(--spacing-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.analytics__sentiment-counts {
+  display: flex;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-2);
+}
+
+.analytics__sentiment-chip {
+  padding: 2px var(--spacing-2);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &--positive {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  &--neutral {
+    background: #e2e8f0;
+    color: #475569;
+  }
+
+  &--negative {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+}
+
+.analytics__keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+}
+
+.analytics__keyword-chip {
+  padding: 2px var(--spacing-2);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}

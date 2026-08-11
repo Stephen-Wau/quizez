@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -75,17 +76,36 @@ type QuestionIncorrectRank struct {
 	IncorrectRate  float64 `json:"incorrect_rate"`
 }
 
+// KeywordCount 1 entri kata kunci hasil grouping sederhana dari jawaban free text, beserta
+// berapa kali kata itu muncul.
+type KeywordCount struct {
+	Keyword string `json:"keyword"`
+	Count   int    `json:"count"`
+}
+
+// QuestionSentimentSummary ringkasan sentimen jawaban free text untuk 1 question survey:
+// jumlah positif/netral/negatif (heuristik keyword) + kata kunci yang paling sering muncul.
+type QuestionSentimentSummary struct {
+	QuestionID  int64          `json:"question_id"`
+	Question    *string        `json:"question"`
+	Positive    int            `json:"positive"`
+	Neutral     int            `json:"neutral"`
+	Negative    int            `json:"negative"`
+	TopKeywords []KeywordCount `json:"top_keywords"`
+}
+
 // QuizAnalytics gabungan data buat halaman Analytics & Reporting: dasar dari QuizSummary (stats,
-// distribusi skor, ringkasan question, tabel submission) ditambah trend submission dan ranking
-// top incorrect question — semua sudah kena filter (period/respondent/skor) yang sama.
+// distribusi skor, ringkasan question, tabel submission) ditambah trend submission, ranking top
+// incorrect question, dan ringkasan sentimen — semua sudah kena filter (period/respondent/skor) yang sama.
 type QuizAnalytics struct {
-	Quiz                  Quiz                    `json:"quiz"`
-	Stats                 QuizSummaryStats        `json:"stats"`
-	ScoreDistribution     []SummaryBucket         `json:"score_distribution"`
-	QuestionSummaries     []QuestionSummary       `json:"question_summaries"`
-	SubmissionSummaries   []SubmissionSummary     `json:"submission_summaries"`
-	Trend                 []TrendPoint            `json:"trend"`
-	TopIncorrectQuestions []QuestionIncorrectRank `json:"top_incorrect_questions"`
+	Quiz                  Quiz                       `json:"quiz"`
+	Stats                 QuizSummaryStats           `json:"stats"`
+	ScoreDistribution     []SummaryBucket            `json:"score_distribution"`
+	QuestionSummaries     []QuestionSummary          `json:"question_summaries"`
+	SubmissionSummaries   []SubmissionSummary        `json:"submission_summaries"`
+	Trend                 []TrendPoint               `json:"trend"`
+	TopIncorrectQuestions []QuestionIncorrectRank    `json:"top_incorrect_questions"`
+	SentimentSummaries    []QuestionSentimentSummary `json:"sentiment_summaries"`
 }
 
 // GetQuizAnalytics rangkum data Analytics & Reporting untuk 1 quiz, dengan submission yang sudah
@@ -128,6 +148,7 @@ func GetQuizAnalytics(db *sql.DB, quizID int64, filter AnalyticsFilter) (QuizAna
 		SubmissionSummaries:   submissions,
 		Trend:                 buildTrendPoints(submissions, filter.GroupBy),
 		TopIncorrectQuestions: buildTopIncorrectQuestions(questionSummaries),
+		SentimentSummaries:    buildSentimentSummaries(questionSummaries),
 	}, nil
 }
 
@@ -340,4 +361,92 @@ func buildTopIncorrectQuestions(questionSummaries []QuestionSummary) []QuestionI
 		ranks = ranks[:10]
 	}
 	return ranks
+}
+
+// Lexicon sentiment super sederhana (Indonesia + Inggris) — cukup buat heuristik kasar "minimal
+// keyword grouping" sesuai kebutuhan fitur, bukan model NLP sungguhan.
+var positiveWords = map[string]bool{
+	"bagus": true, "baik": true, "senang": true, "suka": true, "mantap": true, "oke": true, "ok": true,
+	"memuaskan": true, "puas": true, "keren": true, "hebat": true, "cepat": true, "ramah": true,
+	"good": true, "great": true, "nice": true, "love": true, "excellent": true, "amazing": true, "helpful": true,
+}
+
+var negativeWords = map[string]bool{
+	"buruk": true, "jelek": true, "kecewa": true, "lambat": true, "susah": true, "sulit": true,
+	"lama": true, "parah": true, "gagal": true, "rusak": true, "marah": true,
+	"bad": true, "poor": true, "terrible": true, "awful": true, "hate": true, "slow": true, "worst": true,
+}
+
+// stopwords kata umum yang dibuang sebelum hitung frekuensi kata kunci, biar top keyword yang muncul
+// benar-benar kata yang bermakna (bukan "yang", "dan", "the", dsb).
+var stopwords = map[string]bool{
+	"yang": true, "dan": true, "di": true, "ini": true, "itu": true, "untuk": true, "dengan": true,
+	"saya": true, "kami": true, "juga": true, "ada": true, "tidak": true, "sangat": true, "sekali": true,
+	"the": true, "and": true, "is": true, "are": true, "to": true, "of": true, "a": true, "in": true,
+	"it": true, "this": true, "that": true, "very": true, "for": true,
+}
+
+var wordSplitPattern = regexp.MustCompile(`[a-zA-Z0-9']+`)
+
+// buildSentimentSummaries hitung sentiment sederhana + top keyword untuk tiap question bertipe
+// free_text. Klasifikasi berbasis keyword lexicon (bukan ML): jawaban dianggap positif kalau kata
+// positif lebih banyak dari negatif, negatif kalau sebaliknya, netral kalau seri/tidak ada match.
+func buildSentimentSummaries(questionSummaries []QuestionSummary) []QuestionSentimentSummary {
+	summaries := []QuestionSentimentSummary{}
+	for _, q := range questionSummaries {
+		if q.TypeAnswer == nil || *q.TypeAnswer != "free_text" || len(q.TextResponses) == 0 {
+			continue
+		}
+
+		summary := QuestionSentimentSummary{QuestionID: q.QuestionID, Question: q.Question, TopKeywords: []KeywordCount{}}
+		keywordCounts := map[string]int{}
+
+		for _, response := range q.TextResponses {
+			words := wordSplitPattern.FindAllString(strings.ToLower(response.AnswerText), -1)
+			positiveHits := 0
+			negativeHits := 0
+			for _, word := range words {
+				if positiveWords[word] {
+					positiveHits++
+				}
+				if negativeWords[word] {
+					negativeHits++
+				}
+				if !stopwords[word] && len(word) > 2 {
+					keywordCounts[word]++
+				}
+			}
+
+			switch {
+			case positiveHits > negativeHits:
+				summary.Positive++
+			case negativeHits > positiveHits:
+				summary.Negative++
+			default:
+				summary.Neutral++
+			}
+		}
+
+		summary.TopKeywords = topKeywords(keywordCounts, 5)
+		summaries = append(summaries, summary)
+	}
+	return summaries
+}
+
+// topKeywords urutkan hasil hitung frekuensi kata lalu ambil N kata paling sering muncul.
+func topKeywords(counts map[string]int, limit int) []KeywordCount {
+	keywords := make([]KeywordCount, 0, len(counts))
+	for word, count := range counts {
+		keywords = append(keywords, KeywordCount{Keyword: word, Count: count})
+	}
+	sort.Slice(keywords, func(i, j int) bool {
+		if keywords[i].Count != keywords[j].Count {
+			return keywords[i].Count > keywords[j].Count
+		}
+		return keywords[i].Keyword < keywords[j].Keyword
+	})
+	if len(keywords) > limit {
+		keywords = keywords[:limit]
+	}
+	return keywords
 }

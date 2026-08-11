@@ -24,6 +24,20 @@ export interface QuestionIncorrectRank {
   incorrect_rate: number;
 }
 
+export interface KeywordCount {
+  keyword: string;
+  count: number;
+}
+
+export interface QuestionSentimentSummary {
+  question_id: number;
+  question: string | null;
+  positive: number;
+  neutral: number;
+  negative: number;
+  top_keywords: KeywordCount[];
+}
+
 export interface QuizAnalyticsResponse {
   quiz: Quiz;
   stats: QuizSummaryStats;
@@ -32,6 +46,7 @@ export interface QuizAnalyticsResponse {
   submission_summaries: SubmissionSummary[];
   trend: TrendPoint[];
   top_incorrect_questions: QuestionIncorrectRank[];
+  sentiment_summaries: QuestionSentimentSummary[];
 }
 
 // Filter halaman Analytics & Reporting: semua field opsional, kosong/undefined berarti "semua data".
