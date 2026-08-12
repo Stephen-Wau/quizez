@@ -59,6 +59,12 @@ func main() {
 	mux.HandleFunc("/api/quizzes/{id}/submissions/{submissionId}", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuizSubmissionDetailHandler(conn))))
 	mux.HandleFunc("/api/questions", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuestionsHandler(conn))))
 	mux.HandleFunc("/api/questions/{id}", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuestionHandler(conn))))
+	mux.HandleFunc("/api/quizzes/{id}/questions/from-bank", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuizQuestionsFromBankHandler(conn))))
+	mux.HandleFunc("/api/question-bank", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuestionBankHandler(conn))))
+	mux.HandleFunc("/api/question-bank/{id}", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuestionBankItemHandler(conn))))
+	mux.HandleFunc("/api/question-bank/tags", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuestionBankTagsHandler(conn))))
+	mux.HandleFunc("/api/question-bank/import", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuestionBankImportHandler(conn))))
+	mux.HandleFunc("/api/question-bank/import-template", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuestionBankImportTemplateHandler())))
 	mux.HandleFunc("/api/public/quizzes/{token}", withCORS(cfg.FrontendOrigin, handlers.PublicQuizHandler(conn)))
 	mux.HandleFunc("/api/public/quizzes/{token}/submit", withCORS(cfg.FrontendOrigin, handlers.PublicQuizSubmitHandler(conn)))
 
