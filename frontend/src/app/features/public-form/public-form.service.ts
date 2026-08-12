@@ -51,6 +51,9 @@ export interface PublicFormSubmitPayload {
   email: string | null;
   started_at: string | null;
   access_code: string | null;
+  // attempt_seed dipakai backend untuk recompute subset random_question_count yang sama persis
+  // dengan yang ditampilkan pas GET, biar scoring/validasi konsisten sama soal yang benar dilihat responden.
+  attempt_seed: string | null;
   answers: Array<{
     question_id: number;
     question_answer_id: number | null;
@@ -96,9 +99,13 @@ export class PublicFormService {
 
   constructor(private http: HttpClient) {}
 
-  // Ambil detail form publik berdasarkan token share.
-  getByToken(token: string, accessCode: string | null = null): Observable<PublicFormDetail> {
-    const query = accessCode ? `?code=${encodeURIComponent(accessCode)}` : '';
+  // Ambil detail form publik berdasarkan token share. attemptSeed dikirim biar backend bisa
+  // pilih subset random_question_count yang stabil (sama) tiap kali sesi ini reload/refresh.
+  getByToken(token: string, accessCode: string | null = null, attemptSeed: string | null = null): Observable<PublicFormDetail> {
+    const params: string[] = [];
+    if (accessCode) params.push(`code=${encodeURIComponent(accessCode)}`);
+    if (attemptSeed) params.push(`attempt=${encodeURIComponent(attemptSeed)}`);
+    const query = params.length ? `?${params.join('&')}` : '';
     return this.http.get<PublicFormDetail>(`${this.baseUrl}/${token}${query}`);
   }
 

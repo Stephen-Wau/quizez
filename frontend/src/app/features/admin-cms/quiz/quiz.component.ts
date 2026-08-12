@@ -65,6 +65,7 @@ export class QuizComponent implements OnInit {
       description: [''],
       max_point: [null],
       passing_grade: [null],
+      random_question_count: [null, [Validators.min(1)]],
       status: ['active', Validators.required],
     });
 
@@ -159,7 +160,8 @@ export class QuizComponent implements OnInit {
   openCreateModal(): void {
     this.editingId = null;
     this.form.reset({
-      title: '', type: 'quiz', start_input: '', end_input: '', description: '', max_point: null, passing_grade: null, status: 'active',
+      title: '', type: 'quiz', start_input: '', end_input: '', description: '', max_point: null, passing_grade: null,
+      random_question_count: null, status: 'active',
     });
     this.applyMaxPointValidator('quiz');
     this.isModalOpen = true;
@@ -177,6 +179,7 @@ export class QuizComponent implements OnInit {
       description: quiz.description ?? '',
       max_point: quiz.max_point,
       passing_grade: quiz.passing_grade,
+      random_question_count: quiz.random_question_count,
       status: quiz.status ?? 'active',
     });
     this.applyMaxPointValidator(quiz.type ?? 'quiz');
@@ -207,6 +210,8 @@ export class QuizComponent implements OnInit {
       description: raw.description || null,
       max_point: isQuiz && raw.max_point !== null && raw.max_point !== '' ? Number(raw.max_point) : null,
       passing_grade: isQuiz && raw.passing_grade !== null && raw.passing_grade !== '' ? Number(raw.passing_grade) : null,
+      random_question_count:
+        raw.random_question_count !== null && raw.random_question_count !== '' ? Number(raw.random_question_count) : null,
       status: raw.status || null,
     };
 

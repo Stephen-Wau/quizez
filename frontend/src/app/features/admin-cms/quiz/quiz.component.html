@@ -123,6 +123,13 @@
     ></app-input>
 
     <app-input
+      label="Jumlah Soal Random (opsional, kosongkan buat tampilkan semua soal)"
+      type="number"
+      formControlName="random_question_count"
+      [errorMessage]="fieldError('random_question_count')"
+    ></app-input>
+
+    <app-input
       label="Description"
       formControlName="description"
       [multiline]="true"

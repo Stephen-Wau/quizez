@@ -84,6 +84,9 @@ export class PublicFormComponent implements OnInit, OnDestroy {
   progressRestored = false;
   accessForm: ReturnType<FormBuilder['group']>;
   questionForm: ReturnType<FormBuilder['group']>;
+  // attemptSeed identitas sesi responden ini di browser, dipakai backend buat pilih subset
+  // random_question_count yang stabil selama sesi (gak berubah tiap reload/refresh halaman).
+  private attemptSeed = '';
   private autoSubmitTriggered = false;
   private formSubscription = new Subscription();
   private countdownTimer: ReturnType<typeof setInterval> | null = null;
@@ -111,6 +114,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
       this.loadError = 'Link publik tidak valid.';
       return;
     }
+    this.attemptSeed = this.getOrCreateAttemptSeed(token);
     const stored = this.readStoredSession();
     this.loadForm(token, stored?.access_code ?? null);
   }
@@ -200,7 +204,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
   loadForm(token: string, accessCode: string | null = null): void {
     this.loading = true;
     this.loadError = '';
-    this.publicFormService.getByToken(token, accessCode).subscribe({
+    this.publicFormService.getByToken(token, accessCode, this.attemptSeed).subscribe({
       next: (detail) => {
         this.loading = false;
         this.submitResult = null;
@@ -531,6 +535,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
       email: this.isQuiz ? (this.accessForm.get('email')?.value?.trim() || null) : null,
       started_at: this.isQuiz ? this.readStartedAt() : null,
       access_code: this.readAccessCode(),
+      attempt_seed: this.attemptSeed || null,
       answers: this.answersArray.getRawValue().map((answer) => ({
         question_id: Number(answer['question_id']),
         question_answer_id: answer['question_answer_id'] ? Number(answer['question_answer_id']) : null,
@@ -638,6 +643,22 @@ export class PublicFormComponent implements OnInit, OnDestroy {
   private sessionKey(): string | null {
     const token = this.detail?.token ?? this.route.snapshot.paramMap.get('token');
     return token ? `public-form-session:${token}` : null;
+  }
+
+  // getOrCreateAttemptSeed baca attempt seed sesi ini dari localStorage, atau generate baru kalau
+  // belum ada (pertama kali buka link). Disimpan terpisah dari StoredPublicSession supaya sudah
+  // tersedia sebelum GET pertama (session penuh baru kebentuk setelah detail form ke-load).
+  private getOrCreateAttemptSeed(token: string): string {
+    const key = `public-form-attempt:${token}`;
+    const existing = localStorage.getItem(key);
+    if (existing) return existing;
+
+    const seed =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(key, seed);
+    return seed;
   }
 
   private persistFormSession(): void {
@@ -766,6 +787,11 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     const key = this.sessionKey();
     if (key) {
       localStorage.removeItem(key);
+    }
+    const token = this.detail?.token ?? this.route.snapshot.paramMap.get('token');
+    if (token) {
+      localStorage.removeItem(`public-form-attempt:${token}`);
+      this.attemptSeed = this.getOrCreateAttemptSeed(token);
     }
   }
 

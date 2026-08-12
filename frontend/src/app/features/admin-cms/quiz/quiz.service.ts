@@ -15,6 +15,8 @@ export interface Quiz {
   description: string | null;
   max_point: number | null;
   passing_grade: number | null;
+  // random_question_count: jumlah soal yang ditampilkan random ke responden per sesi (null = tampil semua).
+  random_question_count: number | null;
   total_question: number;
   status: string | null;
 }
