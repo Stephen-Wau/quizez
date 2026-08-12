@@ -7,12 +7,15 @@ import (
 )
 
 type Question struct {
-	ID         int64            `json:"id"`
-	QuizID     *int64           `json:"quiz_id"`
-	Question   *string          `json:"question"`
-	TypeAnswer *string          `json:"type_answer"`
-	Point      *int             `json:"point"`
-	Answers    []QuestionAnswer `json:"answers"`
+	ID         int64               `json:"id"`
+	QuizID     *int64              `json:"quiz_id"`
+	Question   *string             `json:"question"`
+	TypeAnswer *string             `json:"type_answer"`
+	Point      *int                `json:"point"`
+	Answers    []QuestionAnswer    `json:"answers"`
+	// MatrixRows cuma keisi buat type_answer="matrix": daftar baris pernyataan yang masing-masing
+	// dinilai pakai skala yang sama (Answers berperan sebagai kolom skala, ex: "Buruk".."Baik").
+	MatrixRows []QuestionMatrixRow `json:"matrix_rows"`
 }
 
 type QuestionAnswer struct {
@@ -20,6 +23,13 @@ type QuestionAnswer struct {
 	QuestionID *int64  `json:"question_id"`
 	Label      *string `json:"label"`
 	Value      *string `json:"value"`
+}
+
+// QuestionMatrixRow 1 baris pernyataan pada question tipe matrix (ex: "Kecepatan Layanan").
+type QuestionMatrixRow struct {
+	ID         int64   `json:"id"`
+	QuestionID *int64  `json:"question_id"`
+	RowLabel   *string `json:"row_label"`
 }
 
 type questionRowScanner interface {
@@ -48,6 +58,15 @@ func ListQuestionsByQuiz(db *sql.DB, quizID int64) ([]Question, error) {
 			return nil, err
 		}
 		q.Answers = answers
+
+		// Matrix rows cuma relevan buat question tipe matrix, tapi query-nya aman dipanggil buat
+		// tipe lain juga (bakal balikin slice kosong karena gak ada row-nya).
+		matrixRows, err := listQuestionMatrixRows(db, q.ID)
+		if err != nil {
+			return nil, err
+		}
+		q.MatrixRows = matrixRows
+
 		questions = append(questions, q)
 	}
 	return questions, rows.Err()
@@ -110,7 +129,8 @@ func listQuestionAnswers(db *sql.DB, questionID int64) ([]QuestionAnswer, error)
 	return answers, rows.Err()
 }
 
-// CreateQuestion insert question baru plus semua answer di transaction yang sama.
+// CreateQuestion insert question baru plus semua answer (dan matrix row kalau tipenya matrix)
+// di transaction yang sama.
 func CreateQuestion(db *sql.DB, q Question) (int64, error) {
 	tx, err := db.Begin()
 	if err != nil {
@@ -133,13 +153,16 @@ func CreateQuestion(db *sql.DB, q Question) (int64, error) {
 	if err := insertQuestionAnswers(tx, questionID, q.Answers); err != nil {
 		return 0, err
 	}
+	if err := insertQuestionMatrixRows(tx, questionID, q.MatrixRows); err != nil {
+		return 0, err
+	}
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
 	return questionID, nil
 }
 
-// UpdateQuestion overwrite data question + rebuild semua answer-nya.
+// UpdateQuestion overwrite data question + rebuild semua answer dan matrix row-nya.
 func UpdateQuestion(db *sql.DB, q Question) error {
 	tx, err := db.Begin()
 	if err != nil {
@@ -157,6 +180,14 @@ func UpdateQuestion(db *sql.DB, q Question) error {
 		return err
 	}
 	if err := insertQuestionAnswers(tx, q.ID, q.Answers); err != nil {
+		return err
+	}
+	// Matrix row dihapus-insert-ulang kayak answer di atas. Baris lama otomatis kehapus dari
+	// quiz_submission_answers via FK cascade (ON DELETE CASCADE) kalau memang sudah gak dipakai lagi.
+	if _, err := tx.Exec("DELETE FROM question_matrix_rows WHERE question_id = ?", q.ID); err != nil {
+		return err
+	}
+	if err := insertQuestionMatrixRows(tx, q.ID, q.MatrixRows); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -181,6 +212,57 @@ func insertQuestionAnswers(tx *sql.Tx, questionID int64, answers []QuestionAnswe
 
 	for _, answer := range answers {
 		if _, err := stmt.Exec(questionID, strPtrValue(answer.Label), strPtrValue(answer.Value)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// listQuestionMatrixRows ambil semua baris pernyataan milik 1 question matrix, urut sesuai insert.
+func listQuestionMatrixRows(db *sql.DB, questionID int64) ([]QuestionMatrixRow, error) {
+	rows, err := db.Query(
+		"SELECT id, question_id, row_label FROM question_matrix_rows WHERE question_id = ? ORDER BY id ASC",
+		questionID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	matrixRows := []QuestionMatrixRow{}
+	for rows.Next() {
+		var (
+			row              QuestionMatrixRow
+			rowLabel         sql.NullString
+			questionIDNumber sql.NullInt64
+		)
+		if err := rows.Scan(&row.ID, &questionIDNumber, &rowLabel); err != nil {
+			return nil, err
+		}
+		if questionIDNumber.Valid {
+			v := questionIDNumber.Int64
+			row.QuestionID = &v
+		}
+		row.RowLabel = nullableString(rowLabel)
+		matrixRows = append(matrixRows, row)
+	}
+	return matrixRows, rows.Err()
+}
+
+// insertQuestionMatrixRows bulk insert daftar baris pernyataan milik 1 question matrix dalam
+// transaction aktif. No-op buat question non-matrix (MatrixRows kosong).
+func insertQuestionMatrixRows(tx *sql.Tx, questionID int64, matrixRows []QuestionMatrixRow) error {
+	if len(matrixRows) == 0 {
+		return nil
+	}
+	stmt, err := tx.Prepare("INSERT INTO question_matrix_rows (question_id, row_label) VALUES (?, ?)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, row := range matrixRows {
+		if _, err := stmt.Exec(questionID, strPtrValue(row.RowLabel)); err != nil {
 			return err
 		}
 	}

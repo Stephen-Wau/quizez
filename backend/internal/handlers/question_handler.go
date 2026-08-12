@@ -12,6 +12,9 @@ import (
 
 const (
 	questionTypeMultipleChoice = "multiple_choice"
+	questionTypeDropdown       = "dropdown"
+	questionTypeCheckbox       = "checkbox"
+	questionTypeMatrix         = "matrix"
 	questionTypeRating         = "rating"
 	questionTypeFreeText       = "free_text"
 )
@@ -22,11 +25,17 @@ type questionRequest struct {
 	TypeAnswer *string                 `json:"type_answer"`
 	Point      *int                    `json:"point"`
 	Answers    []questionAnswerRequest `json:"answers"`
+	// MatrixRows cuma dipakai buat type_answer="matrix".
+	MatrixRows []questionMatrixRowRequest `json:"matrix_rows"`
 }
 
 type questionAnswerRequest struct {
 	Label *string `json:"label"`
 	Value *string `json:"value"`
+}
+
+type questionMatrixRowRequest struct {
+	RowLabel *string `json:"row_label"`
 }
 
 // GET (list) & POST (create) at /api/questions
@@ -103,9 +112,9 @@ func validateQuestionRequest(req questionRequest) string {
 		return "Type answer wajib dipilih."
 	}
 	switch *req.TypeAnswer {
-	case questionTypeMultipleChoice, questionTypeRating, questionTypeFreeText:
+	case questionTypeMultipleChoice, questionTypeDropdown, questionTypeCheckbox, questionTypeMatrix, questionTypeRating, questionTypeFreeText:
 	default:
-		return "Type answer harus pilihan ganda, rating, atau free text."
+		return "Type answer harus pilihan ganda, dropdown, checkbox, matrix, rating, atau free text."
 	}
 
 	if req.Point != nil && *req.Point <= 0 {
@@ -118,33 +127,30 @@ func validateQuestionRequest(req questionRequest) string {
 		if len(req.Answers) > 0 {
 			return "Free text tidak boleh punya jawaban pilihan."
 		}
-	case questionTypeMultipleChoice:
-		// Pilihan ganda wajib punya minimal 2 opsi, teks opsi gak boleh kosong, dan cuma boleh ada
-		// satu jawaban benar (true).
-		if len(req.Answers) < 2 {
-			return "Pilihan ganda minimal harus punya 2 jawaban."
+	case questionTypeMultipleChoice, questionTypeDropdown, questionTypeCheckbox:
+		// Pilihan ganda/dropdown/checkbox sama-sama wajib minimal 2 opsi, teks opsi gak boleh
+		// kosong, dan minimal 1 jawaban true (boleh lebih dari 1 — ex: "sebutkan salah satu
+		// bilangan prima" buat pilihan ganda, atau checkbox yang emang butuh banyak jawaban benar).
+		if msg := validateOptionAnswers(req.Answers); msg != "" {
+			return msg
 		}
-		trueCount := 0
+	case questionTypeMatrix:
+		// Matrix butuh minimal 1 baris pernyataan + minimal 2 kolom skala (kolom reuse field Answers).
+		if len(req.MatrixRows) < 1 {
+			return "Matrix minimal harus punya 1 baris pernyataan."
+		}
+		for _, row := range req.MatrixRows {
+			if row.RowLabel == nil || strings.TrimSpace(*row.RowLabel) == "" {
+				return "Teks baris matrix wajib diisi."
+			}
+		}
+		if len(req.Answers) < 2 {
+			return "Matrix minimal harus punya 2 kolom skala."
+		}
 		for _, answer := range req.Answers {
 			if answer.Label == nil || strings.TrimSpace(*answer.Label) == "" {
-				return "Teks jawaban pilihan ganda wajib diisi."
+				return "Teks kolom skala matrix wajib diisi."
 			}
-			if answer.Value == nil || strings.TrimSpace(*answer.Value) == "" {
-				return "Semua jawaban pilihan ganda wajib diisi."
-			}
-			value := strings.ToLower(strings.TrimSpace(*answer.Value))
-			if value != "true" && value != "false" {
-				return "Jawaban pilihan ganda harus true atau false."
-			}
-			if value == "true" {
-				trueCount++
-			}
-		}
-		if trueCount == 0 {
-			return "Pilihan ganda harus punya satu jawaban true."
-		}
-		if trueCount > 1 {
-			return "Pilihan ganda hanya boleh punya satu jawaban true."
 		}
 	case questionTypeRating:
 		// Rating disimpan sebagai rentang angka berurutan (1..N), jadi value harus numerik,
@@ -177,6 +183,35 @@ func validateQuestionRequest(req questionRequest) string {
 		}
 	}
 
+	return ""
+}
+
+// validateOptionAnswers cek aturan bersama buat question yang jawabannya berupa daftar opsi
+// true/false: multiple_choice, dropdown, dan checkbox. Minimal 2 opsi, teks gak boleh kosong,
+// value harus true/false, dan minimal 1 opsi true (boleh lebih dari 1).
+func validateOptionAnswers(answers []questionAnswerRequest) string {
+	if len(answers) < 2 {
+		return "Minimal harus punya 2 jawaban."
+	}
+	trueCount := 0
+	for _, answer := range answers {
+		if answer.Label == nil || strings.TrimSpace(*answer.Label) == "" {
+			return "Teks jawaban wajib diisi."
+		}
+		if answer.Value == nil || strings.TrimSpace(*answer.Value) == "" {
+			return "Semua jawaban wajib diisi."
+		}
+		value := strings.ToLower(strings.TrimSpace(*answer.Value))
+		if value != "true" && value != "false" {
+			return "Jawaban harus true atau false."
+		}
+		if value == "true" {
+			trueCount++
+		}
+	}
+	if trueCount == 0 {
+		return "Harus punya minimal satu jawaban true."
+	}
 	return ""
 }
 
@@ -292,11 +327,16 @@ func mapQuestionRequestToModel(req questionRequest) models.Question {
 			Value: normalizeStr(answer.Value),
 		})
 	}
+	matrixRows := make([]models.QuestionMatrixRow, 0, len(req.MatrixRows))
+	for _, row := range req.MatrixRows {
+		matrixRows = append(matrixRows, models.QuestionMatrixRow{RowLabel: normalizeStr(row.RowLabel)})
+	}
 	return models.Question{
 		QuizID:     req.QuizID,
 		Question:   normalizeStr(req.Question),
 		TypeAnswer: normalizeStr(req.TypeAnswer),
 		Point:      req.Point,
 		Answers:    models.NormalizeQuestionAnswers(answers),
+		MatrixRows: matrixRows,
 	}
 }
