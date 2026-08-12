@@ -46,6 +46,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'question-bank',
+        loadComponent: () =>
+          import('./features/admin-cms/question-bank/question-bank.component').then(
+            (m) => m.QuestionBankComponent
+          ),
+      },
+      {
         path: 'summary',
         loadComponent: () =>
           import('./features/admin-cms/summary/summary.component').then((m) => m.SummaryComponent),
