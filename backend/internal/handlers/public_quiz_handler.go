@@ -19,8 +19,12 @@ type publicSubmissionRequest struct {
 	AccessCode *string `json:"access_code"`
 	// AttemptSeed dipakai untuk recompute subset random_question_count yang sama persis dengan
 	// yang ditampilkan ke responden saat GET (lihat models.selectRandomQuestionSubset).
-	AttemptSeed *string                         `json:"attempt_seed"`
-	Answers     []publicSubmissionAnswerRequest `json:"answers"`
+	AttemptSeed *string `json:"attempt_seed"`
+	// DeviceFingerprint & ViolationCount dipakai fitur anti-cheat (lock_mode): dedup device per
+	// quiz, dan jumlah pelanggaran tab-switch/keluar-fullscreen yang direkam FE selama sesi.
+	DeviceFingerprint *string                         `json:"device_fingerprint"`
+	ViolationCount    *int                            `json:"violation_count"`
+	Answers           []publicSubmissionAnswerRequest `json:"answers"`
 }
 
 type publicSubmissionAnswerRequest struct {
@@ -171,7 +175,8 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		if publicQuiz.Type != nil && *publicQuiz.Type == "quiz" && email != nil {
+		isQuizType := publicQuiz.Type != nil && *publicQuiz.Type == "quiz"
+		if isQuizType && email != nil {
 			exists, err := models.HasSubmittedEmail(db, publicQuiz.ID, *email)
 			if err != nil {
 				http.Error(w, "failed to submit quiz", http.StatusInternalServerError)
@@ -179,6 +184,20 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 			}
 			if exists {
 				http.Error(w, "Email ini sudah pernah mengirim quiz ini.", http.StatusConflict)
+				return
+			}
+		}
+		// Dedup device fingerprint (anti-cheat) cuma buat quiz -- survey sengaja dibiarkan bebas
+		// diisi berkali-kali dari device yang sama (lihat fitur "Isi Ulang" survey).
+		fingerprint := stringValue(req.DeviceFingerprint)
+		if isQuizType && fingerprint != "" {
+			exists, err := models.HasSubmittedFingerprint(db, publicQuiz.ID, fingerprint)
+			if err != nil {
+				http.Error(w, "failed to submit quiz", http.StatusInternalServerError)
+				return
+			}
+			if exists {
+				http.Error(w, "Device ini sudah pernah mengirim quiz ini.", http.StatusConflict)
 				return
 			}
 		}
@@ -218,10 +237,14 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 			Status:              publicQuiz.Status,
 		}
 
-		result, err := models.SavePublicSubmission(db, quiz, email, inputs, startedAt, now, attemptSeed)
+		violationCount := 0
+		if req.ViolationCount != nil && *req.ViolationCount > 0 {
+			violationCount = *req.ViolationCount
+		}
+		result, err := models.SavePublicSubmission(db, quiz, email, inputs, startedAt, now, attemptSeed, req.DeviceFingerprint, violationCount)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
-				http.Error(w, "Email ini sudah pernah mengirim quiz ini.", http.StatusConflict)
+				http.Error(w, "Email atau device ini sudah pernah mengirim quiz ini.", http.StatusConflict)
 				return
 			}
 			http.Error(w, err.Error(), http.StatusBadRequest)

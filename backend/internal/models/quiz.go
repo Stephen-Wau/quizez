@@ -29,9 +29,12 @@ type Quiz struct {
 	PassingGrade *int    `json:"passing_grade"`
 	// RandomQuestionCount jumlah soal yang ditampilkan secara acak per sesi responden dari total pool
 	// question quiz ini. Nil/0 atau >= total question berarti fitur ini nonaktif (tampilkan semua soal).
-	RandomQuestionCount *int    `json:"random_question_count"`
-	TotalQuestion       int     `json:"total_question"`
-	Status              *string `json:"status"`
+	RandomQuestionCount *int `json:"random_question_count"`
+	// LockMode aktifin anti-cheat di public form (khusus type=quiz): wajib fullscreen, keluar
+	// tab/fullscreen dihitung pelanggaran & auto-submit paksa setelah 3x pelanggaran.
+	LockMode      bool    `json:"lock_mode"`
+	TotalQuestion int     `json:"total_question"`
+	Status        *string `json:"status"`
 }
 
 type quizRowScanner interface {
@@ -42,7 +45,7 @@ type quizRowScanner interface {
 // (misal generate share link atau alur publik berdasarkan token share).
 func GetQuizByID(db *sql.DB, id int64) (Quiz, error) {
 	row := db.QueryRow(
-		"SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, q.random_question_count, "+
+		"SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, q.random_question_count, q.lock_mode, "+
 			"(SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS total_question, q.status "+
 			"FROM quizzes q WHERE q.id = ? LIMIT 1",
 		id,
@@ -68,7 +71,7 @@ func ListQuizzes(db *sql.DB, params listquery.Params) ([]Quiz, int, error) {
 	}
 
 	sortCol := params.SortColumn(quizSortColumns, "id")
-	query := "SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, q.random_question_count, " +
+	query := "SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, q.random_question_count, q.lock_mode, " +
 		"(SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS total_question, q.status FROM quizzes q" + whereClause +
 		fmt.Sprintf(" ORDER BY %s %s LIMIT ? OFFSET ?", sortCol, params.SortDirSQL())
 	args = append(args, params.PerPage, params.Offset())
@@ -102,7 +105,7 @@ func scanQuiz(row quizRowScanner) (Quiz, error) {
 		passingGrade         sql.NullInt64
 		randomQuestionCount  sql.NullInt64
 	)
-	if err := row.Scan(&q.ID, &title, &qType, &startTime, &endTime, &description, &maxPoint, &passingGrade, &randomQuestionCount, &q.TotalQuestion, &status); err != nil {
+	if err := row.Scan(&q.ID, &title, &qType, &startTime, &endTime, &description, &maxPoint, &passingGrade, &randomQuestionCount, &q.LockMode, &q.TotalQuestion, &status); err != nil {
 		return Quiz{}, err
 	}
 	q.Title = nullableString(title)
@@ -139,8 +142,8 @@ func CreateQuiz(db *sql.DB, q Quiz) (int64, error) {
 	}
 
 	res, err := db.Exec(
-		"INSERT INTO quizzes (title, type, start_time, end_time, description, max_point, passing_grade, random_question_count, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		strPtrValue(q.Title), strPtrValue(q.Type), startTime, endTime, strPtrValue(q.Description), intPtrValue(q.MaxPoint), intPtrValue(q.PassingGrade), intPtrValue(q.RandomQuestionCount), strPtrValue(q.Status),
+		"INSERT INTO quizzes (title, type, start_time, end_time, description, max_point, passing_grade, random_question_count, lock_mode, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		strPtrValue(q.Title), strPtrValue(q.Type), startTime, endTime, strPtrValue(q.Description), intPtrValue(q.MaxPoint), intPtrValue(q.PassingGrade), intPtrValue(q.RandomQuestionCount), q.LockMode, strPtrValue(q.Status),
 	)
 	if err != nil {
 		return 0, err
@@ -160,8 +163,8 @@ func UpdateQuiz(db *sql.DB, q Quiz) error {
 	}
 
 	_, err = db.Exec(
-		"UPDATE quizzes SET title = ?, type = ?, start_time = ?, end_time = ?, description = ?, max_point = ?, passing_grade = ?, random_question_count = ?, status = ? WHERE id = ?",
-		strPtrValue(q.Title), strPtrValue(q.Type), startTime, endTime, strPtrValue(q.Description), intPtrValue(q.MaxPoint), intPtrValue(q.PassingGrade), intPtrValue(q.RandomQuestionCount), strPtrValue(q.Status), q.ID,
+		"UPDATE quizzes SET title = ?, type = ?, start_time = ?, end_time = ?, description = ?, max_point = ?, passing_grade = ?, random_question_count = ?, lock_mode = ?, status = ? WHERE id = ?",
+		strPtrValue(q.Title), strPtrValue(q.Type), startTime, endTime, strPtrValue(q.Description), intPtrValue(q.MaxPoint), intPtrValue(q.PassingGrade), intPtrValue(q.RandomQuestionCount), q.LockMode, strPtrValue(q.Status), q.ID,
 	)
 	return err
 }

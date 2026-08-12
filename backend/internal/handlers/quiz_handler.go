@@ -20,6 +20,7 @@ type quizRequest struct {
 	MaxPoint            *int    `json:"max_point"`
 	PassingGrade        *int    `json:"passing_grade"`
 	RandomQuestionCount *int    `json:"random_question_count"`
+	LockMode            bool    `json:"lock_mode"`
 	Status              *string `json:"status"`
 }
 
@@ -138,7 +139,8 @@ func createQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		Title: normalizeStr(req.Title), Type: normalizeStr(req.Type),
 		StartTime: req.StartTime, EndTime: req.EndTime,
 		Description: normalizeStr(req.Description), MaxPoint: req.MaxPoint, PassingGrade: req.PassingGrade,
-		RandomQuestionCount: req.RandomQuestionCount, Status: normalizeStr(req.Status),
+		RandomQuestionCount: req.RandomQuestionCount, LockMode: req.Type != nil && *req.Type == "quiz" && req.LockMode,
+		Status: normalizeStr(req.Status),
 	}
 	id, err := models.CreateQuiz(db, q)
 	if err != nil {
@@ -167,7 +169,8 @@ func updateQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 		ID: id, Title: normalizeStr(req.Title), Type: normalizeStr(req.Type),
 		StartTime: req.StartTime, EndTime: req.EndTime,
 		Description: normalizeStr(req.Description), MaxPoint: req.MaxPoint, PassingGrade: req.PassingGrade,
-		RandomQuestionCount: req.RandomQuestionCount, Status: normalizeStr(req.Status),
+		RandomQuestionCount: req.RandomQuestionCount, LockMode: req.Type != nil && *req.Type == "quiz" && req.LockMode,
+		Status: normalizeStr(req.Status),
 	}
 	if err := models.UpdateQuiz(db, q); err != nil {
 		http.Error(w, "failed to update quiz", http.StatusInternalServerError)

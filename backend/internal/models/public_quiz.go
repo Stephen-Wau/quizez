@@ -59,6 +59,7 @@ type PublicQuiz struct {
 	PassingGrade *int    `json:"passing_grade"`
 	// RandomQuestionCount diteruskan biar handler submit bisa recompute subset yang sama tanpa query ulang ke DB.
 	RandomQuestionCount *int             `json:"-"`
+	LockMode            bool             `json:"lock_mode"`
 	TotalQuestion       int              `json:"total_question"`
 	Status              *string          `json:"status"`
 	State               string           `json:"state"`
@@ -188,7 +189,7 @@ func GetOrCreateQuizShare(db *sql.DB, quizID int64) (QuizShare, error) {
 // ditampilkan gak berubah-ubah tiap kali form di-reload.
 func GetPublicQuizByToken(db *sql.DB, token string, accessCode *string, now time.Time, attemptSeed string) (PublicQuiz, error) {
 	row := db.QueryRow(
-		"SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, q.random_question_count, "+
+		"SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, q.random_question_count, q.lock_mode, "+
 			"(SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS total_question, q.status "+
 			"FROM quizzes q INNER JOIN quiz_shares qs ON qs.quiz_id = q.id WHERE qs.token = ? LIMIT 1",
 		token,
@@ -269,6 +270,7 @@ func GetPublicQuizByToken(db *sql.DB, token string, accessCode *string, now time
 		MaxPoint:            quiz.MaxPoint,
 		PassingGrade:        quiz.PassingGrade,
 		RandomQuestionCount: quiz.RandomQuestionCount,
+		LockMode:            quiz.LockMode,
 		TotalQuestion:       totalQuestionForResponse,
 		Status:              quiz.Status,
 		State:               ResolvePublicQuizState(quiz, now),
@@ -298,6 +300,21 @@ func HasSubmittedEmail(db *sql.DB, quizID int64, email string) (bool, error) {
 	return err == nil, err
 }
 
+// HasSubmittedFingerprint dipakai alur quiz publik (anti-cheat) untuk mencegah 1 device submit
+// quiz yang sama dua kali walau pakai email berbeda-beda.
+func HasSubmittedFingerprint(db *sql.DB, quizID int64, fingerprint string) (bool, error) {
+	var exists int
+	err := db.QueryRow(
+		"SELECT 1 FROM quiz_submissions WHERE quiz_id = ? AND device_fingerprint = ? LIMIT 1",
+		quizID,
+		strings.TrimSpace(fingerprint),
+	).Scan(&exists)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 func ValidateQuizShareAccessCode(share QuizShare, accessCode *string) bool {
 	if share.AccessCode == nil || strings.TrimSpace(stringPtrValue(share.AccessCode)) == "" {
 		return true
@@ -310,7 +327,7 @@ func ValidateQuizShareAccessCode(share QuizShare, accessCode *string) bool {
 
 // SavePublicSubmission simpan satu submit publik beserta semua jawabannya dalam transaction yang
 // sama, sekaligus menghitung score quiz pilihan ganda tanpa membocorkan kunci jawaban ke FE.
-func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []PublicSubmissionAnswerInput, startedAt *time.Time, now time.Time, attemptSeed string) (PublicSubmissionResult, error) {
+func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []PublicSubmissionAnswerInput, startedAt *time.Time, now time.Time, attemptSeed string, deviceFingerprint *string, violationCount int) (PublicSubmissionResult, error) {
 	questions, err := ListQuestionsByQuiz(db, quiz.ID)
 	if err != nil {
 		return PublicSubmissionResult{}, err
@@ -584,10 +601,16 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 	if startedAt != nil && !startedAt.IsZero() && !startedAt.After(now) {
 		startedAtValue = *startedAt
 	}
+	// Device fingerprint cuma disimpan buat quiz (dedup anti-cheat) -- survey sengaja dibiarkan NULL
+	// biar bisa diisi berkali-kali tanpa identitas (fitur "Isi Ulang" survey yang udah ada).
+	fingerprintValue := interface{}(nil)
+	if isQuizSubmission && deviceFingerprint != nil && strings.TrimSpace(*deviceFingerprint) != "" {
+		fingerprintValue = strings.TrimSpace(*deviceFingerprint)
+	}
 
 	res, err := tx.Exec(
-		"INSERT INTO quiz_submissions (quiz_id, respondent_email, score, started_at, submitted_at) VALUES (?, ?, ?, ?, ?)",
-		quiz.ID, emailValue, scoreValue, startedAtValue, now,
+		"INSERT INTO quiz_submissions (quiz_id, respondent_email, device_fingerprint, score, violation_count, started_at, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		quiz.ID, emailValue, fingerprintValue, scoreValue, violationCount, startedAtValue, now,
 	)
 	if err != nil {
 		return PublicSubmissionResult{}, err
