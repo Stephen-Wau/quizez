@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	mathrand "math/rand"
 	"strings"
@@ -29,11 +30,19 @@ type PublicQuestion struct {
 	Question   *string                `json:"question"`
 	TypeAnswer *string                `json:"type_answer"`
 	Answers    []PublicQuestionAnswer `json:"answers"`
+	// MatrixRows cuma keisi buat type_answer="matrix", Answers berperan sebagai kolom skala yang sama.
+	MatrixRows []PublicMatrixRow `json:"matrix_rows"`
 }
 
 type PublicQuestionAnswer struct {
 	ID    int64   `json:"id"`
 	Label *string `json:"label"`
+}
+
+// PublicMatrixRow versi publik dari QuestionMatrixRow (tanpa metadata internal).
+type PublicMatrixRow struct {
+	ID       int64   `json:"id"`
+	RowLabel *string `json:"row_label"`
 }
 
 type PublicQuiz struct {
@@ -60,6 +69,17 @@ type PublicSubmissionAnswerInput struct {
 	QuestionID       int64
 	QuestionAnswerID *int64
 	AnswerText       *string
+	// SelectedAnswerIDs dipakai buat type_answer="checkbox" (bisa pilih lebih dari 1 opsi sekaligus).
+	SelectedAnswerIDs []int64
+	// MatrixAnswers dipakai buat type_answer="matrix": 1 entri per baris pernyataan yang dijawab.
+	MatrixAnswers []PublicMatrixAnswerInput
+}
+
+// PublicMatrixAnswerInput jawaban 1 baris pernyataan pada question matrix: baris mana, pilih
+// kolom/skala yang mana.
+type PublicMatrixAnswerInput struct {
+	RowID            int64
+	QuestionAnswerID int64
 }
 
 type PublicSubmissionResult struct {
@@ -202,11 +222,17 @@ func GetPublicQuizByToken(db *sql.DB, token string, accessCode *string, now time
 					Label: answer.Label,
 				})
 			}
+			matrixRows := make([]PublicMatrixRow, 0, len(question.MatrixRows))
+			for _, row := range question.MatrixRows {
+				matrixRows = append(matrixRows, PublicMatrixRow{ID: row.ID, RowLabel: row.RowLabel})
+			}
+
 			publicQuestions = append(publicQuestions, PublicQuestion{
 				ID:         question.ID,
 				Question:   question.Question,
 				TypeAnswer: question.TypeAnswer,
 				Answers:    answers,
+				MatrixRows: matrixRows,
 			})
 		}
 		if stringPtrValue(quiz.Type) == "quiz" {
@@ -301,9 +327,18 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 		}
 
 		switch stringPtrValue(question.TypeAnswer) {
-		case "multiple_choice", "rating":
+		case "multiple_choice", "dropdown", "rating":
 			if !isQuizSubmission && (answer.QuestionAnswerID == nil || *answer.QuestionAnswerID <= 0) {
 				return PublicSubmissionResult{}, fmt.Errorf("Semua question pilihan wajib dijawab.")
+			}
+		case "checkbox":
+			if !isQuizSubmission && len(answer.SelectedAnswerIDs) == 0 {
+				return PublicSubmissionResult{}, fmt.Errorf("Semua question checkbox wajib dipilih minimal 1 opsi.")
+			}
+		case "matrix":
+			// Survey wajib jawab semua baris; quiz (jarang dipakai buat matrix) boleh sebagian.
+			if !isQuizSubmission && len(answer.MatrixAnswers) < len(question.MatrixRows) {
+				return PublicSubmissionResult{}, fmt.Errorf("Semua baris matrix wajib diisi.")
 			}
 		case "free_text":
 			if !isQuizSubmission && (answer.AnswerText == nil || strings.TrimSpace(*answer.AnswerText) == "") {
@@ -318,16 +353,18 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 	}
 
 	type storedAnswer struct {
-		QuestionID       int64
-		Question         *string
-		TypeAnswer       *string
-		Point            *int
-		QuestionAnswerID *int64
-		AnswerLabel      *string
-		AnswerValue      *string
-		AnswerText       *string
-		IsCorrect        *bool
-		CorrectAnswers   []string
+		QuestionID        int64
+		Question          *string
+		TypeAnswer        *string
+		Point             *int
+		QuestionAnswerID  *int64
+		SelectedAnswerIDs []int64
+		MatrixRowID       *int64
+		AnswerLabel       *string
+		AnswerValue       *string
+		AnswerText        *string
+		IsCorrect         *bool
+		CorrectAnswers    []string
 	}
 
 	storedAnswers := make([]storedAnswer, 0, len(questions))
@@ -375,6 +412,97 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 				AnswerText:     &answerText,
 				CorrectAnswers: collectCorrectAnswerLabels(question),
 			})
+		case "checkbox":
+			if len(input.SelectedAnswerIDs) == 0 {
+				if isQuizSubmission {
+					storedAnswers = append(storedAnswers, storedAnswer{
+						QuestionID:     question.ID,
+						Question:       question.Question,
+						TypeAnswer:     question.TypeAnswer,
+						Point:          question.Point,
+						CorrectAnswers: collectCorrectAnswerLabels(question),
+					})
+					continue
+				}
+				return PublicSubmissionResult{}, fmt.Errorf("Semua question checkbox wajib dipilih minimal 1 opsi.")
+			}
+			selectedOptions, err := findQuestionAnswersByIDs(question.Answers, input.SelectedAnswerIDs)
+			if err != nil {
+				return PublicSubmissionResult{}, err
+			}
+			// Benar cuma kalau himpunan yang dipilih PERSIS sama dengan himpunan opsi true —
+			// gak ada partial credit, biar konsisten sama model benar/salah biner tipe lain.
+			correct := selectedSetMatchesCorrectSet(question.Answers, selectedOptions)
+			isCorrect := &correct
+			if correct {
+				correctAnswers++
+				if question.Point != nil {
+					score += *question.Point
+				}
+			}
+			labels := make([]string, 0, len(selectedOptions))
+			ids := make([]int64, 0, len(selectedOptions))
+			for _, option := range selectedOptions {
+				labels = append(labels, strings.TrimSpace(stringPtrValue(option.Label)))
+				ids = append(ids, option.ID)
+			}
+			joinedLabel := strings.Join(labels, ", ")
+			answeredQuestions++
+			storedAnswers = append(storedAnswers, storedAnswer{
+				QuestionID:        question.ID,
+				Question:          question.Question,
+				TypeAnswer:        question.TypeAnswer,
+				Point:             question.Point,
+				SelectedAnswerIDs: ids,
+				AnswerLabel:       &joinedLabel,
+				IsCorrect:         isCorrect,
+				CorrectAnswers:    collectCorrectAnswerLabels(question),
+			})
+		case "matrix":
+			if len(input.MatrixAnswers) == 0 {
+				if isQuizSubmission {
+					storedAnswers = append(storedAnswers, storedAnswer{
+						QuestionID:     question.ID,
+						Question:       question.Question,
+						TypeAnswer:     question.TypeAnswer,
+						Point:          question.Point,
+						CorrectAnswers: collectCorrectAnswerLabels(question),
+					})
+					continue
+				}
+				return PublicSubmissionResult{}, fmt.Errorf("Semua baris matrix wajib diisi.")
+			}
+			// Matrix bersifat survey (ungraded, kayak rating/free_text) — 1 storedAnswer per baris
+			// pernyataan yang dijawab, ditandai MatrixRowID biar gak ketuker sama jawaban baris lain.
+			rowByID := make(map[int64]QuestionMatrixRow, len(question.MatrixRows))
+			for _, row := range question.MatrixRows {
+				rowByID[row.ID] = row
+			}
+			for _, matrixInput := range input.MatrixAnswers {
+				row, exists := rowByID[matrixInput.RowID]
+				if !exists {
+					return PublicSubmissionResult{}, fmt.Errorf("Ada baris matrix yang tidak sesuai dengan question ini.")
+				}
+				answerID := matrixInput.QuestionAnswerID
+				selected, err := findQuestionAnswerByID(question.Answers, &answerID)
+				if err != nil {
+					return PublicSubmissionResult{}, err
+				}
+				rowID := row.ID
+				rowLabel := fmt.Sprintf("%s — %s", stringPtrValue(question.Question), stringPtrValue(row.RowLabel))
+				storedAnswers = append(storedAnswers, storedAnswer{
+					QuestionID:  question.ID,
+					Question:    &rowLabel,
+					TypeAnswer:  question.TypeAnswer,
+					Point:       question.Point,
+					MatrixRowID: &rowID,
+					AnswerLabel: selected.Label,
+					AnswerValue: selected.Value,
+				})
+			}
+			// Question matrix cuma dihitung "answered" 1x buat total answered_questions, walau
+			// jawabannya tersebar di banyak baris (biar gak lebih besar dari total_questions).
+			answeredQuestions++
 		default:
 			if input.QuestionAnswerID == nil || *input.QuestionAnswerID <= 0 {
 				if isQuizSubmission {
@@ -394,14 +522,14 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 				return PublicSubmissionResult{}, err
 			}
 			var isCorrect *bool
-			if stringPtrValue(question.TypeAnswer) == "multiple_choice" {
+			if typeAnswer := stringPtrValue(question.TypeAnswer); typeAnswer == "multiple_choice" || typeAnswer == "dropdown" {
 				correct := strings.EqualFold(stringPtrValue(selected.Value), "true")
 				isCorrect = &correct
 				if correct {
 					correctAnswers++
 				}
-				// Scoring otomatis hanya berlaku untuk pilihan ganda; tipe lain tetap tersimpan tapi
-				// tidak menambah poin karena tidak ada rule benar/salah yang eksplisit.
+				// Scoring otomatis hanya berlaku untuk pilihan ganda/dropdown; tipe lain tetap tersimpan
+				// tapi tidak menambah poin karena tidak ada rule benar/salah yang eksplisit.
 				if correct && question.Point != nil {
 					score += *question.Point
 				}
@@ -453,7 +581,7 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 	}
 
 	stmt, err := tx.Prepare(
-		"INSERT INTO quiz_submission_answers (submission_id, question_id, question_answer_id, answer_label, answer_value, answer_text, is_correct) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		"INSERT INTO quiz_submission_answers (submission_id, question_id, question_answer_id, selected_answer_ids, matrix_row_id, answer_label, answer_value, answer_text, is_correct) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 	)
 	if err != nil {
 		return PublicSubmissionResult{}, err
@@ -465,6 +593,8 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 			submissionID,
 			answer.QuestionID,
 			int64PtrValue(answer.QuestionAnswerID),
+			int64SlicePtrValue(answer.SelectedAnswerIDs),
+			int64PtrValue(answer.MatrixRowID),
 			strPtrValue(answer.AnswerLabel),
 			strPtrValue(answer.AnswerValue),
 			strPtrValue(answer.AnswerText),
@@ -663,9 +793,11 @@ func findQuestionAnswerByID(answers []QuestionAnswer, answerID *int64) (Question
 }
 
 // collectCorrectAnswerLabels disiapkan untuk result page publik dan detail submission admin
-// supaya user/admin bisa melihat kunci jawaban yang benar untuk soal pilihan ganda.
+// supaya user/admin bisa melihat kunci jawaban yang benar untuk soal pilihan ganda/dropdown/checkbox.
 func collectCorrectAnswerLabels(question Question) []string {
-	if stringPtrValue(question.TypeAnswer) != "multiple_choice" {
+	switch stringPtrValue(question.TypeAnswer) {
+	case "multiple_choice", "dropdown", "checkbox":
+	default:
 		return []string{}
 	}
 
@@ -679,6 +811,50 @@ func collectCorrectAnswerLabels(question Question) []string {
 		}
 	}
 	return labels
+}
+
+// findQuestionAnswersByIDs versi jamak dari findQuestionAnswerByID, dipakai buat checkbox yang
+// bisa pilih lebih dari 1 opsi sekaligus. Urutan hasil ngikutin urutan answerIDs yang dikirim.
+func findQuestionAnswersByIDs(answers []QuestionAnswer, answerIDs []int64) ([]QuestionAnswer, error) {
+	byID := make(map[int64]QuestionAnswer, len(answers))
+	for _, answer := range answers {
+		byID[answer.ID] = answer
+	}
+
+	selected := make([]QuestionAnswer, 0, len(answerIDs))
+	seen := map[int64]bool{}
+	for _, id := range answerIDs {
+		if seen[id] {
+			continue // abaikan id duplikat, biar gak dihitung dobel di exact-match check
+		}
+		seen[id] = true
+		answer, exists := byID[id]
+		if !exists {
+			return nil, fmt.Errorf("Ada jawaban yang tidak valid untuk question ini.")
+		}
+		selected = append(selected, answer)
+	}
+	return selected, nil
+}
+
+// selectedSetMatchesCorrectSet cek apakah himpunan opsi yang dipilih respondent PERSIS sama
+// dengan himpunan opsi yang ditandai true oleh admin (checkbox gak ada partial credit).
+func selectedSetMatchesCorrectSet(allAnswers []QuestionAnswer, selected []QuestionAnswer) bool {
+	correctIDs := map[int64]bool{}
+	for _, answer := range allAnswers {
+		if strings.EqualFold(stringPtrValue(answer.Value), "true") {
+			correctIDs[answer.ID] = true
+		}
+	}
+	if len(selected) != len(correctIDs) {
+		return false
+	}
+	for _, answer := range selected {
+		if !correctIDs[answer.ID] {
+			return false
+		}
+	}
+	return true
 }
 
 // shufflePublicQuestions hanya berlaku untuk quiz publik agar user tidak selalu melihat urutan
@@ -709,4 +885,30 @@ func stringPtrValue(v *string) string {
 		return ""
 	}
 	return *v
+}
+
+// int64SlicePtrValue encode slice id opsi checkbox jadi JSON array buat kolom TEXT,
+// slice kosong/nil jadi SQL NULL (bukan checkbox atau checkbox belum dijawab).
+func int64SlicePtrValue(ids []int64) interface{} {
+	if len(ids) == 0 {
+		return nil
+	}
+	encoded, err := json.Marshal(ids)
+	if err != nil {
+		return nil
+	}
+	return string(encoded)
+}
+
+// decodeInt64Slice parse balik JSON array id opsi checkbox dari kolom TEXT. String kosong/invalid
+// dianggap gak ada selection (dipakai analytics/summary buat baca selected_answer_ids).
+func decodeInt64Slice(raw string) []int64 {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	var ids []int64
+	if err := json.Unmarshal([]byte(raw), &ids); err != nil {
+		return nil
+	}
+	return ids
 }

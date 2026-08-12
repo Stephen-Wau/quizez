@@ -24,6 +24,15 @@ type publicSubmissionAnswerRequest struct {
 	QuestionID       *int64  `json:"question_id"`
 	QuestionAnswerID *int64  `json:"question_answer_id"`
 	AnswerText       *string `json:"answer_text"`
+	// SelectedAnswerIDs dipakai buat question tipe checkbox (bisa pilih lebih dari 1 opsi).
+	SelectedAnswerIDs []int64 `json:"selected_answer_ids"`
+	// MatrixAnswers dipakai buat question tipe matrix, 1 entri per baris pernyataan.
+	MatrixAnswers []publicMatrixAnswerRequest `json:"matrix_answers"`
+}
+
+type publicMatrixAnswerRequest struct {
+	RowID            int64 `json:"row_id"`
+	QuestionAnswerID int64 `json:"question_answer_id"`
 }
 
 type quizShareResponse struct {
@@ -175,10 +184,19 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Question wajib dipilih.", http.StatusBadRequest)
 				return
 			}
+			matrixAnswers := make([]models.PublicMatrixAnswerInput, 0, len(answer.MatrixAnswers))
+			for _, matrixAnswer := range answer.MatrixAnswers {
+				matrixAnswers = append(matrixAnswers, models.PublicMatrixAnswerInput{
+					RowID:            matrixAnswer.RowID,
+					QuestionAnswerID: matrixAnswer.QuestionAnswerID,
+				})
+			}
 			inputs = append(inputs, models.PublicSubmissionAnswerInput{
-				QuestionID:       *answer.QuestionID,
-				QuestionAnswerID: answer.QuestionAnswerID,
-				AnswerText:       normalizeStr(answer.AnswerText),
+				QuestionID:        *answer.QuestionID,
+				QuestionAnswerID:  answer.QuestionAnswerID,
+				AnswerText:        normalizeStr(answer.AnswerText),
+				SelectedAnswerIDs: answer.SelectedAnswerIDs,
+				MatrixAnswers:     matrixAnswers,
 			})
 		}
 
