@@ -66,6 +66,9 @@
           <label>Type Answer<span class="question-form__required">*</span></label>
           <select class="question-form__select" formControlName="type_answer">
             <option value="multiple_choice">Pilihan Ganda</option>
+            <option value="dropdown">Dropdown</option>
+            <option value="checkbox">Checkbox</option>
+            <option value="matrix">Matrix</option>
             <option value="rating">Rating</option>
             <option value="free_text">Free Text</option>
           </select>
@@ -100,11 +103,12 @@
         ></app-input>
       </div>
 
-      <div *ngIf="isMultipleChoice" class="question-form__section">
+      <div *ngIf="isOptionBased" class="question-form__section">
         <div class="question-form__section-header">
           <div>
-            <h3>Jawaban Pilihan Ganda</h3>
-            <p>Minimal 2 jawaban dan salah satunya harus bernilai <code>true</code>.</p>
+            <h3>Jawaban {{ questionTypeLabel(form.get('type_answer')?.value) }}</h3>
+            <p *ngIf="!isCheckbox">Minimal 2 jawaban dan salah satunya harus bernilai <code>true</code> (boleh lebih dari satu).</p>
+            <p *ngIf="isCheckbox">Minimal 2 jawaban, minimal 1 bernilai <code>true</code>. Respondent wajib pilih PERSIS semua opsi <code>true</code> buat dianggap benar.</p>
           </div>
           <app-button variant="ghost" size="sm" type="button" (click)="addMultipleChoiceAnswer()">
             <lucide-icon name="plus" [size]="14"></lucide-icon>
@@ -127,6 +131,70 @@
                   <option value="false">false</option>
                 </select>
               </div>
+              <div class="question-form__field question-form__field--action">
+                <label class="question-form__action-spacer" aria-hidden="true">&nbsp;</label>
+                <app-button
+                  variant="danger"
+                  size="sm"
+                  type="button"
+                  [disabled]="answersArray.length <= 2"
+                  (click)="removeMultipleChoiceAnswer(i)"
+                >
+                  <lucide-icon name="trash-2" [size]="14"></lucide-icon>
+                </app-button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="isMatrix" class="question-form__section">
+        <div class="question-form__section-header">
+          <div>
+            <h3>Baris Pernyataan Matrix</h3>
+            <p>Minimal 1 baris. Tiap baris dinilai pakai skala kolom yang sama di bawah.</p>
+          </div>
+          <app-button variant="ghost" size="sm" type="button" (click)="addMatrixRow()">
+            <lucide-icon name="plus" [size]="14"></lucide-icon>
+            Add Row
+          </app-button>
+        </div>
+
+        <div formArrayName="matrix_rows" class="question-form__answers">
+          <div class="question-form__answer-row" *ngFor="let control of matrixRowsArray.controls; let i = index; trackBy: trackByIndex">
+            <div [formGroupName]="i" class="question-form__answer-fields">
+              <app-input label="Teks Baris" [required]="true" formControlName="row_label"></app-input>
+              <div class="question-form__field question-form__field--action">
+                <label class="question-form__action-spacer" aria-hidden="true">&nbsp;</label>
+                <app-button
+                  variant="danger"
+                  size="sm"
+                  type="button"
+                  [disabled]="matrixRowsArray.length <= 1"
+                  (click)="removeMatrixRow(i)"
+                >
+                  <lucide-icon name="trash-2" [size]="14"></lucide-icon>
+                </app-button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="question-form__section-header">
+          <div>
+            <h3>Kolom Skala Matrix</h3>
+            <p>Minimal 2 kolom (ex: "Buruk", "Cukup", "Baik") — sama buat semua baris di atas.</p>
+          </div>
+          <app-button variant="ghost" size="sm" type="button" (click)="addMultipleChoiceAnswer()">
+            <lucide-icon name="plus" [size]="14"></lucide-icon>
+            Add Column
+          </app-button>
+        </div>
+
+        <div formArrayName="answers" class="question-form__answers">
+          <div class="question-form__answer-row" *ngFor="let control of answersArray.controls; let i = index; trackBy: trackByIndex">
+            <div [formGroupName]="i" class="question-form__answer-fields">
+              <app-input label="Teks Kolom" [required]="true" formControlName="label"></app-input>
               <div class="question-form__field question-form__field--action">
                 <label class="question-form__action-spacer" aria-hidden="true">&nbsp;</label>
                 <app-button

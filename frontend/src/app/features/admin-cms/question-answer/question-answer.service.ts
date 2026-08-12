@@ -3,13 +3,19 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 
-export type QuestionType = 'multiple_choice' | 'rating' | 'free_text';
+export type QuestionType = 'multiple_choice' | 'dropdown' | 'checkbox' | 'matrix' | 'rating' | 'free_text';
 
 export interface QuestionAnswer {
   id: number;
   question_id: number | null;
   label: string | null;
   value: string | null;
+}
+
+export interface QuestionMatrixRow {
+  id: number;
+  question_id: number | null;
+  row_label: string | null;
 }
 
 export interface Question {
@@ -19,6 +25,8 @@ export interface Question {
   type_answer: QuestionType | null;
   point: number | null;
   answers: QuestionAnswer[];
+  // matrix_rows cuma keisi buat type_answer="matrix".
+  matrix_rows: QuestionMatrixRow[];
 }
 
 export interface QuestionPayload {
@@ -27,6 +35,7 @@ export interface QuestionPayload {
   type_answer: QuestionType | null;
   point: number | null;
   answers: Array<{ label: string | null; value: string | null }>;
+  matrix_rows: Array<{ row_label: string | null }>;
 }
 
 @Injectable({ providedIn: 'root' })

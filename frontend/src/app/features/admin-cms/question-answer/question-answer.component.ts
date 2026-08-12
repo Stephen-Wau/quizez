@@ -80,6 +80,8 @@ export class QuestionAnswerComponent implements OnInit {
       point: [null as number | null],
       rating_max: [5 as number | null],
       answers: this.fb.array<FormGroup>([]),
+      // matrix_rows cuma dipakai buat type_answer="matrix" (daftar baris pernyataan).
+      matrix_rows: this.fb.array<FormGroup>([]),
     });
 
     this.form.get('type_answer')!.valueChanges.subscribe((type) => this.applyAnswerMode(type as QuestionType));
@@ -111,6 +113,10 @@ export class QuestionAnswerComponent implements OnInit {
     return this.form.get('answers') as FormArray<FormGroup>;
   }
 
+  get matrixRowsArray(): FormArray<FormGroup> {
+    return this.form.get('matrix_rows') as FormArray<FormGroup>;
+  }
+
   // Ambil pesan error form control umum (required/min/dll) biar template tetap ringkas.
   fieldError(name: string): string {
     return fieldError(this.form, name);
@@ -123,6 +129,21 @@ export class QuestionAnswerComponent implements OnInit {
 
   get isMultipleChoice(): boolean {
     return this.form.get('type_answer')?.value === 'multiple_choice';
+  }
+
+  // isOptionBased true buat 3 tipe yang sama-sama pakai daftar opsi label + status benar/salah:
+  // pilihan ganda (pilih 1), dropdown (pilih 1 dari select), checkbox (boleh pilih lebih dari 1).
+  get isOptionBased(): boolean {
+    const type = this.form.get('type_answer')?.value;
+    return type === 'multiple_choice' || type === 'dropdown' || type === 'checkbox';
+  }
+
+  get isCheckbox(): boolean {
+    return this.form.get('type_answer')?.value === 'checkbox';
+  }
+
+  get isMatrix(): boolean {
+    return this.form.get('type_answer')?.value === 'matrix';
   }
 
   get isRating(): boolean {
@@ -236,6 +257,13 @@ export class QuestionAnswerComponent implements OnInit {
     });
     this.applyPointValidator(question.point !== null);
     this.setAnswerControls(type, values);
+    // Cuma isi matrix_rows kalau tipenya emang matrix -- kalau dipaksa isi buat tipe lain,
+    // setMatrixRowControls([]) fallback ke 1 baris kosong ber-validator required dan bikin form invalid diam-diam.
+    if (type === 'matrix') {
+      this.setMatrixRowControls(question.matrix_rows.map((row) => row.row_label ?? ''));
+    } else {
+      this.matrixRowsArray.clear();
+    }
   }
 
   // Reset state form question tanpa menutup modal daftar question.
@@ -252,17 +280,29 @@ export class QuestionAnswerComponent implements OnInit {
       rating_max: 5,
     });
     this.answersArray.clear();
+    this.matrixRowsArray.clear();
   }
 
-  // Tambah 1 baris opsi jawaban baru untuk mode pilihan ganda.
+  // Tambah 1 baris opsi jawaban baru untuk mode pilihan ganda/dropdown/checkbox.
   addMultipleChoiceAnswer(): void {
-    this.answersArray.push(this.createMultipleChoiceAnswerGroup('', 'false'));
+    this.answersArray.push(this.createOptionAnswerGroup('', 'false'));
   }
 
-  // Hapus 1 opsi jawaban, tapi sisakan minimal 2 opsi sesuai rule pilihan ganda.
+  // Hapus 1 opsi jawaban, tapi sisakan minimal 2 opsi sesuai rule pilihan ganda/dropdown/checkbox.
   removeMultipleChoiceAnswer(index: number): void {
     if (this.answersArray.length <= 2) return;
     this.answersArray.removeAt(index);
+  }
+
+  // Tambah 1 baris pernyataan baru untuk mode matrix.
+  addMatrixRow(): void {
+    this.matrixRowsArray.push(this.createMatrixRowGroup(''));
+  }
+
+  // Hapus 1 baris pernyataan matrix, sisakan minimal 1 baris.
+  removeMatrixRow(index: number): void {
+    if (this.matrixRowsArray.length <= 1) return;
+    this.matrixRowsArray.removeAt(index);
   }
 
   // Submit form create/update question: validasi FE dulu, baru kirim ke API.
@@ -270,16 +310,22 @@ export class QuestionAnswerComponent implements OnInit {
     this.answerSectionError = '';
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      this.toast.error('Ada field yang belum valid, cek lagi form-nya.');
       return;
     }
 
     const raw = this.form.getRawValue();
+    const type = raw.type_answer as QuestionType;
     const payload: QuestionPayload = {
       quiz_id: this.selectedQuiz?.id ?? null,
       question: raw.question || null,
-      type_answer: raw.type_answer as QuestionType,
+      type_answer: type,
       point: raw.have_point === 'yes' && raw.point !== null ? Number(raw.point) : null,
-      answers: this.buildAnswersPayload(raw.type_answer as QuestionType),
+      answers: this.buildAnswersPayload(type),
+      matrix_rows:
+        type === 'matrix'
+          ? this.matrixRowsArray.getRawValue().map((row) => ({ row_label: row['row_label'] || null }))
+          : [],
     };
 
     const answerError = this.validateAnswerPayload(payload);
@@ -332,6 +378,12 @@ export class QuestionAnswerComponent implements OnInit {
     switch (value) {
       case 'multiple_choice':
         return 'Pilihan Ganda';
+      case 'dropdown':
+        return 'Dropdown';
+      case 'checkbox':
+        return 'Checkbox';
+      case 'matrix':
+        return 'Matrix';
       case 'rating':
         return 'Rating';
       case 'free_text':
@@ -341,21 +393,27 @@ export class QuestionAnswerComponent implements OnInit {
     }
   }
 
-  // Ringkasan answer per card: free text cukup label umum, rating jadi rentang, pilihan ganda
-  // menampilkan teks opsi beserta status benar/salahnya.
+  // Ringkasan answer per card: free text cukup label umum, rating jadi rentang, matrix nampilin
+  // jumlah baris & kolom, pilihan ganda/dropdown/checkbox nampilin teks opsi + status benar/salahnya.
   answerSummary(question: Question): string {
     if (question.type_answer === 'free_text') return 'Jawaban bebas';
     if (question.type_answer === 'rating') {
       const max = this.deriveRatingMax(question);
       return max > 0 ? `Rentang 1 - ${max}` : '-';
     }
+    if (question.type_answer === 'matrix') {
+      const columns = question.answers.map((answer) => answer.label ?? '-').join(', ');
+      return `${question.matrix_rows.length} baris × kolom: ${columns}`;
+    }
     return question.answers
       .map((answer) => `${answer.label ?? '-'} (${answer.value === 'true' ? 'benar' : 'salah'})`)
       .join(', ');
   }
 
-  trackByIndex(index: number): number {
-    return index;
+  // Track by control instance (bukan index) supaya *ngFor rebuild view saat FormArray di-clear+push ulang
+  // (ex: ganti Type Answer) -- kalau track by index, formGroupName lama nempel ke control basi yang udah dibuang.
+  trackByIndex(index: number, control: FormGroup): FormGroup {
+    return control;
   }
 
   // Point baru wajib diisi hanya kalau user pilih "Have Point = Yes".
@@ -370,12 +428,15 @@ export class QuestionAnswerComponent implements OnInit {
     control.updateValueAndValidity({ emitEvent: false });
   }
 
-  // Ganti mode jawaban akan mengubah bentuk section answer: pilihan ganda pakai array opsi,
-  // rating pakai rentang otomatis, free text gak punya opsi preset sama sekali.
+  // Ganti mode jawaban akan mengubah bentuk section answer: pilihan ganda/dropdown/checkbox pakai
+  // array opsi, matrix pakai array baris + array kolom, rating pakai rentang otomatis, free text
+  // gak punya opsi preset sama sekali.
   private applyAnswerMode(type: QuestionType): void {
     this.answerSectionError = '';
     switch (type) {
       case 'multiple_choice':
+      case 'dropdown':
+      case 'checkbox': {
         const currentAnswers = this.answersArray.getRawValue() as Array<{ label: string; value: string }>;
         this.setAnswerControls(
           type,
@@ -387,24 +448,39 @@ export class QuestionAnswerComponent implements OnInit {
               ],
         );
         this.form.get('rating_max')!.clearValidators();
+        this.matrixRowsArray.clear();
         break;
+      }
+      case 'matrix': {
+        const currentColumns = this.answersArray.getRawValue() as Array<{ label: string; value: string }>;
+        this.setAnswerControls(type, currentColumns.length ? currentColumns : [{ label: '', value: '' }, { label: '', value: '' }]);
+        if (this.matrixRowsArray.length === 0) {
+          this.setMatrixRowControls(['']);
+        }
+        this.form.get('rating_max')!.clearValidators();
+        this.form.get('rating_max')!.updateValueAndValidity({ emitEvent: false });
+        break;
+      }
       case 'rating':
         this.answersArray.clear();
+        this.matrixRowsArray.clear();
         this.form.get('rating_max')!.setValidators([Validators.required, Validators.min(2), Validators.max(10)]);
         this.form.get('rating_max')!.updateValueAndValidity({ emitEvent: false });
         break;
       case 'free_text':
         this.answersArray.clear();
+        this.matrixRowsArray.clear();
         this.form.get('rating_max')!.clearValidators();
         this.form.get('rating_max')!.updateValueAndValidity({ emitEvent: false });
         break;
     }
   }
 
-  // Isi ulang FormArray answer khusus pilihan ganda, dipakai saat create default maupun edit.
+  // Isi ulang FormArray answer opsi (dipakai pilihan ganda/dropdown/checkbox/kolom matrix), dipakai
+  // saat create default maupun edit.
   private setAnswerControls(type: QuestionType, values: Array<{ label: string; value: string }>): void {
     this.answersArray.clear();
-    if (type !== 'multiple_choice') return;
+    if (type !== 'multiple_choice' && type !== 'dropdown' && type !== 'checkbox' && type !== 'matrix') return;
     const nextValues =
       values.length >= 2
         ? values
@@ -413,14 +489,21 @@ export class QuestionAnswerComponent implements OnInit {
             { label: '', value: 'false' },
           ];
     nextValues.forEach((value) => {
-      this.answersArray.push(this.createMultipleChoiceAnswerGroup(value.label || '', value.value || 'false'));
+      this.answersArray.push(this.createOptionAnswerGroup(value.label || '', value.value || 'false'));
     });
     this.form.get('rating_max')!.clearValidators();
     this.form.get('rating_max')!.updateValueAndValidity({ emitEvent: false });
   }
 
-  // Bentuk payload answers beda per tipe: free text kosong, rating auto-generate 1..N,
-  // pilihan ganda ambil dari input teks + status benar/salah user.
+  // Isi ulang FormArray baris pernyataan matrix, dipakai saat create default maupun edit.
+  private setMatrixRowControls(rowLabels: string[]): void {
+    this.matrixRowsArray.clear();
+    const nextLabels = rowLabels.length > 0 ? rowLabels : [''];
+    nextLabels.forEach((label) => this.matrixRowsArray.push(this.createMatrixRowGroup(label)));
+  }
+
+  // Bentuk payload answers beda per tipe: free text kosong, rating auto-generate 1..N, matrix
+  // ambil dari array kolom, tipe pilihan lain ambil dari input teks + status benar/salah user.
   private buildAnswersPayload(type: QuestionType): Array<{ label: string | null; value: string | null }> {
     if (type === 'free_text') return [];
     if (type === 'rating') {
@@ -438,19 +521,25 @@ export class QuestionAnswerComponent implements OnInit {
 
   // Validasi FE khusus answer yang tidak tercakup validator field biasa.
   private validateAnswerPayload(payload: QuestionPayload): string {
-    if (payload.type_answer === 'multiple_choice') {
+    if (payload.type_answer === 'multiple_choice' || payload.type_answer === 'dropdown' || payload.type_answer === 'checkbox') {
       if (payload.answers.length < 2) {
-        return 'Pilihan ganda minimal harus punya 2 jawaban.';
+        return 'Minimal harus punya 2 jawaban.';
       }
       if (payload.answers.some((answer) => !answer.label)) {
-        return 'Semua teks jawaban pilihan ganda wajib diisi.';
+        return 'Semua teks jawaban wajib diisi.';
       }
       const trueCount = payload.answers.filter((answer) => answer.value === 'true').length;
       if (trueCount === 0) {
-        return 'Pilihan ganda harus punya satu jawaban true.';
+        return 'Harus punya minimal satu jawaban true.';
       }
-      if (trueCount > 1) {
-        return 'Pilihan ganda hanya boleh punya satu jawaban true.';
+      return '';
+    }
+    if (payload.type_answer === 'matrix') {
+      if (payload.matrix_rows.length < 1 || payload.matrix_rows.some((row) => !row.row_label)) {
+        return 'Minimal 1 baris pernyataan dan teksnya wajib diisi.';
+      }
+      if (payload.answers.length < 2 || payload.answers.some((answer) => !answer.label)) {
+        return 'Minimal 2 kolom skala dan teksnya wajib diisi.';
       }
       return '';
     }
@@ -509,11 +598,18 @@ export class QuestionAnswerComponent implements OnInit {
     return `${datePart} ${timePart}`;
   }
 
-  // Factory 1 row opsi pilihan ganda: teks jawaban + flag benar/salah.
-  private createMultipleChoiceAnswerGroup(label: string, value: string): FormGroup {
+  // Factory 1 row opsi (pilihan ganda/dropdown/checkbox/kolom matrix): teks jawaban + flag benar/salah.
+  private createOptionAnswerGroup(label: string, value: string): FormGroup {
     return this.fb.group({
       label: [label, Validators.required],
       value: [value, Validators.required],
+    });
+  }
+
+  // Factory 1 baris pernyataan matrix: cuma butuh teksnya, gak ada status benar/salah.
+  private createMatrixRowGroup(label: string): FormGroup {
+    return this.fb.group({
+      row_label: [label, Validators.required],
     });
   }
 }
