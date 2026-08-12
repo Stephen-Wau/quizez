@@ -134,6 +134,22 @@
         <p *ngIf="q.type_answer === 'free_text'" class="analytics__free-text-count">
           {{ q.text_responses.length }} jawaban teks bebas
         </p>
+
+        <!-- Matrix: distribusi jawaban dipecah per baris pernyataan, gak digabung jadi satu. -->
+        <div *ngIf="q.type_answer === 'matrix'" class="analytics__matrix-rows">
+          <div class="analytics__matrix-row" *ngFor="let row of q.matrix_row_summaries">
+            <p class="analytics__matrix-row-title">{{ row.row_label }} &middot; {{ row.total_responses }} jawaban</p>
+            <div class="analytics__option-list">
+              <div class="analytics__option-row" *ngFor="let opt of row.option_summaries; let i = index">
+                <span class="analytics__option-label">{{ opt.label }}</span>
+                <div class="analytics__bar-track">
+                  <div class="analytics__bar-fill" [style.width.%]="opt.percentage" [style.background]="colorFor(i)"></div>
+                </div>
+                <span class="analytics__option-count">{{ opt.count }} ({{ opt.percentage }}%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

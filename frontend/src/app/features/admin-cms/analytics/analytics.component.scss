@@ -294,6 +294,25 @@
   color: var(--color-text-muted);
 }
 
+.analytics__matrix-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-2);
+}
+
+.analytics__matrix-row {
+  padding-top: var(--spacing-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.analytics__matrix-row-title {
+  margin: 0 0 var(--spacing-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
 .analytics__sentiment-list {
   display: flex;
   flex-direction: column;

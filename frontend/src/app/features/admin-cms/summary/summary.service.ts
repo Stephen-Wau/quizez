@@ -35,6 +35,13 @@ export interface QuestionTextResponse {
   submitted_at: string | null;
 }
 
+export interface QuestionMatrixRowSummary {
+  row_id: number;
+  row_label: string | null;
+  total_responses: number;
+  option_summaries: QuestionOptionSummary[];
+}
+
 export interface QuestionSummary {
   question_id: number;
   question: string | null;
@@ -46,6 +53,8 @@ export interface QuestionSummary {
   average_rating: number | null;
   option_summaries: QuestionOptionSummary[];
   text_responses: QuestionTextResponse[];
+  // matrix_row_summaries cuma keisi buat type_answer="matrix".
+  matrix_row_summaries: QuestionMatrixRowSummary[];
 }
 
 export interface SubmissionAnswerSummary {
