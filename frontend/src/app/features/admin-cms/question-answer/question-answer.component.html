@@ -45,10 +45,16 @@
         <p>{{ selectedQuiz.type || '-' }} • {{ formatPeriod(selectedQuiz) }}</p>
       </div>
 
-      <app-button *ngIf="!isFormVisible" (click)="startCreateQuestion()">
-        <lucide-icon name="plus" [size]="16"></lucide-icon>
-        Add Question
-      </app-button>
+      <div class="question-page__summary-actions" *ngIf="!isFormVisible">
+        <app-button variant="ghost" (click)="openBankPicker()">
+          <lucide-icon name="list-plus" [size]="16"></lucide-icon>
+          Tambah dari Bank
+        </app-button>
+        <app-button (click)="startCreateQuestion()">
+          <lucide-icon name="plus" [size]="16"></lucide-icon>
+          Add Question
+        </app-button>
+      </div>
     </div>
 
     <form *ngIf="isFormVisible" [formGroup]="form" class="question-form" (ngSubmit)="saveQuestion()">
@@ -264,6 +270,49 @@
           </div>
         </article>
       </div>
+    </div>
+  </div>
+</app-modal>
+
+<ng-template #bankTypeTpl let-value="value">
+  {{ questionTypeLabel(value) }}
+</ng-template>
+
+<ng-template #bankSelectTpl let-row="row">
+  <label class="question-page__bank-checkbox">
+    <input type="checkbox" [checked]="isBankSelected($any(row).id)" (change)="toggleBankSelection($any(row).id)" />
+  </label>
+</ng-template>
+
+<app-modal [open]="isBankPickerOpen" title="Tambah Question dari Bank Soal" maxWidth="920px" (closed)="closeBankPicker()">
+  <div class="question-page__bank-picker">
+    <div class="question-page__bank-filter">
+      <label>Filter Tag</label>
+      <select class="question-form__select" [ngModel]="bankActiveTag" [ngModelOptions]="{ standalone: true }" (ngModelChange)="onBankTagFilterChange($event)">
+        <option value="">Semua Tag</option>
+        <option *ngFor="let tag of bankAllTags" [value]="tag">{{ tag }}</option>
+      </select>
+      <span class="question-page__bank-count">{{ selectedBankIds.size }} soal dipilih</span>
+    </div>
+
+    <app-data-table
+      [rows]="bankItems"
+      [columns]="bankColumns"
+      [serverSide]="true"
+      [totalCount]="bankTotalCount"
+      [pageSize]="bankPageSize"
+      (search)="onBankTableQueryChange($event)"
+      (refresh)="loadBankItems()"
+      searchPlaceholder="Search question..."
+      emptyMessage="Belum ada soal di bank."
+    ></app-data-table>
+
+    <div class="question-page__bank-actions">
+      <app-button variant="ghost" type="button" (click)="closeBankPicker()">Cancel</app-button>
+      <app-button type="button" [disabled]="isAddingFromBank || selectedBankIds.size === 0" (click)="addSelectedFromBank()">
+        <lucide-icon name="plus" [size]="16"></lucide-icon>
+        {{ isAddingFromBank ? 'Menambahkan...' : 'Tambahkan ' + selectedBankIds.size + ' Soal' }}
+      </app-button>
     </div>
   </div>
 </app-modal>

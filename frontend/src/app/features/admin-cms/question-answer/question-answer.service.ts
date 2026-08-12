@@ -66,4 +66,11 @@ export class QuestionAnswerService {
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }
+
+  // Copy sejumlah soal dari Bank Soal jadi question baru milik quiz ini (reuse, bukan live-link).
+  addFromBank(quizId: number, bankIds: number[]): Observable<Question[]> {
+    return this.http.post<Question[]>(`${environment.apiUrl}/api/quizzes/${quizId}/questions/from-bank`, {
+      bank_ids: bankIds,
+    });
+  }
 }

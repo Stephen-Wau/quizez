@@ -5,6 +5,7 @@ import {
   FormBuilder,
   FormControl,
   FormGroup,
+  FormsModule,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
@@ -17,6 +18,7 @@ import {
   QuestionPayload,
   QuestionType,
 } from './question-answer.service';
+import { QuestionBankItem, QuestionBankService } from '../question-bank/question-bank.service';
 import {
   DataTableColumn,
   DataTableComponent,
@@ -35,6 +37,7 @@ import { loadPagedList } from '../../../shared/utils/load-paged-list.util';
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     ReactiveFormsModule,
     LucideAngularModule,
     DataTableComponent,
@@ -49,6 +52,8 @@ export class QuestionAnswerComponent implements OnInit {
   @ViewChild('typeTpl', { static: true }) typeTpl!: TemplateRef<unknown>;
   @ViewChild('periodTpl', { static: true }) periodTpl!: TemplateRef<unknown>;
   @ViewChild('actionTpl', { static: true }) actionTpl!: TemplateRef<unknown>;
+  @ViewChild('bankTypeTpl', { static: true }) bankTypeTpl!: TemplateRef<unknown>;
+  @ViewChild('bankSelectTpl', { static: true }) bankSelectTpl!: TemplateRef<unknown>;
 
   quizzes: Quiz[] = [];
   columns: DataTableColumn[] = [];
@@ -65,12 +70,25 @@ export class QuestionAnswerComponent implements OnInit {
   pointLimitError = '';
   private currentQuery: DataTableQuery = {};
 
+  // === Tambah dari Bank Soal ===
+  isBankPickerOpen = false;
+  isAddingFromBank = false;
+  bankItems: QuestionBankItem[] = [];
+  bankColumns: DataTableColumn[] = [];
+  bankTotalCount = 0;
+  bankPageSize = 10;
+  bankAllTags: string[] = [];
+  bankActiveTag = '';
+  selectedBankIds = new Set<number>();
+  private bankQuery: DataTableQuery = {};
+
   form: ReturnType<FormBuilder['group']>;
 
   constructor(
     private fb: FormBuilder,
     private quizService: QuizService,
     private questionService: QuestionAnswerService,
+    private questionBankService: QuestionBankService,
     private toast: ToastService,
   ) {
     this.form = this.fb.group({
@@ -105,6 +123,12 @@ export class QuestionAnswerComponent implements OnInit {
       { name: 'Total Question', prop: 'total_question' },
       { name: 'Status', prop: 'status' },
       { name: 'Action', sortable: false, cellTemplate: this.actionTpl },
+    ];
+    this.bankColumns = [
+      { name: 'Question', prop: 'question' },
+      { name: 'Type', prop: 'type_answer', cellTemplate: this.bankTypeTpl },
+      { name: 'Point', prop: 'point' },
+      { name: 'Pilih', sortable: false, cellTemplate: this.bankSelectTpl },
     ];
     this.loadQuizzes();
   }
@@ -199,6 +223,81 @@ export class QuestionAnswerComponent implements OnInit {
     this.selectedQuiz = null;
     this.questions = [];
     this.cancelQuestionForm();
+  }
+
+  // Buka picker Bank Soal buat quiz yang lagi aktif, reset seleksi & filter tiap kali dibuka.
+  openBankPicker(): void {
+    this.selectedBankIds.clear();
+    this.bankActiveTag = '';
+    this.bankQuery = {};
+    this.isBankPickerOpen = true;
+    this.loadBankItems();
+    this.questionBankService.listTags().subscribe({
+      next: (tags) => (this.bankAllTags = tags),
+      error: () => this.toast.error('Gagal memuat daftar tag.'),
+    });
+  }
+
+  closeBankPicker(): void {
+    this.isBankPickerOpen = false;
+  }
+
+  loadBankItems(): void {
+    loadPagedList(
+      this.questionBankService.list(this.bankQuery, this.bankActiveTag || null),
+      this.toast,
+      'Gagal memuat data bank soal.',
+      (data, totalCount, pageSize) => {
+        this.bankItems = data;
+        this.bankTotalCount = totalCount;
+        this.bankPageSize = pageSize;
+      },
+    );
+  }
+
+  onBankTableQueryChange(query: DataTableQuery): void {
+    this.bankQuery = query;
+    this.loadBankItems();
+  }
+
+  onBankTagFilterChange(tag: string): void {
+    this.bankActiveTag = tag;
+    this.loadBankItems();
+  }
+
+  isBankSelected(id: number): boolean {
+    return this.selectedBankIds.has(id);
+  }
+
+  toggleBankSelection(id: number): void {
+    if (this.selectedBankIds.has(id)) {
+      this.selectedBankIds.delete(id);
+    } else {
+      this.selectedBankIds.add(id);
+    }
+  }
+
+  // Copy semua soal bank yang dicentang jadi question baru milik quiz yang lagi aktif.
+  addSelectedFromBank(): void {
+    if (!this.selectedQuiz || this.selectedBankIds.size === 0) {
+      this.toast.error('Pilih minimal 1 soal dari bank.');
+      return;
+    }
+
+    this.isAddingFromBank = true;
+    this.questionService.addFromBank(this.selectedQuiz.id, Array.from(this.selectedBankIds)).subscribe({
+      next: (created) => {
+        this.isAddingFromBank = false;
+        this.toast.success(`${created.length} soal berhasil ditambahkan dari bank.`);
+        this.closeBankPicker();
+        this.loadQuestions();
+      },
+      error: (err) => {
+        this.isAddingFromBank = false;
+        const message = typeof err?.error === 'string' && err.error ? err.error : 'Gagal menambah soal dari bank.';
+        this.toast.error(message);
+      },
+    });
   }
 
   // Load semua question existing buat quiz yang sedang aktif di modal.
