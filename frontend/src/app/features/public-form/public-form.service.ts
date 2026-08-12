@@ -37,6 +37,8 @@ export interface PublicFormDetail {
   end_time: string | null;
   max_point: number | null;
   passing_grade: number | null;
+  // lock_mode: anti-cheat (khusus quiz) -- wajib fullscreen, keluar tab/fullscreen dihitung pelanggaran.
+  lock_mode: boolean;
   total_question: number;
   status: string | null;
   state: PublicFormState;
@@ -54,6 +56,10 @@ export interface PublicFormSubmitPayload {
   // attempt_seed dipakai backend untuk recompute subset random_question_count yang sama persis
   // dengan yang ditampilkan pas GET, biar scoring/validasi konsisten sama soal yang benar dilihat responden.
   attempt_seed: string | null;
+  // device_fingerprint & violation_count dipakai anti-cheat (lock_mode): dedup device per quiz
+  // dan jumlah pelanggaran tab-switch/keluar-fullscreen yang direkam selama sesi.
+  device_fingerprint: string | null;
+  violation_count: number;
   answers: Array<{
     question_id: number;
     question_answer_id: number | null;

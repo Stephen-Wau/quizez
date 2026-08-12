@@ -53,6 +53,8 @@ interface StoredPublicSession {
     question_id: number;
     option_ids: number[];
   }>;
+  // violation_count direstore biar pelanggaran lock mode gak ke-reset gratis pas responden reload halaman.
+  violation_count?: number;
   answers: Array<{
     question_id: number;
     question_answer_id: number | null;
@@ -91,6 +93,21 @@ export class PublicFormComponent implements OnInit, OnDestroy {
   private formSubscription = new Subscription();
   private countdownTimer: ReturnType<typeof setInterval> | null = null;
 
+  // === Anti-cheat (lock mode) ===
+  violationCount = 0;
+  readonly maxViolations = 3;
+  // lockModeArmed true setelah responden berhasil masuk fullscreen pertama kali -- sebelum itu,
+  // fullscreenchange/visibilitychange belum dianggap pelanggaran (masih di welcome page/belum mulai).
+  private lockModeArmed = false;
+  private lastViolationAt = 0;
+  private deviceFingerprint = '';
+  private readonly handleVisibilityChange = (): void => {
+    if (document.hidden) this.registerViolation('Kamu terdeteksi berpindah tab atau aplikasi lain.');
+  };
+  private readonly handleFullscreenChange = (): void => {
+    if (!document.fullscreenElement) this.registerViolation('Kamu keluar dari mode fullscreen.');
+  };
+
   constructor(
     private fb: FormBuilder,
     private route: ActivatedRoute,
@@ -115,13 +132,74 @@ export class PublicFormComponent implements OnInit, OnDestroy {
       return;
     }
     this.attemptSeed = this.getOrCreateAttemptSeed(token);
+    this.deviceFingerprint = this.getOrCreateDeviceFingerprint();
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    document.addEventListener('fullscreenchange', this.handleFullscreenChange);
     const stored = this.readStoredSession();
+    this.violationCount = stored?.violation_count ?? 0;
     this.loadForm(token, stored?.access_code ?? null);
   }
 
   ngOnDestroy(): void {
     this.clearCountdown();
     this.formSubscription.unsubscribe();
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    document.removeEventListener('fullscreenchange', this.handleFullscreenChange);
+    this.exitLockFullscreen();
+  }
+
+  // lockModeRequired quiz ini lagi jalan dalam mode lock (anti-cheat) dan belum selesai disubmit.
+  get lockModeRequired(): boolean {
+    return this.isQuiz && !!this.detail?.lock_mode && this.hasStartedQuiz && !this.submitResult;
+  }
+
+  get isFullscreenActive(): boolean {
+    return !!document.fullscreenElement;
+  }
+
+  // enterLockFullscreen dipanggil dari klik tombol (user gesture wajib buat Fullscreen API),
+  // baik pas mulai quiz maupun pas responden klik ulang setelah reload/keluar fullscreen.
+  enterLockFullscreen(): void {
+    if (!this.lockModeRequired) return;
+    const el = document.documentElement as HTMLElement & { requestFullscreen?: () => Promise<void> };
+    if (!el.requestFullscreen) {
+      this.toast.error('Browser ini tidak mendukung mode fullscreen.');
+      return;
+    }
+    el.requestFullscreen()
+      .then(() => {
+        this.lockModeArmed = true;
+      })
+      .catch(() => {
+        this.toast.error('Gagal masuk mode fullscreen, coba lagi.');
+      });
+  }
+
+  private exitLockFullscreen(): void {
+    this.lockModeArmed = false;
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+
+  // registerViolation dipanggil tiap kali kedetect tab-switch/keluar fullscreen selama lock mode
+  // aktif. Debounce 1 detik karena 1 aksi (ex: alt-tab) bisa memicu visibilitychange DAN
+  // fullscreenchange nyaris bersamaan -- tanpa debounce itu kehitung 2x pelanggaran.
+  private registerViolation(reason: string): void {
+    if (!this.lockModeRequired || !this.lockModeArmed) return;
+    const now = Date.now();
+    if (now - this.lastViolationAt < 1000) return;
+    this.lastViolationAt = now;
+    this.violationCount++;
+    this.persistFormSession();
+
+    if (this.violationCount >= this.maxViolations) {
+      this.toast.error(`Pelanggaran ke-${this.violationCount}: ${reason} Quiz otomatis dikirim.`);
+      this.exitLockFullscreen();
+      this.submit(true);
+    } else {
+      this.toast.error(`Peringatan ${this.violationCount}/${this.maxViolations}: ${reason} Kembali ke fullscreen sekarang.`);
+    }
   }
 
   @HostListener('window:beforeunload', ['$event'])
@@ -281,6 +359,9 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     this.isReviewStep = false;
     this.persistFormSession();
     this.startCountdown();
+    // Diklik langsung dari tombol "Start Quiz" jadi masih dianggap user gesture -> aman buat
+    // manggil Fullscreen API di sini (beda kasus sama restore session setelah reload).
+    if (this.detail?.lock_mode) this.enterLockFullscreen();
   }
 
   nextQuestion(): void {
@@ -327,6 +408,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
         this.submitResult = result;
         this.clearCountdown();
         this.clearFormSession();
+        this.exitLockFullscreen();
         if (this.isSurvey) {
           this.toast.success('Survey berhasil dikirim.');
         }
@@ -536,6 +618,8 @@ export class PublicFormComponent implements OnInit, OnDestroy {
       started_at: this.isQuiz ? this.readStartedAt() : null,
       access_code: this.readAccessCode(),
       attempt_seed: this.attemptSeed || null,
+      device_fingerprint: this.deviceFingerprint || null,
+      violation_count: this.violationCount,
       answers: this.answersArray.getRawValue().map((answer) => ({
         question_id: Number(answer['question_id']),
         question_answer_id: answer['question_answer_id'] ? Number(answer['question_answer_id']) : null,
@@ -661,6 +745,22 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     return seed;
   }
 
+  // getOrCreateDeviceFingerprint baca id device dari localStorage (global, gak per-quiz) atau
+  // generate baru kalau belum ada, dipakai backend buat dedup submission quiz per device (anti-cheat).
+  // Best-effort saja: berbasis localStorage, jadi ke-reset kalau storage browser dibersihkan.
+  private getOrCreateDeviceFingerprint(): string {
+    const key = 'quizez-device-fingerprint';
+    const existing = localStorage.getItem(key);
+    if (existing) return existing;
+
+    const fingerprint =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(key, fingerprint);
+    return fingerprint;
+  }
+
   private persistFormSession(): void {
     if (!this.detail || !this.accessVerified || !this.canFillNow || this.submitResult) return;
     const key = this.sessionKey();
@@ -675,6 +775,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
       welcome_seen: this.welcomeAcknowledged,
       current_question_index: this.currentQuestionIndex,
       review_mode: this.isReviewStep,
+      violation_count: this.violationCount,
       question_order: (this.detail.questions ?? []).map((question) => question.id),
       answer_orders: (this.detail.questions ?? []).map((question) => ({
         question_id: question.id,

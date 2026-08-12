@@ -129,6 +129,17 @@
       [errorMessage]="fieldError('random_question_count')"
     ></app-input>
 
+    <div class="quiz__field quiz__field--checkbox" *ngIf="isQuizType">
+      <label class="quiz__checkbox-label">
+        <input type="checkbox" formControlName="lock_mode" />
+        Lock Mode (Anti-Cheat)
+      </label>
+      <p class="quiz__field-hint">
+        Kalau aktif, responden wajib fullscreen selama quiz. Keluar tab atau keluar fullscreen dihitung
+        pelanggaran, kalau sudah 3x quiz otomatis di-submit.
+      </p>
+    </div>
+
     <app-input
       label="Description"
       formControlName="description"

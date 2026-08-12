@@ -32,6 +32,11 @@
   padding: 44px 28px;
 }
 
+.public-form__card--danger {
+  border-color: #fecaca;
+  background: rgba(254, 242, 242, 0.94);
+}
+
 .public-form__card--result,
 .public-form__card--access,
 .public-form__card--welcome {

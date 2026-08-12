@@ -66,6 +66,7 @@ export class QuizComponent implements OnInit {
       max_point: [null],
       passing_grade: [null],
       random_question_count: [null, [Validators.min(1)]],
+      lock_mode: [false],
       status: ['active', Validators.required],
     });
 
@@ -73,6 +74,8 @@ export class QuizComponent implements OnInit {
     // (wajib diisi), jadi kosongin dulu biar gak ada value nyangkut dari format tipe sebelumnya.
     this.form.get('type')!.valueChanges.subscribe((type) => {
       this.form.patchValue({ start_input: '', end_input: '', max_point: null, passing_grade: null });
+      // Lock mode (anti-cheat) cuma relevan buat quiz, survey gak ada scoring/waktu ketat.
+      if (type !== 'quiz') this.form.patchValue({ lock_mode: false });
       this.applyMaxPointValidator(type);
     });
     this.applyMaxPointValidator(this.form.get('type')!.value);
@@ -161,7 +164,7 @@ export class QuizComponent implements OnInit {
     this.editingId = null;
     this.form.reset({
       title: '', type: 'quiz', start_input: '', end_input: '', description: '', max_point: null, passing_grade: null,
-      random_question_count: null, status: 'active',
+      random_question_count: null, lock_mode: false, status: 'active',
     });
     this.applyMaxPointValidator('quiz');
     this.isModalOpen = true;
@@ -180,6 +183,7 @@ export class QuizComponent implements OnInit {
       max_point: quiz.max_point,
       passing_grade: quiz.passing_grade,
       random_question_count: quiz.random_question_count,
+      lock_mode: quiz.lock_mode ?? false,
       status: quiz.status ?? 'active',
     });
     this.applyMaxPointValidator(quiz.type ?? 'quiz');
@@ -212,6 +216,7 @@ export class QuizComponent implements OnInit {
       passing_grade: isQuiz && raw.passing_grade !== null && raw.passing_grade !== '' ? Number(raw.passing_grade) : null,
       random_question_count:
         raw.random_question_count !== null && raw.random_question_count !== '' ? Number(raw.random_question_count) : null,
+      lock_mode: isQuiz && !!raw.lock_mode,
       status: raw.status || null,
     };
 

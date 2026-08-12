@@ -17,6 +17,8 @@ export interface Quiz {
   passing_grade: number | null;
   // random_question_count: jumlah soal yang ditampilkan random ke responden per sesi (null = tampil semua).
   random_question_count: number | null;
+  // lock_mode: anti-cheat (khusus type=quiz) -- wajib fullscreen, keluar tab/fullscreen dihitung pelanggaran.
+  lock_mode: boolean;
   total_question: number;
   status: string | null;
 }

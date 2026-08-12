@@ -127,7 +127,22 @@
                   <span>Progress</span>
                   <strong>Dipulihkan dari sesi terakhir</strong>
                 </div>
+                <div *ngIf="isQuiz && form.lock_mode" class="public-form__meta-item public-form__meta-item--danger">
+                  <span>Lock Mode</span>
+                  <strong>Aktif — wajib fullscreen</strong>
+                </div>
+                <div *ngIf="lockModeRequired" class="public-form__meta-item public-form__meta-item--danger">
+                  <span>Pelanggaran</span>
+                  <strong>{{ violationCount }} / {{ maxViolations }}</strong>
+                </div>
               </div>
+            </div>
+
+            <div *ngIf="lockModeRequired && !isFullscreenActive" class="public-form__card public-form__card--center public-form__card--danger">
+              <span class="public-form__eyebrow">Lock Mode Aktif</span>
+              <h1>Masuk Mode Fullscreen</h1>
+              <p>Quiz ini pakai anti-cheat: kamu wajib mengerjakan dalam mode fullscreen. Keluar tab atau fullscreen dihitung pelanggaran.</p>
+              <app-button type="button" (click)="enterLockFullscreen()">Masuk Fullscreen & Lanjutkan</app-button>
             </div>
 
             <div *ngIf="isQuiz && !hasStartedQuiz" class="public-form__card public-form__card--welcome">
@@ -183,7 +198,7 @@
               </form>
             </div>
 
-            <div *ngIf="(isSurvey || hasStartedQuiz) && !isReviewStep" class="public-form__card">
+            <div *ngIf="(isSurvey || hasStartedQuiz) && !isReviewStep && (!lockModeRequired || isFullscreenActive)" class="public-form__card">
               <div class="public-form__pager">
                 <div>
                   <span class="public-form__pager-label">Question {{ currentQuestionNumber }} of {{ totalQuestions }}</span>
@@ -289,7 +304,7 @@
               </form>
             </div>
 
-            <div *ngIf="(isSurvey || hasStartedQuiz) && isReviewStep" class="public-form__card">
+            <div *ngIf="(isSurvey || hasStartedQuiz) && isReviewStep && (!lockModeRequired || isFullscreenActive)" class="public-form__card">
               <div class="public-form__review-head">
                 <div>
                   <h2>Review Before Submit</h2>
