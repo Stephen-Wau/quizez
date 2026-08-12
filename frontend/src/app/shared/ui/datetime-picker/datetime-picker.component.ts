@@ -70,6 +70,9 @@ export class DatetimePickerComponent implements ControlValueAccessor, AfterViewI
       dateFormat: mode === 'time' ? 'H:i' : mode === 'date' ? 'Y-m-d' : 'Y-m-d H:i',
       allowInput: true,
       disableMobile: true,
+      // Popup di-attach ke <body> (bukan sibling input) biar posisinya gak ke-clip/numpuk aneh
+      // pas komponen ini dipakai di container sempit kayak grid filter Analytics.
+      appendTo: document.body,
       defaultDate: this.value ? this.toDate(this.value, mode) : undefined,
       onChange: (selectedDates) => {
         const date = selectedDates[0];

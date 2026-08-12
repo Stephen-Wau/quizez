@@ -58,6 +58,9 @@
 
 ::ng-deep .flatpickr-calendar {
   box-sizing: border-box;
+  // Harus di atas modal backdrop (z-index: 900 di modal.component.scss) karena picker ini
+  // sering dipakai di dalam app-modal (ex: form Quiz) dan di-appendTo(document.body).
+  z-index: 950;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
   border-radius: calc(var(--radius) + 4px);
   border: 1px solid var(--color-border);
@@ -115,24 +118,23 @@
     color: var(--color-text);
   }
 
-  // Widget jam (hour/minute) — dibesarin & dikasih hover/focus halus biar keliatan "custom",
-  // bukan spinner angka kecil bawaan flatpickr yang polos.
-  &.hasTime {
-    width: min(328px, calc(100vw - 32px));
-    min-width: 0;
+  // Width tetap dipasang di SEMUA mode (bukan cuma pas ada widget jam) -- kalau cuma di `&.hasTime`,
+  // mode date-only (ex: filter Analytics) gak kebagian kompensasi lebar buat padding di atas,
+  // jadinya grid 7 kolom kesempit dan kolom terakhir (Sat) kepotong.
+  width: min(328px, calc(100vw - 32px));
+  min-width: 0;
 
-    .flatpickr-days,
-    .dayContainer,
-    .flatpickr-weekdays {
-      width: 100%;
-      min-width: 100%;
-      box-sizing: border-box;
-    }
+  .flatpickr-days,
+  .dayContainer,
+  .flatpickr-weekdays {
+    width: 100%;
+    min-width: 100%;
+    box-sizing: border-box;
+  }
 
-    span.flatpickr-weekday,
-    .flatpickr-day {
-      max-width: none;
-    }
+  span.flatpickr-weekday,
+  .flatpickr-day {
+    max-width: none;
   }
 
   .flatpickr-time {
