@@ -6,7 +6,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	mathrand "math/rand"
+	"sort"
 	"strings"
 	"time"
 )
@@ -46,23 +48,25 @@ type PublicMatrixRow struct {
 }
 
 type PublicQuiz struct {
-	ID                 int64            `json:"id"`
-	Token              *string          `json:"token"`
-	Title              *string          `json:"title"`
-	Type               *string          `json:"type"`
-	Description        *string          `json:"description"`
-	StartTime          *string          `json:"start_time"`
-	EndTime            *string          `json:"end_time"`
-	MaxPoint           *int             `json:"max_point"`
-	PassingGrade       *int             `json:"passing_grade"`
-	TotalQuestion      int              `json:"total_question"`
-	Status             *string          `json:"status"`
-	State              string           `json:"state"`
-	ServerTime         string           `json:"server_time"`
-	AccessCodeRequired bool             `json:"access_code_required"`
-	AccessGranted      bool             `json:"access_granted"`
-	AccessMessage      *string          `json:"access_message"`
-	Questions          []PublicQuestion `json:"questions"`
+	ID           int64   `json:"id"`
+	Token        *string `json:"token"`
+	Title        *string `json:"title"`
+	Type         *string `json:"type"`
+	Description  *string `json:"description"`
+	StartTime    *string `json:"start_time"`
+	EndTime      *string `json:"end_time"`
+	MaxPoint     *int    `json:"max_point"`
+	PassingGrade *int    `json:"passing_grade"`
+	// RandomQuestionCount diteruskan biar handler submit bisa recompute subset yang sama tanpa query ulang ke DB.
+	RandomQuestionCount *int             `json:"-"`
+	TotalQuestion       int              `json:"total_question"`
+	Status              *string          `json:"status"`
+	State               string           `json:"state"`
+	ServerTime          string           `json:"server_time"`
+	AccessCodeRequired  bool             `json:"access_code_required"`
+	AccessGranted       bool             `json:"access_granted"`
+	AccessMessage       *string          `json:"access_message"`
+	Questions           []PublicQuestion `json:"questions"`
 }
 
 type PublicSubmissionAnswerInput struct {
@@ -179,9 +183,12 @@ func GetOrCreateQuizShare(db *sql.DB, quizID int64) (QuizShare, error) {
 
 // GetPublicQuizByToken cari quiz dari token publik, hitung state period-nya, lalu sanitasi semua
 // question/answer supaya FE publik tidak menerima flag benar-salah asli dari database.
-func GetPublicQuizByToken(db *sql.DB, token string, accessCode *string, now time.Time) (PublicQuiz, error) {
+// attemptSeed dipakai untuk memilih subset random_question_count secara deterministic per sesi
+// responden (browser generate sekali, dikirim ulang tiap GET/submit) supaya subset soal yang
+// ditampilkan gak berubah-ubah tiap kali form di-reload.
+func GetPublicQuizByToken(db *sql.DB, token string, accessCode *string, now time.Time, attemptSeed string) (PublicQuiz, error) {
 	row := db.QueryRow(
-		"SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, "+
+		"SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, q.random_question_count, "+
 			"(SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS total_question, q.status "+
 			"FROM quizzes q INNER JOIN quiz_shares qs ON qs.quiz_id = q.id WHERE qs.token = ? LIMIT 1",
 		token,
@@ -207,11 +214,16 @@ func GetPublicQuizByToken(db *sql.DB, token string, accessCode *string, now time
 	}
 
 	publicQuestions := []PublicQuestion{}
+	totalQuestionForResponse := quiz.TotalQuestion
 	if accessGranted {
 		questions, err := ListQuestionsByQuiz(db, quiz.ID)
 		if err != nil {
 			return PublicQuiz{}, err
 		}
+		// Random subset cuma diterapkan kalau admin set random_question_count dan nilainya lebih
+		// kecil dari total pool -- kalau >= total, sama aja tampilkan semua jadi diabaikan.
+		questions = selectRandomQuestionSubset(questions, quiz.RandomQuestionCount, attemptSeed)
+		totalQuestionForResponse = len(questions)
 
 		publicQuestions = make([]PublicQuestion, 0, len(questions))
 		for _, question := range questions {
@@ -247,23 +259,24 @@ func GetPublicQuizByToken(db *sql.DB, token string, accessCode *string, now time
 		accessMessage = &msg
 	}
 	return PublicQuiz{
-		ID:                 quiz.ID,
-		Token:              &tokenCopy,
-		Title:              quiz.Title,
-		Type:               quiz.Type,
-		Description:        quiz.Description,
-		StartTime:          quiz.StartTime,
-		EndTime:            quiz.EndTime,
-		MaxPoint:           quiz.MaxPoint,
-		PassingGrade:       quiz.PassingGrade,
-		TotalQuestion:      quiz.TotalQuestion,
-		Status:             quiz.Status,
-		State:              ResolvePublicQuizState(quiz, now),
-		ServerTime:         now.Format(dateTimeLayout),
-		AccessCodeRequired: accessRequired,
-		AccessGranted:      accessGranted,
-		AccessMessage:      accessMessage,
-		Questions:          publicQuestions,
+		ID:                  quiz.ID,
+		Token:               &tokenCopy,
+		Title:               quiz.Title,
+		Type:                quiz.Type,
+		Description:         quiz.Description,
+		StartTime:           quiz.StartTime,
+		EndTime:             quiz.EndTime,
+		MaxPoint:            quiz.MaxPoint,
+		PassingGrade:        quiz.PassingGrade,
+		RandomQuestionCount: quiz.RandomQuestionCount,
+		TotalQuestion:       totalQuestionForResponse,
+		Status:              quiz.Status,
+		State:               ResolvePublicQuizState(quiz, now),
+		ServerTime:          now.Format(dateTimeLayout),
+		AccessCodeRequired:  accessRequired,
+		AccessGranted:       accessGranted,
+		AccessMessage:       accessMessage,
+		Questions:           publicQuestions,
 	}, nil
 }
 
@@ -297,11 +310,15 @@ func ValidateQuizShareAccessCode(share QuizShare, accessCode *string) bool {
 
 // SavePublicSubmission simpan satu submit publik beserta semua jawabannya dalam transaction yang
 // sama, sekaligus menghitung score quiz pilihan ganda tanpa membocorkan kunci jawaban ke FE.
-func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []PublicSubmissionAnswerInput, startedAt *time.Time, now time.Time) (PublicSubmissionResult, error) {
+func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []PublicSubmissionAnswerInput, startedAt *time.Time, now time.Time, attemptSeed string) (PublicSubmissionResult, error) {
 	questions, err := ListQuestionsByQuiz(db, quiz.ID)
 	if err != nil {
 		return PublicSubmissionResult{}, err
 	}
+	// Pool question dibatasi ke subset random yang sama persis dengan yang ditampilkan ke responden
+	// (dihitung ulang dari attemptSeed, bukan percaya question_id yang dikirim client) supaya requirement
+	// "wajib jawab semua" dan scoring cuma berlaku untuk soal yang benar-benar dia lihat.
+	questions = selectRandomQuestionSubset(questions, quiz.RandomQuestionCount, attemptSeed)
 	isQuizSubmission := stringPtrValue(quiz.Type) == "quiz"
 
 	questionByID := make(map[int64]Question, len(questions))
@@ -855,6 +872,39 @@ func selectedSetMatchesCorrectSet(allAnswers []QuestionAnswer, selected []Questi
 		}
 	}
 	return true
+}
+
+// selectRandomQuestionSubset ambil count question secara acak dari pool, deterministic berdasarkan
+// attemptSeed (dikirim FE dari localStorage per sesi) supaya subset yang sama dikembalikan lagi
+// tiap kali GET/submit dipanggil ulang dalam sesi yang sama (form gak reload subset baru tiap refresh).
+// count nil/<=0/>=total pool berarti fitur nonaktif, balikin semua question apa adanya.
+func selectRandomQuestionSubset(questions []Question, count *int, attemptSeed string) []Question {
+	if count == nil || *count <= 0 || *count >= len(questions) {
+		return questions
+	}
+
+	// Urutkan dulu berdasarkan ID biar hasil seeded-shuffle deterministic (urutan asli dari DB
+	// gak dijamin konsisten antar query).
+	pool := make([]Question, len(questions))
+	copy(pool, questions)
+	sort.Slice(pool, func(i, j int) bool { return pool[i].ID < pool[j].ID })
+
+	var seed int64
+	if strings.TrimSpace(attemptSeed) == "" {
+		// Gak ada attempt seed dari FE (harusnya gak terjadi di alur normal) -- fallback ke random
+		// murni per-request biar tetap ada subset yang masuk akal walau gak stabil antar reload.
+		seed = time.Now().UnixNano()
+	} else {
+		hasher := fnv.New64a()
+		hasher.Write([]byte(attemptSeed))
+		seed = int64(hasher.Sum64())
+	}
+
+	randomizer := mathrand.New(mathrand.NewSource(seed))
+	randomizer.Shuffle(len(pool), func(i, j int) {
+		pool[i], pool[j] = pool[j], pool[i]
+	})
+	return pool[:*count]
 }
 
 // shufflePublicQuestions hanya berlaku untuk quiz publik agar user tidak selalu melihat urutan

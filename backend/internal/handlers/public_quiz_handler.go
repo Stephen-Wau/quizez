@@ -14,10 +14,13 @@ import (
 )
 
 type publicSubmissionRequest struct {
-	Email      *string                         `json:"email"`
-	StartedAt  *string                         `json:"started_at"`
-	AccessCode *string                         `json:"access_code"`
-	Answers    []publicSubmissionAnswerRequest `json:"answers"`
+	Email      *string `json:"email"`
+	StartedAt  *string `json:"started_at"`
+	AccessCode *string `json:"access_code"`
+	// AttemptSeed dipakai untuk recompute subset random_question_count yang sama persis dengan
+	// yang ditampilkan ke responden saat GET (lihat models.selectRandomQuestionSubset).
+	AttemptSeed *string                         `json:"attempt_seed"`
+	Answers     []publicSubmissionAnswerRequest `json:"answers"`
 }
 
 type publicSubmissionAnswerRequest struct {
@@ -99,7 +102,8 @@ func PublicQuizHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		accessCode := normalizeStrPtr(r.URL.Query().Get("code"))
-		quiz, err := models.GetPublicQuizByToken(db, token, accessCode, time.Now())
+		attemptSeed := r.URL.Query().Get("attempt")
+		quiz, err := models.GetPublicQuizByToken(db, token, accessCode, time.Now(), attemptSeed)
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "Link tidak ditemukan.", http.StatusNotFound)
 			return
@@ -135,8 +139,9 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		attemptSeed := stringValue(req.AttemptSeed)
 		now := time.Now()
-		publicQuiz, err := models.GetPublicQuizByToken(db, token, req.AccessCode, now)
+		publicQuiz, err := models.GetPublicQuizByToken(db, token, req.AccessCode, now, attemptSeed)
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, "Link tidak ditemukan.", http.StatusNotFound)
 			return
@@ -201,18 +206,19 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		quiz := models.Quiz{
-			ID:           publicQuiz.ID,
-			Title:        publicQuiz.Title,
-			Type:         publicQuiz.Type,
-			StartTime:    publicQuiz.StartTime,
-			EndTime:      publicQuiz.EndTime,
-			Description:  publicQuiz.Description,
-			MaxPoint:     publicQuiz.MaxPoint,
-			PassingGrade: publicQuiz.PassingGrade,
-			Status:       publicQuiz.Status,
+			ID:                  publicQuiz.ID,
+			Title:               publicQuiz.Title,
+			Type:                publicQuiz.Type,
+			StartTime:           publicQuiz.StartTime,
+			EndTime:             publicQuiz.EndTime,
+			Description:         publicQuiz.Description,
+			MaxPoint:            publicQuiz.MaxPoint,
+			PassingGrade:        publicQuiz.PassingGrade,
+			RandomQuestionCount: publicQuiz.RandomQuestionCount,
+			Status:              publicQuiz.Status,
 		}
 
-		result, err := models.SavePublicSubmission(db, quiz, email, inputs, startedAt, now)
+		result, err := models.SavePublicSubmission(db, quiz, email, inputs, startedAt, now, attemptSeed)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 				http.Error(w, "Email ini sudah pernah mengirim quiz ini.", http.StatusConflict)

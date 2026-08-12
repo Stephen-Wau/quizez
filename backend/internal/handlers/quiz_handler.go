@@ -12,14 +12,15 @@ import (
 )
 
 type quizRequest struct {
-	Title       *string `json:"title"`
-	Type        *string `json:"type"`
-	StartTime   *string `json:"start_time"`
-	EndTime     *string `json:"end_time"`
-	Description *string `json:"description"`
-	MaxPoint    *int    `json:"max_point"`
-	PassingGrade *int   `json:"passing_grade"`
-	Status      *string `json:"status"`
+	Title               *string `json:"title"`
+	Type                *string `json:"type"`
+	StartTime           *string `json:"start_time"`
+	EndTime             *string `json:"end_time"`
+	Description         *string `json:"description"`
+	MaxPoint            *int    `json:"max_point"`
+	PassingGrade        *int    `json:"passing_grade"`
+	RandomQuestionCount *int    `json:"random_question_count"`
+	Status              *string `json:"status"`
 }
 
 // GET (list) & POST (create) at /api/quizzes
@@ -114,6 +115,10 @@ func validateQuizRequest(req quizRequest) string {
 	if *req.Type == "quiz" && req.MaxPoint != nil && req.PassingGrade != nil && *req.PassingGrade > *req.MaxPoint {
 		return "Passing grade tidak boleh melebihi max point."
 	}
+	// Random question count opsional, tapi kalau diisi harus angka positif (0/negatif gak masuk akal).
+	if req.RandomQuestionCount != nil && *req.RandomQuestionCount <= 0 {
+		return "Jumlah soal random harus lebih dari 0."
+	}
 	return ""
 }
 
@@ -132,7 +137,8 @@ func createQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	q := models.Quiz{
 		Title: normalizeStr(req.Title), Type: normalizeStr(req.Type),
 		StartTime: req.StartTime, EndTime: req.EndTime,
-		Description: normalizeStr(req.Description), MaxPoint: req.MaxPoint, PassingGrade: req.PassingGrade, Status: normalizeStr(req.Status),
+		Description: normalizeStr(req.Description), MaxPoint: req.MaxPoint, PassingGrade: req.PassingGrade,
+		RandomQuestionCount: req.RandomQuestionCount, Status: normalizeStr(req.Status),
 	}
 	id, err := models.CreateQuiz(db, q)
 	if err != nil {
@@ -160,7 +166,8 @@ func updateQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 	q := models.Quiz{
 		ID: id, Title: normalizeStr(req.Title), Type: normalizeStr(req.Type),
 		StartTime: req.StartTime, EndTime: req.EndTime,
-		Description: normalizeStr(req.Description), MaxPoint: req.MaxPoint, PassingGrade: req.PassingGrade, Status: normalizeStr(req.Status),
+		Description: normalizeStr(req.Description), MaxPoint: req.MaxPoint, PassingGrade: req.PassingGrade,
+		RandomQuestionCount: req.RandomQuestionCount, Status: normalizeStr(req.Status),
 	}
 	if err := models.UpdateQuiz(db, q); err != nil {
 		http.Error(w, "failed to update quiz", http.StatusInternalServerError)
