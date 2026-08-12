@@ -1,10 +1,12 @@
 import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
+  AbstractControl,
   FormArray,
   FormBuilder,
   FormGroup,
   ReactiveFormsModule,
+  ValidationErrors,
   Validators,
 } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -22,6 +24,20 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 
 type QuestionFormGroup = FormGroup;
+
+// requireNonEmptyArray validator buat control checkbox: wajib pilih minimal 1 opsi.
+function requireNonEmptyArray(control: AbstractControl): ValidationErrors | null {
+  return Array.isArray(control.value) && control.value.length > 0 ? null : { required: true };
+}
+
+// requireAllMatrixRowsAnswered validator buat FormArray matrix_answers: setiap baris pernyataan
+// wajib punya question_answer_id terisi sebelum question matrix dianggap lengkap.
+function requireAllMatrixRowsAnswered(control: AbstractControl): ValidationErrors | null {
+  const array = control as FormArray;
+  if (array.length === 0) return null;
+  const allAnswered = array.controls.every((row) => !!row.get('question_answer_id')?.value);
+  return allAnswered ? null : { required: true };
+}
 
 interface StoredPublicSession {
   email: string;
@@ -41,6 +57,8 @@ interface StoredPublicSession {
     question_id: number;
     question_answer_id: number | null;
     answer_text: string | null;
+    selected_answer_ids?: number[];
+    matrix_answers?: Array<{ row_id: number; question_answer_id: number | null }>;
   }>;
 }
 
@@ -339,6 +357,41 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     this.persistFormSession();
   }
 
+  // isOptionChecked cek apakah 1 opsi checkbox lagi dicentang di question tertentu.
+  isOptionChecked(index: number, optionId: number): boolean {
+    const selected = (this.answersArray.at(index).get('selected_answer_ids')?.value ?? []) as number[];
+    return selected.includes(optionId);
+  }
+
+  // toggleCheckboxOption tambah/hapus 1 opsi dari daftar checkbox yang dipilih.
+  toggleCheckboxOption(index: number, optionId: number): void {
+    const control = this.answersArray.at(index).get('selected_answer_ids');
+    const current = (control?.value ?? []) as number[];
+    const next = current.includes(optionId) ? current.filter((id) => id !== optionId) : [...current, optionId];
+    control?.setValue(next);
+    control?.markAsTouched();
+    this.persistFormSession();
+  }
+
+  // matrixAnswersArray ambil FormArray baris jawaban matrix milik 1 question, dipakai template.
+  matrixAnswersArray(index: number): FormArray {
+    return this.answersArray.at(index).get('matrix_answers') as FormArray;
+  }
+
+  // isMatrixSelected cek apakah 1 kolom skala lagi dipilih buat baris pernyataan tertentu.
+  isMatrixSelected(index: number, rowId: number, optionId: number): boolean {
+    const rowGroup = this.matrixAnswersArray(index).controls.find((row) => row.get('row_id')?.value === rowId);
+    return Number(rowGroup?.get('question_answer_id')?.value) === optionId;
+  }
+
+  // chooseMatrixOption pilih 1 kolom skala buat 1 baris pernyataan matrix.
+  chooseMatrixOption(index: number, rowId: number, optionId: number): void {
+    const rowGroup = this.matrixAnswersArray(index).controls.find((row) => row.get('row_id')?.value === rowId);
+    rowGroup?.get('question_answer_id')?.setValue(optionId);
+    rowGroup?.get('question_answer_id')?.markAsTouched();
+    this.persistFormSession();
+  }
+
   formatPeriod(): string {
     if (!this.detail?.start_time && !this.detail?.end_time) return '-';
     if (this.isQuiz) {
@@ -388,6 +441,16 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     if (question.type_answer === 'free_text') {
       return group.get('answer_text')?.value?.trim() || 'Belum dijawab';
     }
+    if (question.type_answer === 'checkbox') {
+      const selectedIds = (group.get('selected_answer_ids')?.value ?? []) as number[];
+      const labels = question.answers.filter((option) => selectedIds.includes(option.id)).map((option) => option.label);
+      return labels.length > 0 ? labels.join(', ') : 'Belum dijawab';
+    }
+    if (question.type_answer === 'matrix') {
+      const rows = this.matrixAnswersArray(index).controls;
+      const answeredCount = rows.filter((row) => !!row.get('question_answer_id')?.value).length;
+      return rows.length > 0 ? `${answeredCount} dari ${rows.length} baris terisi` : 'Belum dijawab';
+    }
 
     const optionId = Number(group.get('question_answer_id')?.value ?? 0);
     const selected = question.answers.find((option) => option.id === optionId);
@@ -401,7 +464,8 @@ export class PublicFormComponent implements OnInit, OnDestroy {
   }
 
   resultCorrectAnswer(answer: PublicFormSubmitResult['answer_details'][number]): string {
-    return answer.correct_answers.length > 0 ? answer.correct_answers.join(', ') : '-';
+    const correctAnswers = answer.correct_answers ?? [];
+    return correctAnswers.length > 0 ? correctAnswers.join(', ') : '-';
   }
 
   formatScorePercent(value: number | null): string {
@@ -424,12 +488,24 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     this.questionForm.reset();
 
     questions.forEach((question) => {
-      const isText = question.type_answer === 'free_text';
+      const type = question.type_answer;
+      const isText = type === 'free_text';
+      const isCheckbox = type === 'checkbox';
+      const isMatrix = type === 'matrix';
+      // Default (multiple_choice/dropdown/rating): wajib pilih 1 opsi. Checkbox/matrix/free_text
+      // punya control sendiri-sendiri yang divalidasi lewat validator custom di bawah.
+      const needsSingleOption = !isText && !isCheckbox && !isMatrix;
+
       this.answersArray.push(
         this.fb.group({
           question_id: [question.id],
-          question_answer_id: [null, isText ? [] : [Validators.required]],
+          question_answer_id: [null, needsSingleOption ? [Validators.required] : []],
           answer_text: ['', isText ? [Validators.required] : []],
+          selected_answer_ids: [[] as number[], isCheckbox ? [requireNonEmptyArray] : []],
+          matrix_answers: this.fb.array(
+            isMatrix ? question.matrix_rows.map((row) => this.fb.group({ row_id: [row.id], question_answer_id: [null] })) : [],
+            isMatrix ? [requireAllMatrixRowsAnswered] : [],
+          ),
         }),
       );
     });
@@ -459,6 +535,10 @@ export class PublicFormComponent implements OnInit, OnDestroy {
         question_id: Number(answer['question_id']),
         question_answer_id: answer['question_answer_id'] ? Number(answer['question_answer_id']) : null,
         answer_text: answer['answer_text']?.trim() || null,
+        selected_answer_ids: ((answer['selected_answer_ids'] ?? []) as number[]).map(Number),
+        matrix_answers: ((answer['matrix_answers'] ?? []) as Array<{ row_id: number; question_answer_id: number | null }>)
+          .filter((row) => row.question_answer_id !== null)
+          .map((row) => ({ row_id: Number(row.row_id), question_answer_id: Number(row.question_answer_id) })),
       })),
     };
   }
@@ -583,6 +663,11 @@ export class PublicFormComponent implements OnInit, OnDestroy {
         question_id: Number(answer['question_id']),
         question_answer_id: answer['question_answer_id'] ? Number(answer['question_answer_id']) : null,
         answer_text: answer['answer_text']?.trim() || null,
+        selected_answer_ids: ((answer['selected_answer_ids'] ?? []) as number[]).map(Number),
+        matrix_answers: ((answer['matrix_answers'] ?? []) as Array<{ row_id: number; question_answer_id: number | null }>).map((row) => ({
+          row_id: Number(row.row_id),
+          question_answer_id: row.question_answer_id !== null ? Number(row.question_answer_id) : null,
+        })),
       })),
     };
 
@@ -624,12 +709,27 @@ export class PublicFormComponent implements OnInit, OnDestroy {
           {
             question_answer_id: savedAnswer.question_answer_id,
             answer_text: savedAnswer.answer_text ?? '',
+            selected_answer_ids: savedAnswer.selected_answer_ids ?? [],
           },
           { emitEvent: false },
         );
+        const matrixAnswers = control.get('matrix_answers') as FormArray | null;
+        if (matrixAnswers && Array.isArray(savedAnswer.matrix_answers)) {
+          const savedByRowId = new Map(savedAnswer.matrix_answers.map((row) => [Number(row.row_id), row.question_answer_id]));
+          matrixAnswers.controls.forEach((rowControl) => {
+            const rowId = Number(rowControl.get('row_id')?.value);
+            if (savedByRowId.has(rowId)) {
+              rowControl.get('question_answer_id')?.setValue(savedByRowId.get(rowId) ?? null, { emitEvent: false });
+            }
+          });
+        }
       });
       this.progressRestored = session.answers.some(
-        (answer) => answer.question_answer_id !== null || !!answer.answer_text?.trim(),
+        (answer) =>
+          answer.question_answer_id !== null ||
+          !!answer.answer_text?.trim() ||
+          (answer.selected_answer_ids?.length ?? 0) > 0 ||
+          (answer.matrix_answers?.some((row) => row.question_answer_id !== null) ?? false),
       );
     }
 
@@ -737,7 +837,10 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     if (!control) return false;
     const answerID = control.get('question_answer_id')?.value;
     const answerText = control.get('answer_text')?.value?.trim();
-    return !!answerID || !!answerText;
+    const selectedIds = (control.get('selected_answer_ids')?.value ?? []) as number[];
+    const matrixAnswers = control.get('matrix_answers') as FormArray | null;
+    const matrixAnswered = !!matrixAnswers && matrixAnswers.length > 0 && matrixAnswers.controls.every((row) => !!row.get('question_answer_id')?.value);
+    return !!answerID || !!answerText || selectedIds.length > 0 || matrixAnswered;
   }
 
   private shouldProtectRefresh(): boolean {

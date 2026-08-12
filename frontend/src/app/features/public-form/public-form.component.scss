@@ -308,6 +308,73 @@
   background: radial-gradient(circle, #4f46e5 0 45%, #fff 48% 100%);
 }
 
+// Checkbox pakai bentuk kotak (bukan bulat) biar keliatan beda dari radio single-select.
+.public-form__option-bullet--checkbox {
+  border-radius: 5px;
+}
+
+.public-form__option--active .public-form__option-bullet--checkbox {
+  background: radial-gradient(circle, #4f46e5 0 55%, #fff 58% 100%);
+}
+
+.public-form__option-list--inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.public-form__option-list--inline .public-form__option {
+  width: auto;
+  padding: 8px 14px;
+  border-radius: 999px;
+}
+
+.public-form__field {
+  margin-bottom: 12px;
+}
+
+.public-form__select {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid #d7deef;
+  background: #fff;
+  font-size: 0.95rem;
+  font-family: inherit;
+  color: inherit;
+
+  &:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  }
+}
+
+.public-form__matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.public-form__matrix-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.public-form__matrix-row-label {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
 .public-form__review-item-head {
   margin-bottom: 10px;
 }

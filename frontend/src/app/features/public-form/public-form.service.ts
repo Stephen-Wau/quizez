@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export type PublicFormState = 'active' | 'upcoming' | 'expired' | 'inactive';
-export type PublicQuestionType = 'multiple_choice' | 'rating' | 'free_text';
+export type PublicQuestionType = 'multiple_choice' | 'dropdown' | 'checkbox' | 'matrix' | 'rating' | 'free_text';
 export type PublicFormType = 'quiz' | 'survey';
 
 export interface PublicQuestionOption {
@@ -13,11 +13,18 @@ export interface PublicQuestionOption {
   label: string | null;
 }
 
+export interface PublicMatrixRow {
+  id: number;
+  row_label: string | null;
+}
+
 export interface PublicQuestion {
   id: number;
   question: string | null;
   type_answer: PublicQuestionType | null;
   answers: PublicQuestionOption[];
+  // matrix_rows cuma keisi buat type_answer="matrix"; answers berperan sebagai kolom skala.
+  matrix_rows: PublicMatrixRow[];
 }
 
 export interface PublicFormDetail {
@@ -48,6 +55,10 @@ export interface PublicFormSubmitPayload {
     question_id: number;
     question_answer_id: number | null;
     answer_text: string | null;
+    // selected_answer_ids dipakai buat type_answer="checkbox".
+    selected_answer_ids?: number[];
+    // matrix_answers dipakai buat type_answer="matrix", 1 entri per baris pernyataan.
+    matrix_answers?: Array<{ row_id: number; question_answer_id: number }>;
   }>;
 }
 
@@ -76,7 +87,7 @@ export interface PublicFormSubmitAnswerDetail {
   selected_answer_label: string | null;
   selected_answer_text: string | null;
   is_correct: boolean | null;
-  correct_answers: string[];
+  correct_answers: string[] | null;
 }
 
 @Injectable({ providedIn: 'root' })

@@ -58,7 +58,7 @@
               </span>
             </div>
             <p>Jawaban kamu: {{ resultAnswerPreview(answer) }}</p>
-            <p *ngIf="answer.correct_answers.length > 0">Jawaban benar: {{ resultCorrectAnswer(answer) }}</p>
+            <p *ngIf="(answer.correct_answers ?? []).length > 0">Jawaban benar: {{ resultCorrectAnswer(answer) }}</p>
           </article>
         </div>
       </div>
@@ -206,7 +206,10 @@
                       <span class="public-form__question-type">{{ question.type_answer || '-' }}</span>
                     </div>
 
-                    <div *ngIf="question.type_answer !== 'free_text'" class="public-form__option-list">
+                    <div
+                      *ngIf="question.type_answer === 'multiple_choice' || question.type_answer === 'rating'"
+                      class="public-form__option-list"
+                    >
                       <button
                         *ngFor="let option of question.answers; trackBy: trackByOptionId"
                         type="button"
@@ -217,6 +220,45 @@
                         <span class="public-form__option-bullet"></span>
                         <span>{{ option.label || '-' }}</span>
                       </button>
+                    </div>
+
+                    <div *ngIf="question.type_answer === 'dropdown'" class="public-form__field">
+                      <select class="public-form__select" formControlName="question_answer_id">
+                        <option [ngValue]="null" disabled>Pilih jawaban...</option>
+                        <option *ngFor="let option of question.answers; trackBy: trackByOptionId" [ngValue]="option.id">
+                          {{ option.label || '-' }}
+                        </option>
+                      </select>
+                    </div>
+
+                    <div *ngIf="question.type_answer === 'checkbox'" class="public-form__option-list">
+                      <button
+                        *ngFor="let option of question.answers; trackBy: trackByOptionId"
+                        type="button"
+                        class="public-form__option"
+                        [class.public-form__option--active]="isOptionChecked(currentQuestionIndex, option.id)"
+                        (click)="toggleCheckboxOption(currentQuestionIndex, option.id)"
+                      >
+                        <span class="public-form__option-bullet public-form__option-bullet--checkbox"></span>
+                        <span>{{ option.label || '-' }}</span>
+                      </button>
+                    </div>
+
+                    <div *ngIf="question.type_answer === 'matrix'" class="public-form__matrix">
+                      <div class="public-form__matrix-row" *ngFor="let row of question.matrix_rows">
+                        <p class="public-form__matrix-row-label">{{ row.row_label || '-' }}</p>
+                        <div class="public-form__option-list public-form__option-list--inline">
+                          <button
+                            *ngFor="let option of question.answers; trackBy: trackByOptionId"
+                            type="button"
+                            class="public-form__option"
+                            [class.public-form__option--active]="isMatrixSelected(currentQuestionIndex, row.id, option.id)"
+                            (click)="chooseMatrixOption(currentQuestionIndex, row.id, option.id)"
+                          >
+                            <span>{{ option.label || '-' }}</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     <app-input
