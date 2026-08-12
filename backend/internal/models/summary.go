@@ -40,16 +40,27 @@ type SummaryBucket struct {
 }
 
 type QuestionSummary struct {
-	QuestionID      int64                  `json:"question_id"`
-	Question        *string                `json:"question"`
-	TypeAnswer      *string                `json:"type_answer"`
-	Point           *int                   `json:"point"`
-	TotalResponses  int                    `json:"total_responses"`
-	CorrectCount    int                    `json:"correct_count"`
-	IncorrectCount  int                    `json:"incorrect_count"`
-	AverageRating   *float64               `json:"average_rating"`
+	QuestionID      int64                   `json:"question_id"`
+	Question        *string                 `json:"question"`
+	TypeAnswer      *string                 `json:"type_answer"`
+	Point           *int                    `json:"point"`
+	TotalResponses  int                     `json:"total_responses"`
+	CorrectCount    int                     `json:"correct_count"`
+	IncorrectCount  int                     `json:"incorrect_count"`
+	AverageRating   *float64                `json:"average_rating"`
 	OptionSummaries []QuestionOptionSummary `json:"option_summaries"`
-	TextResponses   []QuestionTextResponse `json:"text_responses"`
+	TextResponses   []QuestionTextResponse  `json:"text_responses"`
+	// MatrixRowSummaries cuma keisi buat type_answer="matrix" — distribusi jawaban dipecah per
+	// baris pernyataan (OptionSummaries di level question dibiarkan kosong buat matrix).
+	MatrixRowSummaries []QuestionMatrixRowSummary `json:"matrix_row_summaries"`
+}
+
+// QuestionMatrixRowSummary distribusi jawaban 1 baris pernyataan pada question matrix.
+type QuestionMatrixRowSummary struct {
+	RowID           int64                   `json:"row_id"`
+	RowLabel        *string                 `json:"row_label"`
+	TotalResponses  int                     `json:"total_responses"`
+	OptionSummaries []QuestionOptionSummary `json:"option_summaries"`
 }
 
 type QuestionOptionSummary struct {
@@ -104,6 +115,11 @@ type summaryAnswerRow struct {
 	RespondentEmail *string
 	StartedAt       *string
 	SubmittedAt     *string
+	// SelectedAnswerIDsRaw JSON array id opsi checkbox yang dipilih, "" kalau bukan checkbox.
+	SelectedAnswerIDsRaw string
+	// MatrixRowID/MatrixRowLabel cuma keisi buat jawaban baris matrix (1 row = 1 baris pernyataan).
+	MatrixRowID    *int64
+	MatrixRowLabel *string
 }
 
 // GetQuizSummary rangkum analytics quiz/survey dari submission yang sudah terkumpul: KPI umum,
@@ -213,12 +229,16 @@ func listSubmissionAnswerRows(db *sql.DB, quizID int64) ([]summaryAnswerRow, err
 			qsa.answer_value,
 			qsa.answer_text,
 			qsa.is_correct,
+			qsa.selected_answer_ids,
+			qsa.matrix_row_id,
+			qmr.row_label,
 			qs.respondent_email,
 			qs.started_at,
 			qs.submitted_at
 		FROM quiz_submission_answers qsa
 		INNER JOIN questions q ON q.id = qsa.question_id
 		INNER JOIN quiz_submissions qs ON qs.id = qsa.submission_id
+		LEFT JOIN question_matrix_rows qmr ON qmr.id = qsa.matrix_row_id
 		WHERE qs.quiz_id = ?
 		ORDER BY qs.submitted_at DESC, qsa.submission_id DESC, qsa.question_id ASC`,
 		quizID,
@@ -231,17 +251,20 @@ func listSubmissionAnswerRows(db *sql.DB, quizID int64) ([]summaryAnswerRow, err
 	answerRows := []summaryAnswerRow{}
 	for rows.Next() {
 		var (
-			row            summaryAnswerRow
-			question       sql.NullString
-			typeAnswer     sql.NullString
-			answerLabel    sql.NullString
-			answerValue    sql.NullString
-			answerText     sql.NullString
-			respondent     sql.NullString
-			startedAt      sql.NullTime
-			submittedAt    sql.NullTime
-			point          sql.NullInt64
-			isCorrect      sql.NullBool
+			row               summaryAnswerRow
+			question          sql.NullString
+			typeAnswer        sql.NullString
+			answerLabel       sql.NullString
+			answerValue       sql.NullString
+			answerText        sql.NullString
+			respondent        sql.NullString
+			startedAt         sql.NullTime
+			submittedAt       sql.NullTime
+			point             sql.NullInt64
+			isCorrect         sql.NullBool
+			selectedAnswerIDs sql.NullString
+			matrixRowID       sql.NullInt64
+			matrixRowLabel    sql.NullString
 		)
 		if err := rows.Scan(
 			&row.SubmissionID,
@@ -253,6 +276,9 @@ func listSubmissionAnswerRows(db *sql.DB, quizID int64) ([]summaryAnswerRow, err
 			&answerValue,
 			&answerText,
 			&isCorrect,
+			&selectedAnswerIDs,
+			&matrixRowID,
+			&matrixRowLabel,
 			&respondent,
 			&startedAt,
 			&submittedAt,
@@ -275,6 +301,14 @@ func listSubmissionAnswerRows(db *sql.DB, quizID int64) ([]summaryAnswerRow, err
 			v := isCorrect.Bool
 			row.IsCorrect = &v
 		}
+		if selectedAnswerIDs.Valid {
+			row.SelectedAnswerIDsRaw = selectedAnswerIDs.String
+		}
+		if matrixRowID.Valid {
+			v := matrixRowID.Int64
+			row.MatrixRowID = &v
+		}
+		row.MatrixRowLabel = nullableString(matrixRowLabel)
 		answerRows = append(answerRows, row)
 	}
 	return answerRows, rows.Err()
@@ -393,31 +427,64 @@ func buildScoreDistribution(quiz Quiz, submissions []SubmissionSummary) []Summar
 }
 
 // buildQuestionSummaries rangkum analytics per-question: distribusi opsi, rating rata-rata,
-// jumlah benar/salah, dan kumpulan jawaban free text.
+// jumlah benar/salah, dan kumpulan jawaban free text. Matrix ditangani terpisah (per baris
+// pernyataan) karena 1 question matrix bisa punya banyak baris yang gak boleh digabung jadi satu.
 func buildQuestionSummaries(questions []Question, answerRows []summaryAnswerRow) []QuestionSummary {
 	summaries := make([]QuestionSummary, 0, len(questions))
 	summaryMap := map[int64]*QuestionSummary{}
 	optionCounters := map[int64]map[string]int{}
 	ratingTotals := map[int64]int{}
 	ratingCounts := map[int64]int{}
+	// matrixRowCounters[questionID][rowID][label] = count; matrixRowLabels buat urutan tampil.
+	matrixRowCounters := map[int64]map[int64]map[string]int{}
+	matrixRowLabels := map[int64]map[int64]*string{}
+	matrixRowOrder := map[int64][]int64{}
+	// matrixAnsweredSubmissions dedup "question ini udah dijawab submission X" biar TotalResponses
+	// matrix gak kehitung dobel walau 1 submission ngisi banyak baris.
+	matrixAnsweredSubmissions := map[int64]map[int64]bool{}
 
 	for _, question := range questions {
 		summary := QuestionSummary{
-			QuestionID:      question.ID,
-			Question:        question.Question,
-			TypeAnswer:      question.TypeAnswer,
-			Point:           question.Point,
-			OptionSummaries: []QuestionOptionSummary{},
-			TextResponses:   []QuestionTextResponse{},
+			QuestionID:         question.ID,
+			Question:           question.Question,
+			TypeAnswer:         question.TypeAnswer,
+			Point:              question.Point,
+			OptionSummaries:    []QuestionOptionSummary{},
+			TextResponses:      []QuestionTextResponse{},
+			MatrixRowSummaries: []QuestionMatrixRowSummary{},
 		}
 		summaries = append(summaries, summary)
 		summaryMap[question.ID] = &summaries[len(summaries)-1]
 		optionCounters[question.ID] = map[string]int{}
+		matrixRowCounters[question.ID] = map[int64]map[string]int{}
+		matrixRowLabels[question.ID] = map[int64]*string{}
+		matrixAnsweredSubmissions[question.ID] = map[int64]bool{}
 	}
 
 	for _, row := range answerRows {
 		summary := summaryMap[row.QuestionID]
 		if summary == nil {
+			continue
+		}
+
+		// Matrix dihitung sendiri per baris, gak lewat jalur umum di bawah (TotalResponses-nya
+		// dedup per submission, bukan per baris, biar gak inflate).
+		if row.MatrixRowID != nil {
+			if isAnsweredRow(row) && !matrixAnsweredSubmissions[row.QuestionID][row.SubmissionID] {
+				matrixAnsweredSubmissions[row.QuestionID][row.SubmissionID] = true
+				summary.TotalResponses++
+			}
+			label := strings.TrimSpace(stringPtrValue(row.AnswerLabel))
+			if label != "" {
+				rowCounter, exists := matrixRowCounters[row.QuestionID][*row.MatrixRowID]
+				if !exists {
+					rowCounter = map[string]int{}
+					matrixRowCounters[row.QuestionID][*row.MatrixRowID] = rowCounter
+					matrixRowOrder[row.QuestionID] = append(matrixRowOrder[row.QuestionID], *row.MatrixRowID)
+				}
+				rowCounter[label]++
+				matrixRowLabels[row.QuestionID][*row.MatrixRowID] = row.MatrixRowLabel
+			}
 			continue
 		}
 
@@ -433,7 +500,7 @@ func buildQuestionSummaries(questions []Question, answerRows []summaryAnswerRow)
 		}
 
 		switch stringPtrValue(row.TypeAnswer) {
-		case "multiple_choice", "rating":
+		case "multiple_choice", "dropdown", "rating":
 			label := strings.TrimSpace(stringPtrValue(row.AnswerLabel))
 			if label == "" {
 				label = strings.TrimSpace(stringPtrValue(row.AnswerValue))
@@ -445,6 +512,18 @@ func buildQuestionSummaries(questions []Question, answerRows []summaryAnswerRow)
 				if n, err := strconv.Atoi(strings.TrimSpace(stringPtrValue(row.AnswerValue))); err == nil {
 					ratingTotals[row.QuestionID] += n
 					ratingCounts[row.QuestionID]++
+				}
+			}
+		case "checkbox":
+			// AnswerLabel checkbox berisi label gabungan "opsi A, opsi B" (lihat public_quiz.go),
+			// dipecah lagi di sini biar tiap opsi kehitung individual di distribusi jawaban.
+			joined := strings.TrimSpace(stringPtrValue(row.AnswerLabel))
+			if joined != "" {
+				for _, label := range strings.Split(joined, ", ") {
+					label = strings.TrimSpace(label)
+					if label != "" {
+						optionCounters[row.QuestionID][label]++
+					}
 				}
 			}
 		case "free_text":
@@ -484,6 +563,36 @@ func buildQuestionSummaries(questions []Question, answerRows []summaryAnswerRow)
 			avg := roundFloat(float64(ratingTotals[summary.QuestionID]) / float64(ratingCounts[summary.QuestionID]))
 			summary.AverageRating = &avg
 		}
+
+		for _, rowID := range matrixRowOrder[summary.QuestionID] {
+			rowCounter := matrixRowCounters[summary.QuestionID][rowID]
+			rowTotal := 0
+			for _, count := range rowCounter {
+				rowTotal += count
+			}
+			rowLabels := make([]string, 0, len(rowCounter))
+			for label := range rowCounter {
+				rowLabels = append(rowLabels, label)
+			}
+			sort.Strings(rowLabels)
+
+			optionSummaries := make([]QuestionOptionSummary, 0, len(rowLabels))
+			for _, label := range rowLabels {
+				count := rowCounter[label]
+				percentage := 0.0
+				if rowTotal > 0 {
+					percentage = roundFloat((float64(count) / float64(rowTotal)) * 100)
+				}
+				optionSummaries = append(optionSummaries, QuestionOptionSummary{Label: label, Count: count, Percentage: percentage})
+			}
+
+			summary.MatrixRowSummaries = append(summary.MatrixRowSummaries, QuestionMatrixRowSummary{
+				RowID:           rowID,
+				RowLabel:        matrixRowLabels[summary.QuestionID][rowID],
+				TotalResponses:  rowTotal,
+				OptionSummaries: optionSummaries,
+			})
+		}
 	}
 
 	return summaries
@@ -494,6 +603,9 @@ func buildQuestionSummaries(questions []Question, answerRows []summaryAnswerRow)
 func attachAnswersToSubmissions(quiz Quiz, questions []Question, submissions []SubmissionSummary, answerRows []summaryAnswerRow, totalQuestions int) {
 	submissionMap := map[int64]*SubmissionSummary{}
 	answeredCounters := map[int64]int{}
+	// answeredQuestionSeen dedup (submission,question) biar completion% gak inflate buat matrix
+	// (1 question matrix bisa punya banyak baris = banyak summaryAnswerRow buat 1 question yang sama).
+	answeredQuestionSeen := map[int64]map[int64]bool{}
 	correctAnswersByQuestion := map[int64][]string{}
 	for _, question := range questions {
 		correctAnswersByQuestion[question.ID] = collectCorrectAnswerLabels(question)
@@ -521,8 +633,18 @@ func attachAnswersToSubmissions(quiz Quiz, questions []Question, submissions []S
 			CorrectAnswers: correctAnswersByQuestion[row.QuestionID],
 		})
 		if isAnsweredRow(row) {
-			answeredCounters[row.SubmissionID]++
+			seen := answeredQuestionSeen[row.SubmissionID]
+			if seen == nil {
+				seen = map[int64]bool{}
+				answeredQuestionSeen[row.SubmissionID] = seen
+			}
+			if !seen[row.QuestionID] {
+				seen[row.QuestionID] = true
+				answeredCounters[row.SubmissionID]++
+			}
 		}
+		// Matrix gak ada scoring (IsCorrect selalu nil), jadi cuma correct/incorrect count tipe
+		// gradable (multiple_choice/dropdown/checkbox) yang nambah di sini.
 		if row.IsCorrect != nil {
 			if *row.IsCorrect {
 				submission.CorrectAnswers++

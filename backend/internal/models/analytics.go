@@ -238,12 +238,16 @@ func listAnswerRowsForSubmissionIDs(db *sql.DB, submissionIDs []int64) ([]summar
 			qsa.answer_value,
 			qsa.answer_text,
 			qsa.is_correct,
+			qsa.selected_answer_ids,
+			qsa.matrix_row_id,
+			qmr.row_label,
 			qs.respondent_email,
 			qs.started_at,
 			qs.submitted_at
 		FROM quiz_submission_answers qsa
 		INNER JOIN questions q ON q.id = qsa.question_id
 		INNER JOIN quiz_submissions qs ON qs.id = qsa.submission_id
+		LEFT JOIN question_matrix_rows qmr ON qmr.id = qsa.matrix_row_id
 		WHERE qsa.submission_id IN (%s)
 		ORDER BY qs.submitted_at DESC, qsa.submission_id DESC, qsa.question_id ASC`, strings.Join(placeholders, ","))
 
@@ -256,21 +260,25 @@ func listAnswerRowsForSubmissionIDs(db *sql.DB, submissionIDs []int64) ([]summar
 	answerRows := []summaryAnswerRow{}
 	for rows.Next() {
 		var (
-			row         summaryAnswerRow
-			question    sql.NullString
-			typeAnswer  sql.NullString
-			answerLabel sql.NullString
-			answerValue sql.NullString
-			answerText  sql.NullString
-			respondent  sql.NullString
-			startedAt   sql.NullTime
-			submittedAt sql.NullTime
-			point       sql.NullInt64
-			isCorrect   sql.NullBool
+			row               summaryAnswerRow
+			question          sql.NullString
+			typeAnswer        sql.NullString
+			answerLabel       sql.NullString
+			answerValue       sql.NullString
+			answerText        sql.NullString
+			respondent        sql.NullString
+			startedAt         sql.NullTime
+			submittedAt       sql.NullTime
+			point             sql.NullInt64
+			isCorrect         sql.NullBool
+			selectedAnswerIDs sql.NullString
+			matrixRowID       sql.NullInt64
+			matrixRowLabel    sql.NullString
 		)
 		if err := rows.Scan(
 			&row.SubmissionID, &row.QuestionID, &question, &typeAnswer, &point,
-			&answerLabel, &answerValue, &answerText, &isCorrect, &respondent, &startedAt, &submittedAt,
+			&answerLabel, &answerValue, &answerText, &isCorrect, &selectedAnswerIDs, &matrixRowID, &matrixRowLabel,
+			&respondent, &startedAt, &submittedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -290,6 +298,14 @@ func listAnswerRowsForSubmissionIDs(db *sql.DB, submissionIDs []int64) ([]summar
 			v := isCorrect.Bool
 			row.IsCorrect = &v
 		}
+		if selectedAnswerIDs.Valid {
+			row.SelectedAnswerIDsRaw = selectedAnswerIDs.String
+		}
+		if matrixRowID.Valid {
+			v := matrixRowID.Int64
+			row.MatrixRowID = &v
+		}
+		row.MatrixRowLabel = nullableString(matrixRowLabel)
 		answerRows = append(answerRows, row)
 	}
 	return answerRows, rows.Err()
