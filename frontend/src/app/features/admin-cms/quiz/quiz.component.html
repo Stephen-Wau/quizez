@@ -15,7 +15,11 @@
 </ng-template>
 
 <ng-template #statusTpl let-value="value">
-  <span class="quiz__status-badge" [class.quiz__status-badge--inactive]="value !== 'active'">{{ value || '-' }}</span>
+  <span
+    class="quiz__status-badge"
+    [class.quiz__status-badge--inactive]="value === 'inactive'"
+    [class.quiz__status-badge--closed]="value === 'closed'"
+  >{{ value || '-' }}</span>
 </ng-template>
 
 <ng-template #aksiTpl let-row="row">
@@ -32,6 +36,16 @@
     <app-button variant="ghost" size="sm" (click)="openEditModal($any(row))">
       <lucide-icon name="pencil" [size]="14"></lucide-icon>
       Edit
+    </app-button>
+    <app-button
+      *ngIf="$any(row).has_submissions"
+      variant="ghost"
+      size="sm"
+      (click)="duplicate($any(row))"
+      [disabled]="duplicatingQuizId === $any(row).id"
+    >
+      <lucide-icon name="copy" [size]="14"></lucide-icon>
+      Duplicate
     </app-button>
     <app-button variant="danger" size="sm" (click)="remove($any(row))">
       <lucide-icon name="trash-2" [size]="14"></lucide-icon>

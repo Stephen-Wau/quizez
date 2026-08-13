@@ -20,7 +20,13 @@ export interface Quiz {
   // lock_mode: anti-cheat (khusus type=quiz) -- wajib fullscreen, keluar tab/fullscreen dihitung pelanggaran.
   lock_mode: boolean;
   total_question: number;
+  // status bisa "active"/"inactive" (dipilih admin) atau "closed" (auto di-set sistem khusus survey
+  // yang udah lewat end_time, lihat AutoCloseSurveyIfExpired di backend).
   status: string | null;
+  duplicated_from_id: number | null;
+  // has_submissions dihitung backend on-the-fly: true berarti soal quiz ini terkunci, gak bisa
+  // ditambah/diedit/dihapus lagi -- admin harus duplicate jadi versi baru.
+  has_submissions: boolean;
 }
 
 export interface QuizShareResponse {
@@ -29,7 +35,7 @@ export interface QuizShareResponse {
   access_code: string | null;
 }
 
-export type QuizPayload = Omit<Quiz, 'id' | 'total_question'>;
+export type QuizPayload = Omit<Quiz, 'id' | 'total_question' | 'duplicated_from_id' | 'has_submissions'>;
 
 @Injectable({ providedIn: 'root' })
 export class QuizService {
@@ -67,5 +73,11 @@ export class QuizService {
   // Generate atau ambil token share publik milik quiz tertentu.
   shareLink(id: number): Observable<QuizShareResponse> {
     return this.http.post<QuizShareResponse>(`${this.baseUrl}/${id}/share-link`, {});
+  }
+
+  // Duplicate quiz jadi versi baru (draft/inactive) lengkap dengan semua soalnya -- dipakai kalau
+  // quiz asal udah punya submission jadi soal-nya terkunci.
+  duplicate(id: number): Observable<Quiz> {
+    return this.http.post<Quiz>(`${this.baseUrl}/${id}/duplicate`, {});
   }
 }

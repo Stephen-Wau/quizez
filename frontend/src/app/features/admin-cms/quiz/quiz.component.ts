@@ -47,6 +47,7 @@ export class QuizComponent implements OnInit {
   isModalOpen = false;
   isSaving = false;
   sharingQuizId: number | null = null;
+  duplicatingQuizId: number | null = null;
   editingId: number | null = null; // null = create
   private currentQuery: DataTableQuery = {};
 
@@ -306,6 +307,24 @@ export class QuizComponent implements OnInit {
   // tidak membagikan form yang memang sudah dinonaktifkan.
   canShareQuiz(quiz: Quiz): boolean {
     return (quiz.status ?? '').toLowerCase() === 'active';
+  }
+
+  // Duplicate quiz jadi versi baru (draft/inactive) lengkap dengan semua soalnya, dipakai admin
+  // kalau mau ubah soal quiz yang udah dikunci karena sudah ada submission.
+  duplicate(quiz: Quiz): void {
+    this.duplicatingQuizId = quiz.id;
+    this.quizService.duplicate(quiz.id).subscribe({
+      next: () => {
+        this.duplicatingQuizId = null;
+        this.toast.success('Quiz berhasil di-duplicate jadi versi baru (status Inactive).');
+        this.loadQuizzes();
+      },
+      error: (err) => {
+        this.duplicatingQuizId = null;
+        const message = typeof err?.error === 'string' && err.error ? err.error : 'Gagal duplicate quiz.';
+        this.toast.error(message);
+      },
+    });
   }
 
   // "YYYY-MM-DDTHH:mm:ss" (BE) -> "HH:mm" (input time) kalau quiz, atau "YYYY-MM-DDTHH:mm" (input
