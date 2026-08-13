@@ -45,7 +45,7 @@
         <p>{{ selectedQuiz.type || '-' }} • {{ formatPeriod(selectedQuiz) }}</p>
       </div>
 
-      <div class="question-page__summary-actions" *ngIf="!isFormVisible">
+      <div class="question-page__summary-actions" *ngIf="!isFormVisible && !isQuizLocked">
         <app-button variant="ghost" (click)="openBankPicker()">
           <lucide-icon name="list-plus" [size]="16"></lucide-icon>
           Tambah dari Bank
@@ -55,6 +55,11 @@
           Add Question
         </app-button>
       </div>
+    </div>
+
+    <div *ngIf="isQuizLocked" class="question-page__locked-notice">
+      <lucide-icon name="lock" [size]="16"></lucide-icon>
+      Quiz ini sudah punya submission, soal tidak bisa diubah lagi. Duplicate quiz jadi versi baru dari menu Quiz kalau mau ubah soal.
     </div>
 
     <form *ngIf="isFormVisible" [formGroup]="form" class="question-form" (ngSubmit)="saveQuestion()">
@@ -258,7 +263,7 @@
             <p>{{ answerSummary(question) }}</p>
           </div>
 
-          <div class="question-card__actions">
+          <div class="question-card__actions" *ngIf="!isQuizLocked">
             <app-button variant="ghost" size="sm" type="button" (click)="editQuestion(question)">
               <lucide-icon name="pencil" [size]="14"></lucide-icon>
               Edit

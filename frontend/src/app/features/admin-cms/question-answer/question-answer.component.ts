@@ -178,6 +178,12 @@ export class QuestionAnswerComponent implements OnInit {
     return this.form.get('type_answer')?.value === 'free_text';
   }
 
+  // Quiz yang udah punya submission dikunci: soal gak bisa ditambah/diedit/dihapus lagi, admin
+  // harus duplicate quiz jadi versi baru dari menu Quiz kalau mau ubah.
+  get isQuizLocked(): boolean {
+    return !!this.selectedQuiz?.has_submissions;
+  }
+
   // Ambil daftar quiz dari API untuk ditampilkan di tabel utama menu Question & Answer.
   loadQuizzes(): void {
     loadPagedList(

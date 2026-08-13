@@ -15,6 +15,18 @@
   }
 }
 
+.question-page__locked-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3);
+  margin-bottom: var(--spacing-3);
+  border-radius: var(--radius);
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.85rem;
+}
+
 .question-page__badge {
   display: inline-block;
   padding: 2px var(--spacing-2);
