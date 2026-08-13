@@ -190,12 +190,18 @@ func GetOrCreateQuizShare(db *sql.DB, quizID int64) (QuizShare, error) {
 func GetPublicQuizByToken(db *sql.DB, token string, accessCode *string, now time.Time, attemptSeed string) (PublicQuiz, error) {
 	row := db.QueryRow(
 		"SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, q.random_question_count, q.lock_mode, "+
-			"(SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS total_question, q.status "+
+			"(SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS total_question, q.status, q.duplicated_from_id "+
 			"FROM quizzes q INNER JOIN quiz_shares qs ON qs.quiz_id = q.id WHERE qs.token = ? LIMIT 1",
 		token,
 	)
 
 	quiz, err := scanQuiz(row)
+	if err != nil {
+		return PublicQuiz{}, err
+	}
+	// Auto-close survey yang udah lewat end_time begitu diakses publik, biar status "closed" langsung
+	// konsisten tanpa perlu admin buka CMS dulu.
+	quiz, err = AutoCloseSurveyIfExpired(db, quiz, now)
 	if err != nil {
 		return PublicQuiz{}, err
 	}

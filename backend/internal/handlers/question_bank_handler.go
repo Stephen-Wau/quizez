@@ -192,6 +192,10 @@ func QuizQuestionsFromBankHandler(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "Quiz tidak ditemukan.", http.StatusNotFound)
 			return
 		}
+		if msg, status := validateQuizNotLocked(db, quizID); msg != "" {
+			http.Error(w, msg, status)
+			return
+		}
 
 		items, err := models.GetQuestionBankByIDs(db, req.BankIDs)
 		if err != nil {

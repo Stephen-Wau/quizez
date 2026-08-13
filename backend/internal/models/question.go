@@ -277,6 +277,17 @@ func int64PtrValue(v *int64) interface{} {
 	return *v
 }
 
+// GetQuestionQuizID ambil quiz_id pemilik 1 question, dipakai buat cek lifecycle lock pas delete
+// (endpoint delete question cuma terima question id, bukan quiz id).
+func GetQuestionQuizID(db *sql.DB, questionID int64) (int64, error) {
+	var quizID sql.NullInt64
+	err := db.QueryRow("SELECT quiz_id FROM questions WHERE id = ? LIMIT 1", questionID).Scan(&quizID)
+	if err != nil {
+		return 0, err
+	}
+	return quizID.Int64, nil
+}
+
 // QuizExists dipakai validasi handler biar request question ke quiz yang gak ada ditolak lebih rapi.
 func QuizExists(db *sql.DB, id int64) (bool, error) {
 	var exists int

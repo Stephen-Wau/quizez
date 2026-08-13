@@ -189,6 +189,42 @@ func deleteQuiz(w http.ResponseWriter, db *sql.DB, id int64) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// QuizDuplicateHandler POST /api/quizzes/{id}/duplicate -> versioning: copy quiz + semua soal-nya
+// jadi quiz baru (draft/inactive), dipakai admin buat ubah soal quiz yang udah dikunci karena
+// sudah ada submission.
+func QuizDuplicateHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid id", http.StatusBadRequest)
+			return
+		}
+
+		exists, err := models.QuizExists(db, id)
+		if err != nil {
+			http.Error(w, "failed to duplicate quiz", http.StatusInternalServerError)
+			return
+		}
+		if !exists {
+			http.Error(w, "Quiz tidak ditemukan.", http.StatusNotFound)
+			return
+		}
+
+		duplicated, err := models.DuplicateQuiz(db, id)
+		if err != nil {
+			http.Error(w, "failed to duplicate quiz", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(duplicated)
+	}
+}
+
 // normalizeStr ubah string kosong/whitespace jadi nil, biar tersimpan sebagai SQL NULL bukan
 // string kosong di DB.
 func normalizeStr(v *string) *string {

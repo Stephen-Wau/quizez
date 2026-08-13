@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -215,6 +216,19 @@ func validateOptionAnswers(answers []questionAnswerRequest) string {
 	return ""
 }
 
+// validateQuizNotLocked cek lifecycle lock: quiz yang udah punya submission gak boleh diubah lagi
+// soal-nya (biar data submission/analytics history gak korup) -- admin harus duplicate ke versi baru.
+func validateQuizNotLocked(db *sql.DB, quizID int64) (string, int) {
+	hasSubmissions, err := models.QuizHasSubmissions(db, quizID)
+	if err != nil {
+		return "failed to validate quiz", http.StatusInternalServerError
+	}
+	if hasSubmissions {
+		return "Quiz ini sudah punya submission, soal tidak bisa diubah. Duplicate quiz jadi versi baru kalau mau ubah soal.", http.StatusConflict
+	}
+	return "", 0
+}
+
 // validateQuestionPointLimit jaga total point semua question dalam 1 quiz supaya gak melebihi
 // max_point quiz induknya. Saat update, point question yang sedang diedit dikeluarin dulu dari sum.
 func validateQuestionPointLimit(db *sql.DB, req questionRequest, excludeQuestionID *int64) string {
@@ -252,6 +266,10 @@ func createQuestion(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 	if !exists {
 		http.Error(w, "Quiz tidak ditemukan.", http.StatusBadRequest)
+		return
+	}
+	if msg, status := validateQuizNotLocked(db, *req.QuizID); msg != "" {
+		http.Error(w, msg, status)
 		return
 	}
 	if msg := validateQuestionPointLimit(db, req, nil); msg != "" {
@@ -293,6 +311,10 @@ func updateQuestion(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64
 		http.Error(w, "Quiz tidak ditemukan.", http.StatusBadRequest)
 		return
 	}
+	if msg, status := validateQuizNotLocked(db, *req.QuizID); msg != "" {
+		http.Error(w, msg, status)
+		return
+	}
 	if msg := validateQuestionPointLimit(db, req, &id); msg != "" {
 		http.Error(w, msg, http.StatusBadRequest)
 		return
@@ -310,6 +332,20 @@ func updateQuestion(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64
 
 // deleteQuestion handle DELETE /api/questions/{id}. Answer ikut terhapus lewat FK cascade.
 func deleteQuestion(w http.ResponseWriter, db *sql.DB, id int64) {
+	quizID, err := models.GetQuestionQuizID(db, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		http.Error(w, "Question tidak ditemukan.", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "failed to delete question", http.StatusInternalServerError)
+		return
+	}
+	if msg, status := validateQuizNotLocked(db, quizID); msg != "" {
+		http.Error(w, msg, status)
+		return
+	}
+
 	if err := models.DeleteQuestion(db, id); err != nil {
 		http.Error(w, "failed to delete question", http.StatusInternalServerError)
 		return
