@@ -2,8 +2,9 @@
   <div class="profile">
     <div class="avatar">{{ (user?.name || user?.email || '?').charAt(0).toUpperCase() }}</div>
     <div class="info">
-      <p class="name">{{ user?.name || '—' }}</p>
+      <p class="name">{{ user?.name || '-' }}</p>
       <p class="email">{{ user?.email || '' }}</p>
+      <p class="role">{{ user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'editor' ? 'Editor' : '' }}</p>
     </div>
   </div>
 

@@ -78,6 +78,13 @@ export const routes: Routes = [
             (m) => m.AnalyticsComponent
           ),
       },
+      {
+        path: 'collaboration-permission',
+        loadComponent: () =>
+          import('./features/admin-cms/collaboration-permission/collaboration-permission.component').then(
+            (m) => m.CollaborationPermissionComponent
+          ),
+      },
     ],
   },
   // Fallback buat path yang ga dikenal, lempar balik ke admin-cms.

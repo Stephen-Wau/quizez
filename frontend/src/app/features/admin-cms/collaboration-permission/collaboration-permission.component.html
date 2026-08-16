@@ -1,0 +1,146 @@
+<section class="collaboration">
+  <header class="collaboration__header">
+    <div>
+      <h1>Kolaborasi & Permission</h1>
+      <p class="collaboration__subtitle">
+        Kelola admin CMS dan telusuri jejak aktivitas penting di dashboard.
+      </p>
+    </div>
+
+    @if (isSuperAdmin && activeTab === 'admins') {
+      <app-button type="button" (click)="openCreateModal()">Tambah Admin</app-button>
+    }
+  </header>
+
+  <div class="collaboration__tabs">
+    @if (isSuperAdmin) {
+      <button
+        type="button"
+        class="collaboration__tab"
+        [class.collaboration__tab--active]="activeTab === 'admins'"
+        (click)="switchTab('admins')"
+      >
+        Admin
+      </button>
+    }
+    <button
+      type="button"
+      class="collaboration__tab"
+      [class.collaboration__tab--active]="activeTab === 'audit'"
+      (click)="switchTab('audit')"
+    >
+      Audit Log
+    </button>
+  </div>
+
+  @if (activeTab === 'admins' && isSuperAdmin) {
+    <app-data-table
+      [rows]="adminUsers"
+      [columns]="adminColumns"
+      [serverSide]="true"
+      [totalCount]="adminTotalCount"
+      [pageSize]="adminPageSize"
+      searchPlaceholder="Cari nama, email, atau role admin..."
+      (search)="onAdminQueryChange($event)"
+      (refresh)="loadAdminUsers()"
+    ></app-data-table>
+  }
+
+  @if (activeTab === 'audit') {
+    <app-data-table
+      [rows]="auditLogs"
+      [columns]="auditColumns"
+      [serverSide]="true"
+      [totalCount]="auditTotalCount"
+      [pageSize]="auditPageSize"
+      searchPlaceholder="Cari aktor, aksi, entitas, atau deskripsi..."
+      (search)="onAuditQueryChange($event)"
+      (refresh)="loadAuditLogs()"
+    ></app-data-table>
+  }
+</section>
+
+<ng-template #adminRoleTpl let-row="row">
+  <span class="collaboration__role-badge" [class.collaboration__role-badge--super]="row.role === 'super_admin'">
+    {{ roleLabel(row.role) }}
+  </span>
+</ng-template>
+
+<ng-template #adminActionTpl let-row="row">
+  <div class="collaboration__actions">
+    <app-button size="sm" variant="ghost" type="button" (click)="openEditModal(row)">Edit</app-button>
+    <app-button size="sm" variant="danger" type="button" (click)="removeAdmin(row)">Hapus</app-button>
+  </div>
+</ng-template>
+
+<ng-template #auditActorTpl let-row="row">
+  <div class="collaboration__actor">
+    <strong>{{ row.actor_name }}</strong>
+    <span>{{ row.actor_email }}</span>
+  </div>
+</ng-template>
+
+<ng-template #auditActionTpl let-row="row">
+  <div class="collaboration__action-cell">
+    <strong>{{ formatActionKey(row.action_key) }}</strong>
+    <span>{{ formatAuditDate(row.created_at) }}</span>
+  </div>
+</ng-template>
+
+<ng-template #auditEntityTpl let-row="row">
+  <div class="collaboration__entity-cell">
+    <strong>{{ formatEntity(row) }}</strong>
+    <span>{{ row.ip_address || '-' }}</span>
+  </div>
+</ng-template>
+
+<app-modal
+  [open]="isFormModalOpen"
+  title="Form Admin CMS"
+  maxWidth="640px"
+  (closed)="closeFormModal()"
+>
+  <form class="collaboration__form" [formGroup]="form" (ngSubmit)="saveAdminUser()">
+    <app-input
+      formControlName="name"
+      label="Nama Admin"
+      [required]="true"
+      [errorMessage]="fieldError('name')"
+    ></app-input>
+
+    <app-input
+      formControlName="email"
+      type="email"
+      label="Email Admin"
+      [required]="true"
+      [errorMessage]="fieldError('email')"
+    ></app-input>
+
+    <label class="collaboration__field">
+      <span>Role</span>
+      <select class="collaboration__select" formControlName="role">
+        <option value="editor">Editor</option>
+        <option value="super_admin">Super Admin</option>
+      </select>
+    </label>
+
+    <app-input
+      formControlName="password"
+      type="password"
+      [label]="passwordLabel"
+      [required]="editingAdminId === null"
+      [errorMessage]="fieldError('password')"
+    ></app-input>
+
+    @if (editingAdminId !== null) {
+      <p class="collaboration__hint">Kosongkan password kalau tidak ingin menggantinya.</p>
+    }
+
+    <div class="collaboration__form-actions">
+      <app-button variant="ghost" type="button" (click)="closeFormModal()">Batal</app-button>
+      <app-button type="submit" [disabled]="isSaving">
+        {{ isSaving ? 'Menyimpan...' : 'Simpan Admin' }}
+      </app-button>
+    </div>
+  </form>
+</app-modal>

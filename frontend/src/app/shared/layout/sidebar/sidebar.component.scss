@@ -43,6 +43,12 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+
+    .role {
+      margin: 2px 0 0;
+      font-size: 0.72rem;
+      color: var(--color-text-muted);
+    }
   }
 }
 

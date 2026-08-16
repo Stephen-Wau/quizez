@@ -15,11 +15,13 @@ export interface Me {
   id: number;
   email: string;
   name: string;
+  role: 'super_admin' | 'editor';
 }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   isLoggedIn = signal(this.hasValidToken());
+  currentUser = signal<Me | null>(null);
 
   constructor(private http: HttpClient) {}
 
@@ -39,11 +41,14 @@ export class AuthService {
   logout(): void {
     localStorage.removeItem(TOKEN_KEY);
     this.isLoggedIn.set(false);
+    this.currentUser.set(null);
   }
 
   // Ambil data user yang lagi login dari backend.
   me(): Observable<Me> {
-    return this.http.get<Me>(`${environment.apiUrl}/api/auth/me`);
+    return this.http.get<Me>(`${environment.apiUrl}/api/auth/me`).pipe(
+      tap((me) => this.currentUser.set(me))
+    );
   }
 
   // Ambil raw token dari localStorage, dipakai interceptor buat nempelin header Authorization.

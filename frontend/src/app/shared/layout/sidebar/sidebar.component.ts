@@ -15,9 +15,12 @@ import { CMS_MENU_ITEMS } from '../cms-menu.config';
 export class SidebarComponent {
   @Input() user: Me | null = null;
 
-  menuItems = CMS_MENU_ITEMS;
-
   constructor(private auth: AuthService, private router: Router) {}
+
+  get menuItems(): typeof CMS_MENU_ITEMS {
+    const role = this.user?.role;
+    return CMS_MENU_ITEMS.filter((item) => !item.roles || (role ? item.roles.includes(role) : true));
+  }
 
   // Dipanggil pas user klik tombol logout di sidebar: bersihin sesi terus lempar balik ke halaman login.
   logout(): void {

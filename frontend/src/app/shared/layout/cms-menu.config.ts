@@ -1,6 +1,7 @@
 export interface CmsMenuItem {
   label: string;
   path: string;
+  roles?: Array<'super_admin' | 'editor'>;
 }
 
 export const CMS_MENU_ITEMS: CmsMenuItem[] = [
@@ -10,4 +11,5 @@ export const CMS_MENU_ITEMS: CmsMenuItem[] = [
   { label: 'Bank Soal', path: '/admin-cms/question-bank' },
   { label: 'Summary', path: '/admin-cms/summary' },
   { label: 'Analytics & Reporting', path: '/admin-cms/analytics' },
+  { label: 'Kolaborasi & Permission', path: '/admin-cms/collaboration-permission' },
 ];
