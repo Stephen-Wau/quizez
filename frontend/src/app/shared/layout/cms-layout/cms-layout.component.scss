@@ -10,3 +10,46 @@
   min-width: 0;
   overflow-y: auto;
 }
+
+// Tombol hamburger & backdrop drawer cuma dipakai di layar sempit (lihat breakpoint yang sama
+// di sidebar.component.scss, 880px) — di desktop sidebar-nya statis & selalu keliatan.
+.cms-layout__menu-toggle {
+  display: none;
+}
+
+.cms-layout__backdrop {
+  display: none;
+}
+
+@media (max-width: 880px) {
+  .cms-layout__menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: var(--spacing-3);
+    left: var(--spacing-3);
+    z-index: 960;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+  }
+
+  .cms-layout__backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 940;
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  .content {
+    // Kasih ruang di atas biar konten (ex: judul halaman) gak ketiban tombol hamburger yang fixed.
+    padding: calc(40px + var(--spacing-3) * 2) var(--spacing-3) var(--spacing-3);
+  }
+}

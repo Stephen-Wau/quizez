@@ -1,5 +1,17 @@
 <div class="cms-layout">
-  <app-sidebar [user]="user"></app-sidebar>
+  <button
+    type="button"
+    class="cms-layout__menu-toggle"
+    (click)="toggleSidebar()"
+    aria-label="Buka menu navigasi"
+  >
+    <lucide-icon name="menu" [size]="22"></lucide-icon>
+  </button>
+
+  <div class="cms-layout__backdrop" *ngIf="isSidebarOpen" (click)="closeSidebar()"></div>
+
+  <app-sidebar [user]="user" [isOpen]="isSidebarOpen" (closed)="closeSidebar()"></app-sidebar>
+
   <main class="content">
     <router-outlet></router-outlet>
   </main>
