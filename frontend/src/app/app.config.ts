@@ -4,7 +4,7 @@ import { provideRouter } from '@angular/router';
 import {
   LucideAngularModule, X, RefreshCw, File, Paperclip, ImagePlus, Trash2, LogIn, Plus, Pencil, Save,
   Filter, FileDown, ListPlus, Upload, Download, Copy, Lock, Menu, LogOut, LayoutDashboard,
-  ClipboardList, ListChecks, BookOpen, FileBarChart, BarChart3, Users,
+  ClipboardList, ListChecks, BookOpen, FileBarChart, BarChart3, Users, ChevronDown,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -20,7 +20,7 @@ export const appConfig: ApplicationConfig = {
       LucideAngularModule.pick({
         X, RefreshCw, File, Paperclip, ImagePlus, Trash2, LogIn, Plus, Pencil, Save, Filter,
         FileDown, ListPlus, Upload, Download, Copy, Lock, Menu, LogOut, LayoutDashboard,
-        ClipboardList, ListChecks, BookOpen, FileBarChart, BarChart3, Users,
+        ClipboardList, ListChecks, BookOpen, FileBarChart, BarChart3, Users, ChevronDown,
       })
     ),
   ]

@@ -1,0 +1,30 @@
+<div class="field">
+  <label *ngIf="label" [for]="id">{{ label }}<span *ngIf="required" class="required-mark">*</span></label>
+
+  <div
+    class="select"
+    [class.select--open]="isOpen"
+    [class.select--error]="errorMessage || invalid"
+    [class.select--disabled]="disabled"
+  >
+    <button type="button" [id]="id" class="select__trigger" [disabled]="disabled" (click)="toggle()">
+      <span class="select__value" [class.select__value--placeholder]="!selectedLabel">
+        {{ selectedLabel || placeholder }}
+      </span>
+      <lucide-icon name="chevron-down" [size]="16" class="select__chevron"></lucide-icon>
+    </button>
+
+    <ul class="select__panel" *ngIf="isOpen">
+      <li
+        *ngFor="let option of options"
+        class="select__option"
+        [class.select__option--active]="isSelected(option)"
+        (click)="selectOption(option)"
+      >
+        {{ option.label }}
+      </li>
+    </ul>
+  </div>
+
+  <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+</div>
