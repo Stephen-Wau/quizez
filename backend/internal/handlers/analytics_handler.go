@@ -77,6 +77,7 @@ func QuizAnalyticsExportHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		filenameBase := fmt.Sprintf("analytics-quiz-%d", id)
+		writeAuditLog(r, db, "analytics.export", "quiz", &id, "Export analytics quiz.")
 		switch format {
 		case "csv":
 			w.Header().Set("Content-Type", "text/csv")

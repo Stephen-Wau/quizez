@@ -50,7 +50,7 @@ func QuizHandler(db *sql.DB) http.HandlerFunc {
 		case http.MethodPut:
 			updateQuiz(w, r, db, id)
 		case http.MethodDelete:
-			deleteQuiz(w, db, id)
+			deleteQuiz(w, r, db, id)
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -148,6 +148,7 @@ func createQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 	q.ID = id
+	writeAuditLog(r, db, "quiz.create", "quiz", &q.ID, "Membuat quiz atau survey baru.")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(q)
@@ -176,16 +177,18 @@ func updateQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 		http.Error(w, "failed to update quiz", http.StatusInternalServerError)
 		return
 	}
+	writeAuditLog(r, db, "quiz.update", "quiz", &q.ID, "Memperbarui quiz atau survey.")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(q)
 }
 
 // deleteQuiz handle DELETE /api/quizzes/{id}.
-func deleteQuiz(w http.ResponseWriter, db *sql.DB, id int64) {
+func deleteQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 	if err := models.DeleteQuiz(db, id); err != nil {
 		http.Error(w, "failed to delete quiz", http.StatusInternalServerError)
 		return
 	}
+	writeAuditLog(r, db, "quiz.delete", "quiz", &id, "Menghapus quiz atau survey.")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -219,6 +222,7 @@ func QuizDuplicateHandler(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "failed to duplicate quiz", http.StatusInternalServerError)
 			return
 		}
+		writeAuditLog(r, db, "quiz.duplicate", "quiz", &duplicated.ID, "Menduplikasi quiz menjadi versi baru.")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(duplicated)

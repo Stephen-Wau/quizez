@@ -16,3 +16,7 @@ Thumbs.db
 # Claude Code local state
 .claude/
 CLAUDE.md
+
+# Codex local state (masih testing, belum di-share ke tim)
+.codex/
+AGENTS.md

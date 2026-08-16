@@ -34,10 +34,10 @@ func main() {
 	}
 
 	_, err = conn.Exec(`
-		INSERT INTO users (email, password_hash, name)
-		VALUES (?, ?, ?)
-		ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), name = VALUES(name)
-	`, adminEmail, hash, adminName)
+		INSERT INTO users (email, password_hash, name, role)
+		VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), name = VALUES(name), role = VALUES(role)
+	`, adminEmail, hash, adminName, "super_admin")
 	if err != nil {
 		log.Fatalf("failed to seed admin user: %v", err)
 	}

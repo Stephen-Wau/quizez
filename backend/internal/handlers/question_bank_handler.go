@@ -57,7 +57,7 @@ func QuestionBankItemHandler(db *sql.DB) http.HandlerFunc {
 		case http.MethodPut:
 			updateQuestionBankItem(w, r, db, id)
 		case http.MethodDelete:
-			deleteQuestionBankItem(w, db, id)
+			deleteQuestionBankItem(w, r, db, id)
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -151,6 +151,7 @@ func QuestionBankImportHandler(db *sql.DB) http.HandlerFunc {
 			}
 			created++
 		}
+		writeAuditLog(r, db, "question_bank.import", "question_bank", nil, "Import bulk bank soal dari file.")
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -222,6 +223,7 @@ func QuizQuestionsFromBankHandler(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "failed to add questions", http.StatusInternalServerError)
 			return
 		}
+		writeAuditLog(r, db, "question_bank.copy_to_quiz", "quiz", &quizID, "Menyalin soal dari bank soal ke quiz.")
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
@@ -322,6 +324,7 @@ func createQuestionBankItem(w http.ResponseWriter, r *http.Request, db *sql.DB) 
 		return
 	}
 	item.ID = id
+	writeAuditLog(r, db, "question_bank.create", "question_bank", &item.ID, "Membuat item bank soal baru.")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(item)
@@ -345,16 +348,18 @@ func updateQuestionBankItem(w http.ResponseWriter, r *http.Request, db *sql.DB, 
 		http.Error(w, "failed to update question bank item", http.StatusInternalServerError)
 		return
 	}
+	writeAuditLog(r, db, "question_bank.update", "question_bank", &item.ID, "Memperbarui item bank soal.")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(item)
 }
 
 // deleteQuestionBankItem handle DELETE /api/question-bank/{id}.
-func deleteQuestionBankItem(w http.ResponseWriter, db *sql.DB, id int64) {
+func deleteQuestionBankItem(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 	if err := models.DeleteQuestionBankItem(db, id); err != nil {
 		http.Error(w, "failed to delete question bank item", http.StatusInternalServerError)
 		return
 	}
+	writeAuditLog(r, db, "question_bank.delete", "question_bank", &id, "Menghapus item bank soal.")
 	w.WriteHeader(http.StatusNoContent)
 }
 

@@ -65,7 +65,7 @@ func QuestionHandler(db *sql.DB) http.HandlerFunc {
 		case http.MethodPut:
 			updateQuestion(w, r, db, id)
 		case http.MethodDelete:
-			deleteQuestion(w, db, id)
+			deleteQuestion(w, r, db, id)
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -284,6 +284,7 @@ func createQuestion(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 	q.ID = id
+	writeAuditLog(r, db, "question.create", "question", &q.ID, "Membuat soal quiz baru.")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(q)
@@ -326,12 +327,13 @@ func updateQuestion(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64
 		http.Error(w, "failed to update question", http.StatusInternalServerError)
 		return
 	}
+	writeAuditLog(r, db, "question.update", "question", &q.ID, "Memperbarui soal quiz.")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(q)
 }
 
 // deleteQuestion handle DELETE /api/questions/{id}. Answer ikut terhapus lewat FK cascade.
-func deleteQuestion(w http.ResponseWriter, db *sql.DB, id int64) {
+func deleteQuestion(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 	quizID, err := models.GetQuestionQuizID(db, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		http.Error(w, "Question tidak ditemukan.", http.StatusNotFound)
@@ -350,6 +352,7 @@ func deleteQuestion(w http.ResponseWriter, db *sql.DB, id int64) {
 		http.Error(w, "failed to delete question", http.StatusInternalServerError)
 		return
 	}
+	writeAuditLog(r, db, "question.delete", "question", &id, "Menghapus soal quiz.")
 	w.WriteHeader(http.StatusNoContent)
 }
 

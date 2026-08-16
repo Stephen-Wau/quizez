@@ -81,6 +81,7 @@ func QuizShareHandler(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "failed to generate share link", http.StatusInternalServerError)
 			return
 		}
+		writeAuditLog(r, db, "quiz.generate_share_link", "quiz", &quiz.ID, "Generate atau mengambil link share quiz.")
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(quizShareResponse{

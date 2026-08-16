@@ -17,6 +17,7 @@ type loginRequest struct {
 type loginResponse struct {
 	Token     string `json:"token"`
 	ExpiresAt string `json:"expires_at"`
+	Role      string `json:"role"`
 }
 
 // LoginHandler cek kredensial email/password, kalau cocok terbitkan JWT buat dipakai FE
@@ -47,11 +48,13 @@ func LoginHandler(db *sql.DB, jwtSecret string, jwtExpiryHours int) http.Handler
 			http.Error(w, "failed to generate token", http.StatusInternalServerError)
 			return
 		}
+		writeAuditLogForUser(r, db, user.ID, "auth.login", "auth", nil, "Login CMS berhasil.")
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(loginResponse{
 			Token:     token,
 			ExpiresAt: expiresAt.Format("2006-01-02T15:04:05Z07:00"),
+			Role:      user.Role,
 		})
 	}
 }
@@ -77,6 +80,7 @@ func MeHandler(db *sql.DB) http.HandlerFunc {
 			"id":    user.ID,
 			"email": user.Email,
 			"name":  user.Name,
+			"role":  user.Role,
 		})
 	}
 }

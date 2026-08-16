@@ -49,6 +49,9 @@ func main() {
 
 	mux.HandleFunc("/api/auth/login", withCORS(cfg.FrontendOrigin, handlers.LoginHandler(conn, cfg.JWTSecret, cfg.JWTExpiryHours)))
 	mux.HandleFunc("/api/auth/me", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.MeHandler(conn))))
+	mux.HandleFunc("/api/admin-users", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.AdminUsersHandler(conn))))
+	mux.HandleFunc("/api/admin-users/{id}", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.AdminUserHandler(conn))))
+	mux.HandleFunc("/api/audit-logs", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.AuditLogsHandler(conn))))
 
 	mux.HandleFunc("/api/quizzes", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuizzesHandler(conn))))
 	mux.HandleFunc("/api/quizzes/{id}", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuizHandler(conn))))
