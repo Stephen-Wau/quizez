@@ -19,10 +19,30 @@ import { ButtonComponent } from '../../../shared/ui/button/button.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
 import { FilesUploadComponent, UploadedFile } from '../../../shared/ui/files-upload/files-upload.component';
+import { SelectComponent, SelectOption } from '../../../shared/ui/select/select.component';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { fieldError } from '../../../shared/utils/form-error.util';
 import { confirmAndDelete } from '../../../shared/utils/confirm-delete.util';
 import { loadPagedList } from '../../../shared/utils/load-paged-list.util';
+
+const TYPE_ANSWER_OPTIONS: SelectOption[] = [
+  { label: 'Pilihan Ganda', value: 'multiple_choice' },
+  { label: 'Dropdown', value: 'dropdown' },
+  { label: 'Checkbox', value: 'checkbox' },
+  { label: 'Rating', value: 'rating' },
+  { label: 'Free Text', value: 'free_text' },
+];
+
+const HAVE_POINT_OPTIONS: SelectOption[] = [
+  { label: 'No', value: 'no' },
+  { label: 'Yes', value: 'yes' },
+];
+
+// Opsi status benar/salah tiap baris jawaban (pilihan ganda/dropdown/checkbox).
+const BOOLEAN_ANSWER_OPTIONS: SelectOption[] = [
+  { label: 'true', value: 'true' },
+  { label: 'false', value: 'false' },
+];
 
 @Component({
   selector: 'app-question-bank',
@@ -37,11 +57,15 @@ import { loadPagedList } from '../../../shared/utils/load-paged-list.util';
     ModalComponent,
     InputComponent,
     FilesUploadComponent,
+    SelectComponent,
   ],
   templateUrl: './question-bank.component.html',
   styleUrl: './question-bank.component.scss',
 })
 export class QuestionBankComponent implements OnInit {
+  typeAnswerOptions = TYPE_ANSWER_OPTIONS;
+  havePointOptions = HAVE_POINT_OPTIONS;
+  booleanAnswerOptions = BOOLEAN_ANSWER_OPTIONS;
   @ViewChild('typeTpl', { static: true }) typeTpl!: TemplateRef<unknown>;
   @ViewChild('tagsTpl', { static: true }) tagsTpl!: TemplateRef<unknown>;
   @ViewChild('actionTpl', { static: true }) actionTpl!: TemplateRef<unknown>;
@@ -108,6 +132,11 @@ export class QuestionBankComponent implements OnInit {
 
   get answersArray(): FormArray<FormGroup> {
     return this.form.get('answers') as FormArray<FormGroup>;
+  }
+
+  // Opsi dropdown filter tag Bank Soal, "Semua Tag" selalu jadi pilihan pertama.
+  get tagOptions(): SelectOption[] {
+    return [{ label: 'Semua Tag', value: '' }, ...this.allTags.map((tag) => ({ label: tag, value: tag }))];
   }
 
   get isOptionBased(): boolean {

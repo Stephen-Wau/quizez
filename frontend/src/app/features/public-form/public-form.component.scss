@@ -338,22 +338,6 @@
   margin-bottom: 12px;
 }
 
-.public-form__select {
-  width: 100%;
-  padding: 14px 16px;
-  border-radius: 18px;
-  border: 1px solid #d7deef;
-  background: #fff;
-  font-size: 0.95rem;
-  font-family: inherit;
-  color: inherit;
-
-  &:focus {
-    outline: none;
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
-  }
-}
 
 .public-form__matrix {
   display: flex;

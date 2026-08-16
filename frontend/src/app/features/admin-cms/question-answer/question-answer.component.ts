@@ -27,10 +27,31 @@ import {
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
+import { SelectComponent, SelectOption } from '../../../shared/ui/select/select.component';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { fieldError } from '../../../shared/utils/form-error.util';
 import { confirmAndDelete } from '../../../shared/utils/confirm-delete.util';
 import { loadPagedList } from '../../../shared/utils/load-paged-list.util';
+
+const TYPE_ANSWER_OPTIONS: SelectOption[] = [
+  { label: 'Pilihan Ganda', value: 'multiple_choice' },
+  { label: 'Dropdown', value: 'dropdown' },
+  { label: 'Checkbox', value: 'checkbox' },
+  { label: 'Matrix', value: 'matrix' },
+  { label: 'Rating', value: 'rating' },
+  { label: 'Free Text', value: 'free_text' },
+];
+
+const HAVE_POINT_OPTIONS: SelectOption[] = [
+  { label: 'No', value: 'no' },
+  { label: 'Yes', value: 'yes' },
+];
+
+// Opsi status benar/salah tiap baris jawaban (pilihan ganda/dropdown/checkbox/kolom matrix).
+const BOOLEAN_ANSWER_OPTIONS: SelectOption[] = [
+  { label: 'true', value: 'true' },
+  { label: 'false', value: 'false' },
+];
 
 @Component({
   selector: 'app-question-answer',
@@ -44,11 +65,16 @@ import { loadPagedList } from '../../../shared/utils/load-paged-list.util';
     ButtonComponent,
     ModalComponent,
     InputComponent,
+    SelectComponent,
   ],
   templateUrl: './question-answer.component.html',
   styleUrl: './question-answer.component.scss',
 })
 export class QuestionAnswerComponent implements OnInit {
+  typeAnswerOptions = TYPE_ANSWER_OPTIONS;
+  havePointOptions = HAVE_POINT_OPTIONS;
+  booleanAnswerOptions = BOOLEAN_ANSWER_OPTIONS;
+
   @ViewChild('typeTpl', { static: true }) typeTpl!: TemplateRef<unknown>;
   @ViewChild('periodTpl', { static: true }) periodTpl!: TemplateRef<unknown>;
   @ViewChild('actionTpl', { static: true }) actionTpl!: TemplateRef<unknown>;
@@ -139,6 +165,11 @@ export class QuestionAnswerComponent implements OnInit {
 
   get matrixRowsArray(): FormArray<FormGroup> {
     return this.form.get('matrix_rows') as FormArray<FormGroup>;
+  }
+
+  // Opsi dropdown filter tag Bank Soal, "Semua Tag" selalu jadi pilihan pertama.
+  get bankTagOptions(): SelectOption[] {
+    return [{ label: 'Semua Tag', value: '' }, ...this.bankAllTags.map((tag) => ({ label: tag, value: tag }))];
   }
 
   // Ambil pesan error form control umum (required/min/dll) biar template tetap ringkas.

@@ -116,13 +116,7 @@
       [errorMessage]="fieldError('email')"
     ></app-input>
 
-    <label class="collaboration__field">
-      <span>Role</span>
-      <select class="collaboration__select" formControlName="role">
-        <option value="editor">Editor</option>
-        <option value="super_admin">Super Admin</option>
-      </select>
-    </label>
+    <app-select label="Role" [options]="roleOptions" formControlName="role"></app-select>
 
     <app-input
       formControlName="password"

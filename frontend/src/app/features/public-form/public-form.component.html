@@ -238,12 +238,11 @@
                     </div>
 
                     <div *ngIf="question.type_answer === 'dropdown'" class="public-form__field">
-                      <select class="public-form__select" formControlName="question_answer_id">
-                        <option [ngValue]="null" disabled>Pilih jawaban...</option>
-                        <option *ngFor="let option of question.answers; trackBy: trackByOptionId" [ngValue]="option.id">
-                          {{ option.label || '-' }}
-                        </option>
-                      </select>
+                      <app-select
+                        placeholder="Pilih jawaban..."
+                        [options]="dropdownOptions(question)"
+                        formControlName="question_answer_id"
+                      ></app-select>
                     </div>
 
                     <div *ngIf="question.type_answer === 'checkbox'" class="public-form__option-list">

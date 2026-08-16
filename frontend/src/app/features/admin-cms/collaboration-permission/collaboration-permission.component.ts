@@ -11,6 +11,7 @@ import {
 } from '../../../shared/ui/data-table/data-table.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
+import { SelectComponent, SelectOption } from '../../../shared/ui/select/select.component';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { confirmAndDelete } from '../../../shared/utils/confirm-delete.util';
 import { fieldError } from '../../../shared/utils/form-error.util';
@@ -25,6 +26,11 @@ import {
 
 type CollaborationTab = 'admins' | 'audit';
 
+const ROLE_OPTIONS: SelectOption[] = [
+  { label: 'Editor', value: 'editor' },
+  { label: 'Super Admin', value: 'super_admin' },
+];
+
 @Component({
   selector: 'app-collaboration-permission',
   standalone: true,
@@ -35,11 +41,14 @@ type CollaborationTab = 'admins' | 'audit';
     DataTableComponent,
     InputComponent,
     ModalComponent,
+    SelectComponent,
   ],
   templateUrl: './collaboration-permission.component.html',
   styleUrl: './collaboration-permission.component.scss',
 })
 export class CollaborationPermissionComponent implements OnInit {
+  roleOptions = ROLE_OPTIONS;
+
   @ViewChild('adminRoleTpl', { static: true }) adminRoleTpl!: TemplateRef<unknown>;
   @ViewChild('adminActionTpl', { static: true }) adminActionTpl!: TemplateRef<unknown>;
   @ViewChild('auditActorTpl', { static: true }) auditActorTpl!: TemplateRef<unknown>;

@@ -16,11 +16,7 @@
 </div>
 
 <div class="question-bank__filter">
-  <label>Filter Tag</label>
-  <select class="question-bank__select" [ngModel]="activeTag" (ngModelChange)="onTagFilterChange($event)">
-    <option value="">Semua Tag</option>
-    <option *ngFor="let tag of allTags" [value]="tag">{{ tag }}</option>
-  </select>
+  <app-select label="Filter Tag" [options]="tagOptions" [ngModel]="activeTag" (ngModelChange)="onTagFilterChange($event)"></app-select>
 </div>
 
 <ng-template #typeTpl let-value="value">
@@ -69,24 +65,8 @@
     ></app-input>
 
     <div class="question-bank-form__grid">
-      <div class="question-bank-form__field">
-        <label>Type Answer<span class="question-bank-form__required">*</span></label>
-        <select class="question-bank__select" formControlName="type_answer">
-          <option value="multiple_choice">Pilihan Ganda</option>
-          <option value="dropdown">Dropdown</option>
-          <option value="checkbox">Checkbox</option>
-          <option value="rating">Rating</option>
-          <option value="free_text">Free Text</option>
-        </select>
-      </div>
-
-      <div class="question-bank-form__field">
-        <label>Have Point<span class="question-bank-form__required">*</span></label>
-        <select class="question-bank__select" formControlName="have_point">
-          <option value="no">No</option>
-          <option value="yes">Yes</option>
-        </select>
-      </div>
+      <app-select label="Type Answer" [required]="true" [options]="typeAnswerOptions" formControlName="type_answer"></app-select>
+      <app-select label="Have Point" [required]="true" [options]="havePointOptions" formControlName="have_point"></app-select>
     </div>
 
     <div class="question-bank-form__grid">
@@ -131,13 +111,7 @@
         <div class="question-bank-form__answer-row" *ngFor="let control of answersArray.controls; let i = index; trackBy: trackByIndex">
           <div [formGroupName]="i" class="question-bank-form__answer-fields">
             <app-input label="Teks Jawaban" [required]="true" formControlName="label"></app-input>
-            <div class="question-bank-form__field">
-              <label>Status Benar/Salah</label>
-              <select class="question-bank__select" formControlName="value">
-                <option value="true">true</option>
-                <option value="false">false</option>
-              </select>
-            </div>
+            <app-select label="Status Benar/Salah" [options]="booleanAnswerOptions" formControlName="value"></app-select>
             <app-button variant="danger" size="sm" type="button" [disabled]="answersArray.length <= 2" (click)="removeAnswer(i)">
               <lucide-icon name="trash-2" [size]="14"></lucide-icon>
             </app-button>

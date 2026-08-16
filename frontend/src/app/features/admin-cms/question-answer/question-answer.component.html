@@ -73,27 +73,11 @@
           [errorMessage]="fieldError('question')"
         ></app-input>
 
-        <div class="question-form__field">
-          <label>Type Answer<span class="question-form__required">*</span></label>
-          <select class="question-form__select" formControlName="type_answer">
-            <option value="multiple_choice">Pilihan Ganda</option>
-            <option value="dropdown">Dropdown</option>
-            <option value="checkbox">Checkbox</option>
-            <option value="matrix">Matrix</option>
-            <option value="rating">Rating</option>
-            <option value="free_text">Free Text</option>
-          </select>
-        </div>
+        <app-select label="Type Answer" [required]="true" [options]="typeAnswerOptions" formControlName="type_answer"></app-select>
       </div>
 
       <div class="question-form__grid question-form__grid--compact">
-        <div class="question-form__field">
-          <label>Have Point<span class="question-form__required">*</span></label>
-          <select class="question-form__select" formControlName="have_point">
-            <option value="no">No</option>
-            <option value="yes">Yes</option>
-          </select>
-        </div>
+        <app-select label="Have Point" [required]="true" [options]="havePointOptions" formControlName="have_point"></app-select>
 
         <app-input
           *ngIf="form.get('have_point')?.value === 'yes'"
@@ -135,12 +119,8 @@
                 [required]="true"
                 formControlName="label"
               ></app-input>
-              <div class="question-form__field question-form__field--grow">
-                <label>Status Benar/Salah</label>
-                <select class="question-form__select" formControlName="value">
-                  <option value="true">true</option>
-                  <option value="false">false</option>
-                </select>
+              <div class="question-form__field--grow">
+                <app-select label="Status Benar/Salah" [options]="booleanAnswerOptions" formControlName="value"></app-select>
               </div>
               <div class="question-form__field question-form__field--action">
                 <label class="question-form__action-spacer" aria-hidden="true">&nbsp;</label>
@@ -292,11 +272,14 @@
 <app-modal [open]="isBankPickerOpen" title="Tambah Question dari Bank Soal" maxWidth="920px" (closed)="closeBankPicker()">
   <div class="question-page__bank-picker">
     <div class="question-page__bank-filter">
-      <label>Filter Tag</label>
-      <select class="question-form__select" [ngModel]="bankActiveTag" [ngModelOptions]="{ standalone: true }" (ngModelChange)="onBankTagFilterChange($event)">
-        <option value="">Semua Tag</option>
-        <option *ngFor="let tag of bankAllTags" [value]="tag">{{ tag }}</option>
-      </select>
+      <app-select
+        class="question-page__bank-filter-select"
+        label="Filter Tag"
+        [options]="bankTagOptions"
+        [ngModel]="bankActiveTag"
+        [ngModelOptions]="{ standalone: true }"
+        (ngModelChange)="onBankTagFilterChange($event)"
+      ></app-select>
       <span class="question-page__bank-count">{{ selectedBankIds.size }} soal dipilih</span>
     </div>
 

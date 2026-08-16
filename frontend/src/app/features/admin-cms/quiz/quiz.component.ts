@@ -13,10 +13,21 @@ import {
   DataTableComponent,
   DataTableQuery,
 } from '../../../shared/ui/data-table/data-table.component';
+import { SelectComponent, SelectOption } from '../../../shared/ui/select/select.component';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { fieldError } from '../../../shared/utils/form-error.util';
 import { confirmAndDelete } from '../../../shared/utils/confirm-delete.util';
 import { loadPagedList } from '../../../shared/utils/load-paged-list.util';
+
+const TYPE_OPTIONS: SelectOption[] = [
+  { label: 'Quiz', value: 'quiz' },
+  { label: 'Survey', value: 'survey' },
+];
+
+const STATUS_OPTIONS: SelectOption[] = [
+  { label: 'Active', value: 'active' },
+  { label: 'Inactive', value: 'inactive' },
+];
 
 @Component({
   selector: 'app-quiz',
@@ -30,11 +41,14 @@ import { loadPagedList } from '../../../shared/utils/load-paged-list.util';
     ModalComponent,
     LucideAngularModule,
     DataTableComponent,
+    SelectComponent,
   ],
   templateUrl: './quiz.component.html',
   styleUrl: './quiz.component.scss',
 })
 export class QuizComponent implements OnInit {
+  typeOptions = TYPE_OPTIONS;
+  statusOptions = STATUS_OPTIONS;
   @ViewChild('typeTpl', { static: true }) typeTpl!: TemplateRef<unknown>;
   @ViewChild('periodTpl', { static: true }) periodTpl!: TemplateRef<unknown>;
   @ViewChild('statusTpl', { static: true }) statusTpl!: TemplateRef<unknown>;

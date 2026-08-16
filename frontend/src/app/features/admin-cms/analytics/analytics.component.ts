@@ -13,22 +13,32 @@ import {
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
 import { DatetimePickerComponent } from '../../../shared/ui/datetime-picker/datetime-picker.component';
+import { SelectComponent, SelectOption } from '../../../shared/ui/select/select.component';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 
 // Palet warna chart konsisten sama summary-detail (donut CSS conic-gradient) biar visual selaras
 // di seluruh menu analytics/summary.
 const CHART_COLORS = ['#4f46e5', '#7c3aed', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444'];
 
+const GROUP_BY_OPTIONS: SelectOption[] = [
+  { label: 'Hari', value: 'day' },
+  { label: 'Jam', value: 'hour' },
+];
+
 @Component({
   selector: 'app-analytics',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, ButtonComponent, InputComponent, DatetimePickerComponent, LucideAngularModule],
+  imports: [
+    CommonModule, FormsModule, ReactiveFormsModule, ButtonComponent, InputComponent,
+    DatetimePickerComponent, SelectComponent, LucideAngularModule,
+  ],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.scss',
 })
 export class AnalyticsComponent implements OnInit {
   quizzes: Quiz[] = [];
   selectedQuizId: number | null = null;
+  groupByOptions = GROUP_BY_OPTIONS;
   analytics: QuizAnalyticsResponse | null = null;
   isLoading = false;
   isExporting: AnalyticsExportFormat | null = null;
@@ -64,6 +74,11 @@ export class AnalyticsComponent implements OnInit {
       },
       error: () => this.toast.error('Gagal memuat daftar quiz.'),
     });
+  }
+
+  // Opsi dropdown app-select buat pemilih quiz, dibangun dari daftar quiz yang lagi ke-load.
+  get quizOptions(): SelectOption[] {
+    return this.quizzes.map((quiz) => ({ label: quiz.title || '(Tanpa judul)', value: quiz.id }));
   }
 
   // Dipanggil pas user ganti pilihan quiz di dropdown; muat ulang analytics buat quiz yang baru dipilih.

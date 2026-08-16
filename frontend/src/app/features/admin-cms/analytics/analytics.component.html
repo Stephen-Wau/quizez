@@ -5,10 +5,13 @@
   </div>
 
   <div class="analytics__quiz-picker">
-    <label>Quiz</label>
-    <select class="analytics__select" [(ngModel)]="selectedQuizId" [ngModelOptions]="{ standalone: true }" (change)="onQuizChange()">
-      <option *ngFor="let quiz of quizzes" [ngValue]="quiz.id">{{ quiz.title || '(Tanpa judul)' }}</option>
-    </select>
+    <app-select
+      label="Quiz"
+      [options]="quizOptions"
+      [(ngModel)]="selectedQuizId"
+      [ngModelOptions]="{ standalone: true }"
+      (ngModelChange)="onQuizChange()"
+    ></app-select>
   </div>
 </div>
 
@@ -19,13 +22,7 @@
   <app-input label="Skor Min" type="number" formControlName="min_score"></app-input>
   <app-input label="Skor Max" type="number" formControlName="max_score"></app-input>
 
-  <div class="analytics__field">
-    <label>Trend Per</label>
-    <select class="analytics__select" formControlName="group_by">
-      <option value="day">Hari</option>
-      <option value="hour">Jam</option>
-    </select>
-  </div>
+  <app-select label="Trend Per" [options]="groupByOptions" formControlName="group_by"></app-select>
 
   <div class="analytics__filter-actions">
     <app-button type="submit">

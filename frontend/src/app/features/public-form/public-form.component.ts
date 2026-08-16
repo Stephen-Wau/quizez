@@ -21,6 +21,7 @@ import {
 } from './public-form.service';
 import { InputComponent } from '../../shared/ui/input/input.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
+import { SelectComponent, SelectOption } from '../../shared/ui/select/select.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 
 type QuestionFormGroup = FormGroup;
@@ -67,7 +68,7 @@ interface StoredPublicSession {
 @Component({
   selector: 'app-public-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, InputComponent, ButtonComponent],
+  imports: [CommonModule, ReactiveFormsModule, InputComponent, ButtonComponent, SelectComponent],
   templateUrl: './public-form.component.html',
   styleUrl: './public-form.component.scss',
 })
@@ -435,6 +436,11 @@ export class PublicFormComponent implements OnInit, OnDestroy {
 
   isSelected(index: number, optionId: number): boolean {
     return Number(this.answersArray.at(index).get('question_answer_id')?.value) === optionId;
+  }
+
+  // Opsi dropdown buat question type_answer="dropdown", dipetakan dari daftar jawaban question itu sendiri.
+  dropdownOptions(question: PublicQuestion): SelectOption[] {
+    return question.answers.map((option) => ({ label: option.label || '-', value: option.id }));
   }
 
   chooseOption(index: number, optionId: number): void {

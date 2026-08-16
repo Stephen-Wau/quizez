@@ -80,11 +80,15 @@
   align-items: center;
   gap: var(--spacing-2);
 
-  label {
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--color-text-muted);
+  // app-select bawa margin-bottom bawaan (buat spacing antar field form), gak relevan di sini
+  // karena filter tag berdiri sendiri sejajar sama counter soal terpilih.
+  ::ng-deep .field {
+    margin-bottom: 0;
   }
+}
+
+.question-page__bank-filter-select {
+  min-width: 200px;
 }
 
 .question-page__bank-count {
@@ -139,28 +143,6 @@
 
 .question-form__field--grow {
   margin-bottom: 0;
-}
-
-.question-form__required {
-  color: var(--color-danger);
-  margin-left: 2px;
-}
-
-.question-form__select {
-  width: 100%;
-  padding: var(--spacing-2) var(--spacing-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  font-size: 0.95rem;
-  font-family: inherit;
-
-  &:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
-  }
 }
 
 .question-form__section {

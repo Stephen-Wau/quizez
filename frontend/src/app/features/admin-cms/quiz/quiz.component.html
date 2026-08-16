@@ -74,13 +74,7 @@
   <form [formGroup]="form" (ngSubmit)="submit()">
     <app-input label="Title" [required]="true" formControlName="title" [errorMessage]="fieldError('title')"></app-input>
 
-    <div class="quiz__field">
-      <label>Type<span class="quiz__required">*</span></label>
-      <select class="quiz__select" formControlName="type">
-        <option value="quiz">Quiz</option>
-        <option value="survey">Survey</option>
-      </select>
-    </div>
+    <app-select label="Type" [required]="true" [options]="typeOptions" formControlName="type"></app-select>
 
     <div class="quiz__date-row">
       <app-datetime-picker
@@ -160,13 +154,7 @@
       [multiline]="true"
     ></app-input>
 
-    <div class="quiz__field">
-      <label>Status<span class="quiz__required">*</span></label>
-      <select class="quiz__select" formControlName="status">
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-      </select>
-    </div>
+    <app-select label="Status" [required]="true" [options]="statusOptions" formControlName="status"></app-select>
 
     <div class="quiz__form-actions">
       <app-button variant="ghost" type="button" (click)="closeModal()">Cancel</app-button>

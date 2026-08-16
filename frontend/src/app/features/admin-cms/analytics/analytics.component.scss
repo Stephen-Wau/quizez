@@ -18,31 +18,12 @@
 }
 
 .analytics__quiz-picker {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
   min-width: 240px;
 
-  label {
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--color-text-muted);
-  }
-}
-
-.analytics__select {
-  padding: var(--spacing-2) var(--spacing-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  font-size: 0.95rem;
-  font-family: inherit;
-
-  &:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  // app-select bawa margin-bottom bawaan (buat spacing antar field form), gak relevan di sini
+  // karena quiz-picker berdiri sendiri di header, bukan dalam form.
+  ::ng-deep .field {
+    margin-bottom: 0;
   }
 }
 
@@ -56,19 +37,6 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   margin-bottom: var(--spacing-3);
-}
-
-.analytics__field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-  margin-bottom: var(--spacing-3);
-
-  label {
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--color-text-muted);
-  }
 }
 
 .analytics__filter-actions {
