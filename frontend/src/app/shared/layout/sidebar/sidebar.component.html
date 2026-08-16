@@ -1,20 +1,32 @@
-<aside class="sidebar">
-  <div class="profile">
-    <div class="avatar">{{ (user?.name || user?.email || '?').charAt(0).toUpperCase() }}</div>
-    <div class="info">
-      <p class="name">{{ user?.name || '-' }}</p>
-      <p class="email">{{ user?.email || '' }}</p>
-      <p class="role">{{ user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'editor' ? 'Editor' : '' }}</p>
-    </div>
+<aside class="sidebar" [class.sidebar--open]="isOpen">
+  <div class="sidebar__profile">
+    <div class="sidebar__avatar">{{ (user?.name || user?.email || '?').charAt(0).toUpperCase() }}</div>
+    <p class="sidebar__name">{{ user?.name || '-' }}</p>
+    <p class="sidebar__email">{{ user?.email || '' }}</p>
+    <p class="sidebar__role" *ngIf="roleLabel">{{ roleLabel }}</p>
+    <app-button variant="ghost" (click)="logout()">
+      <lucide-icon name="log-out" [size]="16"></lucide-icon>
+      Logout
+    </app-button>
   </div>
 
-  <nav>
-    @for (item of menuItems; track item.path) {
-      <a [routerLink]="item.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-        {{ item.label }}
-      </a>
-    }
+  <nav class="sidebar__menu">
+    <a
+      *ngFor="let item of menuItems"
+      [routerLink]="item.path"
+      routerLinkActive="sidebar__menu-item--active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      class="sidebar__menu-item"
+      (click)="onMenuItemClick()"
+    >
+      <lucide-icon *ngIf="item.icon === 'dashboard'" name="layout-dashboard" [size]="18"></lucide-icon>
+      <lucide-icon *ngIf="item.icon === 'quiz'" name="clipboard-list" [size]="18"></lucide-icon>
+      <lucide-icon *ngIf="item.icon === 'question-answer'" name="list-checks" [size]="18"></lucide-icon>
+      <lucide-icon *ngIf="item.icon === 'question-bank'" name="book-open" [size]="18"></lucide-icon>
+      <lucide-icon *ngIf="item.icon === 'summary'" name="file-bar-chart" [size]="18"></lucide-icon>
+      <lucide-icon *ngIf="item.icon === 'analytics'" name="bar-chart-3" [size]="18"></lucide-icon>
+      <lucide-icon *ngIf="item.icon === 'collaboration-permission'" name="users" [size]="18"></lucide-icon>
+      {{ item.label }}
+    </a>
   </nav>
-
-  <button class="logout" (click)="logout()">Logout</button>
 </aside>

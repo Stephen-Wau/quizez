@@ -1,7 +1,11 @@
 import { ApplicationConfig, importProvidersFrom, provideZoneChangeDetection } from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { LucideAngularModule, X, RefreshCw, File, Paperclip, ImagePlus, Trash2, LogIn, Plus, Pencil, Save, Filter, FileDown, ListPlus, Upload, Download, Copy, Lock } from 'lucide-angular';
+import {
+  LucideAngularModule, X, RefreshCw, File, Paperclip, ImagePlus, Trash2, LogIn, Plus, Pencil, Save,
+  Filter, FileDown, ListPlus, Upload, Download, Copy, Lock, Menu, LogOut, LayoutDashboard,
+  ClipboardList, ListChecks, BookOpen, FileBarChart, BarChart3, Users,
+} from 'lucide-angular';
 
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
@@ -13,7 +17,11 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor])),
     importProvidersFrom(
-      LucideAngularModule.pick({ X, RefreshCw, File, Paperclip, ImagePlus, Trash2, LogIn, Plus, Pencil, Save, Filter, FileDown, ListPlus, Upload, Download, Copy, Lock })
+      LucideAngularModule.pick({
+        X, RefreshCw, File, Paperclip, ImagePlus, Trash2, LogIn, Plus, Pencil, Save, Filter,
+        FileDown, ListPlus, Upload, Download, Copy, Lock, Menu, LogOut, LayoutDashboard,
+        ClipboardList, ListChecks, BookOpen, FileBarChart, BarChart3, Users,
+      })
     ),
   ]
 };
