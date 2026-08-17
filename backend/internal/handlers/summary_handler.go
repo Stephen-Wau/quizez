@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -100,5 +101,48 @@ func QuizSubmissionDetailHandler(db *sql.DB) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(detail)
+	}
+}
+
+// QuizSubmissionCertificateHandler generate PDF sertifikat 1 submission dari sisi admin (Summary),
+// buat kasus respondent lupa/minta ulang download. Beda dari versi publik (public_quiz_handler.go)
+// yang divalidasi lewat token share, admin udah punya akses quiz_id langsung dari URL CMS.
+func QuizSubmissionCertificateHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		quizID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid quiz id", http.StatusBadRequest)
+			return
+		}
+		submissionID, err := strconv.ParseInt(r.PathValue("submissionId"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid submission id", http.StatusBadRequest)
+			return
+		}
+
+		data, err := models.GetCertificateData(db, quizID, submissionID)
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "Sertifikat tidak tersedia untuk submission ini.", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, "failed to load certificate", http.StatusInternalServerError)
+			return
+		}
+
+		pdfBytes, err := models.BuildCertificatePDF(data)
+		if err != nil {
+			http.Error(w, "failed to build certificate", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="sertifikat-submission-%d.pdf"`, submissionID))
+		w.Write(pdfBytes)
 	}
 }
