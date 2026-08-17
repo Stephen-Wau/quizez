@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"github.com/go-pdf/fpdf"
+
+	"quizez/backend/internal/export"
 )
 
 // Threshold tier badge berdasarkan persentase skor. Semua responden yang punya skor selalu dapat
@@ -200,22 +202,22 @@ func BuildCertificatePDF(data CertificateData) ([]byte, error) {
 
 	pdf.Ln(4)
 	pdf.SetFont("Arial", "B", 24)
-	pdf.CellFormat(0, 14, sanitizePDFText(data.RespondentName), "", 1, "C", false, 0, "")
+	pdf.CellFormat(0, 14, export.SanitizePDFText(data.RespondentName), "", 1, "C", false, 0, "")
 
 	pdf.Ln(4)
 	pdf.SetFont("Arial", "", 12)
-	pdf.CellFormat(0, 8, sanitizePDFText(fmt.Sprintf("atas partisipasi dan hasil yang diraih dalam quiz \"%s\"", data.QuizTitle)), "", 1, "C", false, 0, "")
+	pdf.CellFormat(0, 8, export.SanitizePDFText(fmt.Sprintf("atas partisipasi dan hasil yang diraih dalam quiz \"%s\"", data.QuizTitle)), "", 1, "C", false, 0, "")
 
 	pdf.Ln(6)
 	pdf.SetFont("Arial", "B", 16)
-	pdf.CellFormat(0, 10, sanitizePDFText(fmt.Sprintf("Skor: %d / %d (%.2f%%)", data.Score, data.MaxPoint, data.ScorePercentage)), "", 1, "C", false, 0, "")
+	pdf.CellFormat(0, 10, export.SanitizePDFText(fmt.Sprintf("Skor: %d / %d (%.2f%%)", data.Score, data.MaxPoint, data.ScorePercentage)), "", 1, "C", false, 0, "")
 
 	pdf.SetFont("Arial", "B", 14)
-	pdf.CellFormat(0, 10, sanitizePDFText(fmt.Sprintf("Badge: %s", badgeTierLabel(data.BadgeTier))), "", 1, "C", false, 0, "")
+	pdf.CellFormat(0, 10, export.SanitizePDFText(fmt.Sprintf("Badge: %s", badgeTierLabel(data.BadgeTier))), "", 1, "C", false, 0, "")
 
 	pdf.Ln(10)
 	pdf.SetFont("Arial", "", 10)
-	pdf.CellFormat(0, 6, sanitizePDFText(fmt.Sprintf("Diselesaikan pada: %s", data.SubmittedAt)), "", 1, "C", false, 0, "")
+	pdf.CellFormat(0, 6, export.SanitizePDFText(fmt.Sprintf("Diselesaikan pada: %s", data.SubmittedAt)), "", 1, "C", false, 0, "")
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {

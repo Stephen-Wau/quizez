@@ -2,7 +2,6 @@ package models
 
 import (
 	"bytes"
-	"encoding/csv"
 	"fmt"
 	"io"
 	"strconv"
@@ -10,88 +9,58 @@ import (
 
 	"github.com/go-pdf/fpdf"
 	"github.com/xuri/excelize/v2"
+
+	"quizez/backend/internal/export"
 )
 
-// submissionExportRow satu baris data submission mentah yang dipakai bareng oleh export CSV & Excel,
-// biar kolom dan urutannya selalu konsisten di kedua format.
-type submissionExportRow struct {
-	ID           int64
-	Respondent   string
-	Score        string
-	PassingGrade string
-	Passed       string
-	ScorePercent string
-	Correct      string
-	Incorrect    string
-	Total        string
-	StartedAt    string
-	SubmittedAt  string
-	Completion   string
+// rankedIncorrectQuestion bungkus QuestionIncorrectRank + nomor urut, dipakai kolom "#" di
+// tabel PDF "Top Incorrect Questions" (Column.Value gak nerima index, jadi rank digabung di sini).
+type rankedIncorrectQuestion struct {
+	Rank  int
+	Inner QuestionIncorrectRank
 }
 
-// buildSubmissionExportRows ubah SubmissionSummary (format internal analytics) jadi baris flat
-// siap tulis ke CSV/Excel — semua nilai nullable diubah ke string kosong/"-" biar file gampang dibaca.
-func buildSubmissionExportRows(analytics QuizAnalytics) []submissionExportRow {
-	rows := make([]submissionExportRow, 0, len(analytics.SubmissionSummaries))
-	for _, s := range analytics.SubmissionSummaries {
-		rows = append(rows, submissionExportRow{
-			ID:           s.ID,
-			Respondent:   stringPtrValue(s.RespondentEmail),
-			Score:        intPtrToStr(s.Score),
-			PassingGrade: intPtrToStr(s.PassingGrade),
-			Passed:       boolPtrToStr(s.Passed),
-			ScorePercent: floatPtrToStr(s.ScorePercentage),
-			Correct:      strconv.Itoa(s.CorrectAnswers),
-			Incorrect:    strconv.Itoa(s.IncorrectAnswers),
-			Total:        strconv.Itoa(s.TotalQuestions),
-			StartedAt:    stringPtrValue(s.StartedAt),
-			SubmittedAt:  stringPtrValue(s.SubmittedAt),
-			Completion:   fmt.Sprintf("%.2f", s.CompletionPercentage),
-		})
+// submissionExportColumns definisi kolom export submission (dipakai bareng CSV & sheet Excel) --
+// mau ubah nama/urutan/tambah kolom baru, cukup edit di sini, otomatis kepakai di kedua format.
+func submissionExportColumns() []export.Column[SubmissionSummary] {
+	return []export.Column[SubmissionSummary]{
+		{Header: "ID", Value: func(s SubmissionSummary) string { return strconv.FormatInt(s.ID, 10) }},
+		{Header: "Respondent", Value: func(s SubmissionSummary) string { return stringPtrValue(s.RespondentEmail) }},
+		{Header: "Score", Value: func(s SubmissionSummary) string { return intPtrToStr(s.Score) }},
+		{Header: "Passing Grade", Value: func(s SubmissionSummary) string { return intPtrToStr(s.PassingGrade) }},
+		{Header: "Passed", Value: func(s SubmissionSummary) string { return boolPtrToStr(s.Passed) }},
+		{Header: "Score %", Value: func(s SubmissionSummary) string { return floatPtrToStr(s.ScorePercentage) }},
+		{Header: "Correct", Value: func(s SubmissionSummary) string { return strconv.Itoa(s.CorrectAnswers) }},
+		{Header: "Incorrect", Value: func(s SubmissionSummary) string { return strconv.Itoa(s.IncorrectAnswers) }},
+		{Header: "Total Questions", Value: func(s SubmissionSummary) string { return strconv.Itoa(s.TotalQuestions) }},
+		{Header: "Started At", Value: func(s SubmissionSummary) string { return stringPtrValue(s.StartedAt) }},
+		{Header: "Submitted At", Value: func(s SubmissionSummary) string { return stringPtrValue(s.SubmittedAt) }},
+		{Header: "Completion %", Value: func(s SubmissionSummary) string { return fmt.Sprintf("%.2f", s.CompletionPercentage) }},
 	}
-	return rows
-}
-
-var submissionExportHeaders = []string{
-	"ID", "Respondent", "Score", "Passing Grade", "Passed", "Score %",
-	"Correct", "Incorrect", "Total Questions", "Started At", "Submitted At", "Completion %",
 }
 
 // WriteSubmissionsCSV tulis raw submission (hasil filter analytics) ke writer dalam format CSV,
 // dipakai handler export "format=csv".
 func WriteSubmissionsCSV(w io.Writer, analytics QuizAnalytics) error {
-	writer := csv.NewWriter(w)
-	defer writer.Flush()
-
-	if err := writer.Write(submissionExportHeaders); err != nil {
-		return err
-	}
-	for _, row := range buildSubmissionExportRows(analytics) {
-		record := []string{
-			strconv.FormatInt(row.ID, 10), row.Respondent, row.Score, row.PassingGrade, row.Passed,
-			row.ScorePercent, row.Correct, row.Incorrect, row.Total, row.StartedAt, row.SubmittedAt, row.Completion,
-		}
-		if err := writer.Write(record); err != nil {
-			return err
-		}
-	}
-	return nil
+	return export.WriteCSV(w, submissionExportColumns(), analytics.SubmissionSummaries)
 }
 
 // BuildSubmissionsXLSX bikin file Excel 2 sheet: "Summary" (KPI ringkas) dan "Submissions" (raw
-// data per baris) — dipakai handler export "format=xlsx". Caller wajib Close() file yang dibalikin.
+// data per baris, header bold) — dipakai handler export "format=xlsx". Caller wajib Close() file.
 func BuildSubmissionsXLSX(analytics QuizAnalytics) (*excelize.File, error) {
 	f := excelize.NewFile()
 
 	summarySheet := "Summary"
 	f.SetSheetName("Sheet1", summarySheet)
-	writeSummarySheet(f, summarySheet, analytics)
+	if err := writeSummarySheet(f, summarySheet, analytics); err != nil {
+		return nil, err
+	}
 
 	submissionsSheet := "Submissions"
 	if _, err := f.NewSheet(submissionsSheet); err != nil {
 		return nil, err
 	}
-	if err := writeSubmissionsSheet(f, submissionsSheet, analytics); err != nil {
+	if err := export.WriteXLSXSheet(f, submissionsSheet, submissionExportColumns(), analytics.SubmissionSummaries); err != nil {
 		return nil, err
 	}
 
@@ -99,9 +68,23 @@ func BuildSubmissionsXLSX(analytics QuizAnalytics) (*excelize.File, error) {
 	return f, nil
 }
 
+// summaryMetric 1 baris sheet "Summary": pasangan label KPI + value-nya (bukan raw submission,
+// jadi dimodelin terpisah dari submissionExportColumns yang per-baris-per-submission).
+type summaryMetric struct {
+	Label string
+	Value string
+}
+
+func summaryMetricColumns() []export.Column[summaryMetric] {
+	return []export.Column[summaryMetric]{
+		{Header: "Metric", Value: func(m summaryMetric) string { return m.Label }},
+		{Header: "Value", Value: func(m summaryMetric) string { return m.Value }},
+	}
+}
+
 // writeSummarySheet isi sheet "Summary": judul quiz + KPI utama dalam bentuk pasangan label-value.
-func writeSummarySheet(f *excelize.File, sheet string, analytics QuizAnalytics) {
-	rows := [][2]string{
+func writeSummarySheet(f *excelize.File, sheet string, analytics QuizAnalytics) error {
+	metrics := []summaryMetric{
 		{"Quiz", stringPtrValue(analytics.Quiz.Title)},
 		{"Type", stringPtrValue(analytics.Quiz.Type)},
 		{"Total Submissions", strconv.Itoa(analytics.Stats.TotalSubmissions)},
@@ -114,40 +97,11 @@ func writeSummarySheet(f *excelize.File, sheet string, analytics QuizAnalytics) 
 		{"Failing Count", strconv.Itoa(analytics.Stats.FailingCount)},
 		{"Passing Rate %", floatPtrToStr(analytics.Stats.PassingRate)},
 	}
-	f.SetCellValue(sheet, "A1", "Metric")
-	f.SetCellValue(sheet, "B1", "Value")
-	for i, row := range rows {
-		rowNum := i + 2
-		f.SetCellValue(sheet, fmt.Sprintf("A%d", rowNum), row[0])
-		f.SetCellValue(sheet, fmt.Sprintf("B%d", rowNum), row[1])
+	if err := export.WriteXLSXSheet(f, sheet, summaryMetricColumns(), metrics); err != nil {
+		return err
 	}
 	f.SetColWidth(sheet, "A", "A", 22)
 	f.SetColWidth(sheet, "B", "B", 20)
-}
-
-// writeSubmissionsSheet isi sheet "Submissions": 1 baris header + 1 baris per submission mentah.
-func writeSubmissionsSheet(f *excelize.File, sheet string, analytics QuizAnalytics) error {
-	for col, header := range submissionExportHeaders {
-		cell, err := excelize.CoordinatesToCellName(col+1, 1)
-		if err != nil {
-			return err
-		}
-		f.SetCellValue(sheet, cell, header)
-	}
-
-	for rowIndex, row := range buildSubmissionExportRows(analytics) {
-		values := []interface{}{
-			row.ID, row.Respondent, row.Score, row.PassingGrade, row.Passed,
-			row.ScorePercent, row.Correct, row.Incorrect, row.Total, row.StartedAt, row.SubmittedAt, row.Completion,
-		}
-		for col, value := range values {
-			cell, err := excelize.CoordinatesToCellName(col+1, rowIndex+2)
-			if err != nil {
-				return err
-			}
-			f.SetCellValue(sheet, cell, value)
-		}
-	}
 	return nil
 }
 
@@ -159,9 +113,9 @@ func BuildSummaryPDF(analytics QuizAnalytics) ([]byte, error) {
 	pdf.AddPage()
 
 	pdf.SetFont("Arial", "B", 16)
-	pdf.CellFormat(0, 10, sanitizePDFText(fmt.Sprintf("Analytics Report - %s", stringPtrValue(analytics.Quiz.Title))), "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 10, export.SanitizePDFText(fmt.Sprintf("Analytics Report - %s", stringPtrValue(analytics.Quiz.Title))), "", 1, "L", false, 0, "")
 	pdf.SetFont("Arial", "", 10)
-	pdf.CellFormat(0, 6, sanitizePDFText(fmt.Sprintf("Type: %s", stringPtrValue(analytics.Quiz.Type))), "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 6, export.SanitizePDFText(fmt.Sprintf("Type: %s", stringPtrValue(analytics.Quiz.Type))), "", 1, "L", false, 0, "")
 	pdf.Ln(4)
 
 	pdf.SetFont("Arial", "B", 12)
@@ -174,30 +128,42 @@ func BuildSummaryPDF(analytics QuizAnalytics) ([]byte, error) {
 		{"Average Completion %", fmt.Sprintf("%.2f", analytics.Stats.AverageCompletion)},
 		{"Passing Rate %", floatPtrToStr(analytics.Stats.PassingRate)},
 	}
-	writePDFKeyValueRows(pdf, statRows)
+	export.WritePDFKeyValueRows(pdf, statRows)
 	pdf.Ln(4)
 
 	pdf.SetFont("Arial", "B", 12)
 	pdf.CellFormat(0, 8, "Top Incorrect Questions", "", 1, "L", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
 	if len(analytics.TopIncorrectQuestions) == 0 {
+		pdf.SetFont("Arial", "", 10)
 		pdf.CellFormat(0, 6, "Tidak ada data.", "", 1, "L", false, 0, "")
-	}
-	for i, q := range analytics.TopIncorrectQuestions {
-		line := fmt.Sprintf("%d. %s (salah %.0f%%, %d dari %d jawaban)",
-			i+1, stringPtrValue(q.Question), q.IncorrectRate, q.IncorrectCount, q.TotalResponses)
-		pdf.MultiCell(0, 6, sanitizePDFText(line), "", "L", false)
+	} else {
+		ranked := make([]rankedIncorrectQuestion, 0, len(analytics.TopIncorrectQuestions))
+		for i, q := range analytics.TopIncorrectQuestions {
+			ranked = append(ranked, rankedIncorrectQuestion{Rank: i + 1, Inner: q})
+		}
+		columns := []export.Column[rankedIncorrectQuestion]{
+			{Header: "#", Value: func(r rankedIncorrectQuestion) string { return strconv.Itoa(r.Rank) }},
+			{Header: "Question", Value: func(r rankedIncorrectQuestion) string { return stringPtrValue(r.Inner.Question) }},
+			{Header: "Incorrect %", Value: func(r rankedIncorrectQuestion) string { return fmt.Sprintf("%.0f%%", r.Inner.IncorrectRate) }},
+			{Header: "Incorrect / Total", Value: func(r rankedIncorrectQuestion) string {
+				return fmt.Sprintf("%d / %d", r.Inner.IncorrectCount, r.Inner.TotalResponses)
+			}},
+		}
+		export.WritePDFTable(pdf, columns, []float64{10, 120, 25, 35}, ranked)
 	}
 	pdf.Ln(4)
 
 	pdf.SetFont("Arial", "B", 12)
 	pdf.CellFormat(0, 8, fmt.Sprintf("Trend Submission (per %s)", trendGroupLabel(analytics)), "", 1, "L", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
 	if len(analytics.Trend) == 0 {
+		pdf.SetFont("Arial", "", 10)
 		pdf.CellFormat(0, 6, "Tidak ada data.", "", 1, "L", false, 0, "")
-	}
-	for _, point := range analytics.Trend {
-		pdf.CellFormat(0, 6, sanitizePDFText(fmt.Sprintf("%s: %d submission", point.Label, point.Count)), "", 1, "L", false, 0, "")
+	} else {
+		columns := []export.Column[TrendPoint]{
+			{Header: "Periode", Value: func(p TrendPoint) string { return p.Label }},
+			{Header: "Submission", Value: func(p TrendPoint) string { return strconv.Itoa(p.Count) }},
+		}
+		export.WritePDFTable(pdf, columns, []float64{80, 40}, analytics.Trend)
 	}
 
 	var buf bytes.Buffer
@@ -214,28 +180,6 @@ func trendGroupLabel(analytics QuizAnalytics) string {
 		return "jam"
 	}
 	return "hari"
-}
-
-// writePDFKeyValueRows helper render daftar pasangan label-value sebagai baris teks sederhana.
-func writePDFKeyValueRows(pdf *fpdf.Fpdf, rows [][2]string) {
-	for _, row := range rows {
-		pdf.CellFormat(60, 6, sanitizePDFText(row[0]), "", 0, "L", false, 0, "")
-		pdf.CellFormat(0, 6, sanitizePDFText(row[1]), "", 1, "L", false, 0, "")
-	}
-}
-
-// sanitizePDFText font Arial bawaan fpdf cuma support Latin-1, jadi karakter di luar itu (emoji,
-// dsb) dibuang biar Output() gak gagal/ngerender kotak aneh.
-func sanitizePDFText(text string) string {
-	var b strings.Builder
-	for _, r := range text {
-		if r <= 255 {
-			b.WriteRune(r)
-		} else {
-			b.WriteRune('?')
-		}
-	}
-	return b.String()
 }
 
 // intPtrToStr konversi *int ke string buat kolom export, "-" kalau nil (biar file gampang dibaca).
