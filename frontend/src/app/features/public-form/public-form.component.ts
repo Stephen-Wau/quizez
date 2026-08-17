@@ -41,6 +41,7 @@ function requireAllMatrixRowsAnswered(control: AbstractControl): ValidationError
 }
 
 interface StoredPublicSession {
+  name: string;
   email: string;
   started: boolean;
   started_at: string | null;
@@ -116,6 +117,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     private toast: ToastService,
   ) {
     this.accessForm = this.fb.group({
+      name: ['', [Validators.required]],
       email: ['', [Validators.required, Validators.email]],
       access_code: [''],
     });
@@ -229,6 +231,29 @@ export class PublicFormComponent implements OnInit, OnDestroy {
 
   get quizPassed(): boolean | null {
     return this.submitResult?.passed ?? null;
+  }
+
+  // hasCertificate sertifikat cuma tersedia kalau quiz punya scoring aktif (score_percentage keisi).
+  get hasCertificate(): boolean {
+    return this.isQuiz && !!this.submitResult && this.submitResult.score_percentage !== null;
+  }
+
+  get certificateUrl(): string {
+    if (!this.detail?.token || !this.submitResult) return '';
+    return this.publicFormService.certificateUrl(this.detail.token, this.submitResult.submission_id);
+  }
+
+  badgeTierLabel(): string {
+    switch (this.submitResult?.badge_tier) {
+      case 'gold':
+        return 'GOLD';
+      case 'silver':
+        return 'SILVER';
+      case 'bronze':
+        return 'BRONZE';
+      default:
+        return '-';
+    }
   }
 
   get totalQuestions(): number {
@@ -346,7 +371,8 @@ export class PublicFormComponent implements OnInit, OnDestroy {
       this.toast.info('Baca instruksi dulu sebelum mulai quiz.');
       return;
     }
-    if (this.accessForm.get('email')?.invalid) {
+    if (this.accessForm.get('name')?.invalid || this.accessForm.get('email')?.invalid) {
+      this.accessForm.get('name')?.markAsTouched();
       this.accessForm.get('email')?.markAsTouched();
       return;
     }
@@ -621,6 +647,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
   private buildSubmitPayload(): PublicFormSubmitPayload {
     return {
       email: this.isQuiz ? (this.accessForm.get('email')?.value?.trim() || null) : null,
+      name: this.isQuiz ? (this.accessForm.get('name')?.value?.trim() || null) : null,
       started_at: this.isQuiz ? this.readStartedAt() : null,
       access_code: this.readAccessCode(),
       attempt_seed: this.attemptSeed || null,
@@ -773,6 +800,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     if (!key) return;
 
     const session: StoredPublicSession = {
+      name: this.accessForm.get('name')?.value?.trim() || '',
       email: this.accessForm.get('email')?.value?.trim() || '',
       started: this.hasStartedQuiz,
       started_at: this.readStartedAt(),
@@ -811,6 +839,9 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     }
 
     this.progressRestored = false;
+    if (session.name) {
+      this.accessForm.patchValue({ name: session.name }, { emitEvent: false });
+    }
     if (session.email) {
       this.accessForm.patchValue({ email: session.email }, { emitEvent: false });
     }

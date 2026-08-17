@@ -45,7 +45,7 @@ export class SummarySubmissionDetailComponent implements OnInit {
   }
 
   respondentName(): string {
-    return this.detail?.submission.respondent_email || 'Anonymous respondent';
+    return this.detail?.submission.respondent_name || this.detail?.submission.respondent_email || 'Anonymous respondent';
   }
 
   // Kembali ke dashboard summary quiz yang sama agar admin tidak kehilangan konteks analytic.

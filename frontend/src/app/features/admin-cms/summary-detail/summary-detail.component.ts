@@ -88,7 +88,7 @@ export class SummaryDetailComponent implements OnInit {
 
     return this.summary.submission_summaries.map((submission) => ({
       id: submission.id,
-      respondent: submission.respondent_email || 'Anonymous respondent',
+      respondent: submission.respondent_name || submission.respondent_email || 'Anonymous respondent',
       score: submission.score ?? 0,
       completion: submission.completion_percentage,
       submittedAt: submission.submitted_at,

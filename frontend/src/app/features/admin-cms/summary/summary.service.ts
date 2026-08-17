@@ -70,6 +70,7 @@ export interface SubmissionAnswerSummary {
 
 export interface SubmissionSummary {
   id: number;
+  respondent_name: string | null;
   respondent_email: string | null;
   score: number | null;
   passing_grade: number | null;

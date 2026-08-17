@@ -51,6 +51,8 @@ export interface PublicFormDetail {
 
 export interface PublicFormSubmitPayload {
   email: string | null;
+  // name nama respondent, wajib untuk quiz (dipakai cetak sertifikat & leaderboard admin).
+  name: string | null;
   started_at: string | null;
   access_code: string | null;
   // attempt_seed dipakai backend untuk recompute subset random_question_count yang sama persis
@@ -80,6 +82,8 @@ export interface PublicFormSubmitResult {
   passing_grade: number | null;
   score_percentage: number | null;
   passed: boolean | null;
+  // badge_tier tier gamifikasi (gold/silver/bronze) dari score_percentage, null kalau quiz gak punya scoring.
+  badge_tier: 'gold' | 'silver' | 'bronze' | null;
   correct_answers: number;
   answered_questions: number;
   total_questions: number;
@@ -118,5 +122,11 @@ export class PublicFormService {
   // Submit jawaban publik untuk quiz/survey aktif.
   submit(token: string, payload: PublicFormSubmitPayload): Observable<PublicFormSubmitResult> {
     return this.http.post<PublicFormSubmitResult>(`${this.baseUrl}/${token}/submit`, payload);
+  }
+
+  // URL download sertifikat PDF -- dibuka langsung lewat <a href> (bukan HttpClient) karena
+  // response-nya file binary, bukan JSON.
+  certificateUrl(token: string, submissionId: number): string {
+    return `${this.baseUrl}/${token}/submissions/${submissionId}/certificate`;
   }
 }

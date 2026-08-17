@@ -44,6 +44,14 @@
             <strong>{{ submitResult.answered_questions }}/{{ submitResult.total_questions }}</strong>
           </div>
         </div>
+        <div *ngIf="hasCertificate" class="public-form__certificate">
+          <span class="public-form__badge-tier" [attr.data-tier]="submitResult.badge_tier">
+            Badge: {{ badgeTierLabel() }}
+          </span>
+          <a class="public-form__certificate-link" [href]="certificateUrl" target="_blank" rel="noopener">
+            Download Sertifikat
+          </a>
+        </div>
         <p class="public-form__meta-line">Terkirim pada {{ submitResult.submitted_at }}</p>
         <div class="public-form__result-review">
           <article class="public-form__result-answer" *ngFor="let answer of submitResult.answer_details; let i = index">
@@ -184,6 +192,14 @@
               </div>
 
               <form [formGroup]="accessForm" (ngSubmit)="startQuiz()">
+                <app-input
+                  label="Nama"
+                  type="text"
+                  [required]="true"
+                  formControlName="name"
+                  [errorMessage]="accessForm.get('name')?.touched && accessForm.get('name')?.invalid ? 'Nama wajib diisi.' : ''"
+                ></app-input>
+
                 <app-input
                   label="Email"
                   type="email"

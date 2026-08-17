@@ -86,7 +86,7 @@
 
             <div *ngIf="data.submission_summaries.length > 0" class="summary-detail__recent">
               <div class="summary-detail__recent-meta">
-                <strong>{{ data.submission_summaries[0].respondent_email || 'Anonymous respondent' }}</strong>
+                <strong>{{ data.submission_summaries[0].respondent_name || data.submission_summaries[0].respondent_email || 'Anonymous respondent' }}</strong>
                 <span>{{ data.submission_summaries[0].submitted_at || '-' }}</span>
               </div>
               <span class="summary-detail__recent-chip">
@@ -329,7 +329,7 @@
           >
             <div class="summary-detail__submission-head">
               <div>
-                <strong>{{ submission.respondent_email || 'Anonymous respondent' }}</strong>
+                <strong>{{ submission.respondent_name || submission.respondent_email || 'Anonymous respondent' }}</strong>
                 <span>{{ submission.submitted_at || '-' }}</span>
               </div>
               <div class="summary-detail__submission-badges">

@@ -167,6 +167,54 @@
   color: #b91c1c;
 }
 
+.public-form__certificate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.public-form__badge-tier {
+  display: inline-flex;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  background: #f1f5f9;
+  color: #334155;
+
+  &[data-tier="gold"] {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  &[data-tier="silver"] {
+    background: #e2e8f0;
+    color: #475569;
+  }
+
+  &[data-tier="bronze"] {
+    background: #fde8d7;
+    color: #9a3412;
+  }
+}
+
+.public-form__certificate-link {
+  display: inline-flex;
+  padding: 10px 20px;
+  border-radius: 8px;
+  background: #4f46e5;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    background: #4338ca;
+  }
+}
+
 .public-form__result-review,
 .public-form__review-list,
 .public-form__questions,
