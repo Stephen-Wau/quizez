@@ -1,0 +1,34 @@
+:host {
+  display: block;
+  border-radius: 16px;
+  padding: 16px 18px;
+  // Gradient netral tapi cukup kontras dari sekadar putih polos -- biar kerasa "timbul" walau
+  // gak dikasih variant warna.
+  background: linear-gradient(165deg, #ffffff 0%, #eef1f8 100%);
+  border: 1px solid #d9e2f0;
+  // Shadow dikasih tint warna aksen sidebar (--gradient-accent-start/#6366f1) bukan abu-abu netral,
+  // biar nyambung sama palet brand yang sama dipakai di sidebar/tombol utama.
+  box-shadow: 0 10px 24px rgba(99, 102, 241, 0.14);
+}
+
+:host(.app-card--indigo) {
+  background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
+}
+
+:host(.app-card--emerald) {
+  background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%);
+}
+
+:host(.app-card--amber) {
+  background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+}
+
+:host(.app-card--rose) {
+  background: linear-gradient(135deg, #fff1f2 0%, #ffffff 100%);
+}
+
+:host(.app-card--danger) {
+  border-color: #fecaca;
+  background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+  box-shadow: 0 10px 24px rgba(239, 68, 68, 0.14);
+}
