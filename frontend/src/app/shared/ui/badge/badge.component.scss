@@ -1,0 +1,35 @@
+:host {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  // Kotak dengan sudut dikit rounded (bukan pill/kapsul) sesuai permintaan -- 8px cukup buat
+  // ngilangin kesan tajam tanpa jadi bulat penuh.
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  white-space: nowrap;
+  color: #fff;
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+}
+
+:host(.app-badge--indigo) {
+  background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+}
+
+:host(.app-badge--gray) {
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+}
+
+:host(.app-badge--emerald) {
+  background: linear-gradient(135deg, #34d399 0%, #059669 100%);
+}
+
+:host(.app-badge--amber) {
+  background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+}
+
+:host(.app-badge--rose),
+:host(.app-badge--danger) {
+  background: linear-gradient(135deg, #fb7185 0%, #e11d48 100%);
+}
