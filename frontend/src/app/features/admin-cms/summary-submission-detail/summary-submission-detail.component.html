@@ -16,7 +16,18 @@
       </p>
     </div>
 
-    <app-button variant="ghost" type="button" (click)="backToSummary()">Back</app-button>
+    <div class="submission-detail__header-actions">
+      <app-button
+        *ngIf="hasCertificate"
+        variant="primary"
+        type="button"
+        [disabled]="isDownloadingCertificate"
+        (click)="downloadCertificate()"
+      >
+        {{ isDownloadingCertificate ? 'Mengunduh...' : 'Download Sertifikat' }}
+      </app-button>
+      <app-button variant="ghost" type="button" (click)="backToSummary()">Back</app-button>
+    </div>
   </div>
 
   <section class="submission-detail__section">

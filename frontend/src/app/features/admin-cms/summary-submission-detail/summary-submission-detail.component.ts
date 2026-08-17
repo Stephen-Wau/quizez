@@ -22,6 +22,7 @@ export class SummarySubmissionDetailComponent implements OnInit {
   loading = true;
   loadError = '';
   detail: QuizSubmissionDetailResponse | null = null;
+  isDownloadingCertificate = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -47,6 +48,38 @@ export class SummarySubmissionDetailComponent implements OnInit {
 
   respondentName(): string {
     return this.detail?.submission.respondent_name || this.detail?.submission.respondent_email || 'Anonymous respondent';
+  }
+
+  // hasCertificate sertifikat cuma tersedia buat quiz yang punya scoring aktif (score_percentage keisi).
+  get hasCertificate(): boolean {
+    return this.isQuiz && this.detail?.submission.score_percentage !== null && this.detail?.submission.score_percentage !== undefined;
+  }
+
+  // downloadCertificate ambil ulang sertifikat PDF submission ini -- dipakai kalau respondent
+  // lupa/minta ulang download. Blob response wajib di-fetch lewat HttpClient (bukan <a href>
+  // langsung) karena endpoint admin butuh Bearer token.
+  downloadCertificate(): void {
+    if (!this.detail) return;
+    const quizId = this.detail.quiz.id;
+    const submissionId = this.detail.submission.id;
+
+    this.isDownloadingCertificate = true;
+    this.summaryService.downloadCertificate(quizId, submissionId).subscribe({
+      next: (blob) => {
+        this.isDownloadingCertificate = false;
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `sertifikat-submission-${submissionId}.pdf`;
+        anchor.click();
+        window.URL.revokeObjectURL(url);
+        this.toast.success('Sertifikat berhasil diunduh.');
+      },
+      error: () => {
+        this.isDownloadingCertificate = false;
+        this.toast.error('Gagal mengunduh sertifikat.');
+      },
+    });
   }
 
   // Kembali ke dashboard summary quiz yang sama agar admin tidak kehilangan konteks analytic.

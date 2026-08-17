@@ -28,6 +28,9 @@ export class SummaryDetailComponent implements OnInit {
   loadError = '';
   summary: QuizSummaryResponse | null = null;
   leaderboard: LeaderboardEntry[] = [];
+  // downloadingCertificateId nge-track submission mana yang lagi proses download, biar cuma
+  // tombol baris itu yang ke-disable/ganti label (bukan semua baris sekaligus).
+  downloadingCertificateId: number | null = null;
   readonly chartColors = ['#4f46e5', '#7c3aed', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444'];
   collapsedSections = {
     overview: false,
@@ -220,6 +223,36 @@ export class SummaryDetailComponent implements OnInit {
   openSubmissionDetail(submission: SubmissionSummary): void {
     if (!this.summary) return;
     this.router.navigate(['/admin-cms/summary', this.summary.quiz.id, 'submission', submission.id]);
+  }
+
+  // hasCertificate sertifikat cuma tersedia buat quiz yang punya scoring aktif (score_percentage keisi).
+  hasCertificate(submission: SubmissionSummary): boolean {
+    return this.isQuiz && submission.score_percentage !== null;
+  }
+
+  // downloadCertificate ambil ulang sertifikat PDF submission ini langsung dari tabel, tanpa
+  // perlu buka drill-down dulu -- dipakai kalau respondent lupa/minta ulang download.
+  downloadCertificate(submission: SubmissionSummary): void {
+    if (!this.summary) return;
+    const quizId = this.summary.quiz.id;
+
+    this.downloadingCertificateId = submission.id;
+    this.summaryService.downloadCertificate(quizId, submission.id).subscribe({
+      next: (blob) => {
+        this.downloadingCertificateId = null;
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `sertifikat-submission-${submission.id}.pdf`;
+        anchor.click();
+        window.URL.revokeObjectURL(url);
+        this.toast.success('Sertifikat berhasil diunduh.');
+      },
+      error: () => {
+        this.downloadingCertificateId = null;
+        this.toast.error('Gagal mengunduh sertifikat.');
+      },
+    });
   }
 
   trackByOptionLabel(_: number, item: QuestionOptionSummary): string {

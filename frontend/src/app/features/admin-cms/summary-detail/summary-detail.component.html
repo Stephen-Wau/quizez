@@ -417,7 +417,17 @@
                 <span *ngIf="isQuiz && submission.passed !== null">
                   {{ submission.passed ? 'Passed' : 'Not Passed' }}
                 </span>
-                <app-button variant="ghost" size="sm" type="button" (click)="openSubmissionDetail(submission)">
+                <app-button
+                  *ngIf="hasCertificate(submission)"
+                  variant="primary"
+                  size="sm"
+                  type="button"
+                  [disabled]="downloadingCertificateId === submission.id"
+                  (click)="downloadCertificate(submission)"
+                >
+                  {{ downloadingCertificateId === submission.id ? 'Mengunduh...' : 'Download Sertifikat' }}
+                </app-button>
+                <app-button variant="primary" size="sm" type="button" (click)="openSubmissionDetail(submission)">
                   Show Detail
                 </app-button>
               </div>

@@ -12,6 +12,12 @@
   align-items: flex-start;
 }
 
+.submission-detail__header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .submission-detail__back {
   border: 0;
   background: transparent;

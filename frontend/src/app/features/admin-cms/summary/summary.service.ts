@@ -131,4 +131,13 @@ export class SummaryService {
   getLeaderboard(quizId: number): Observable<LeaderboardEntry[]> {
     return this.http.get<LeaderboardEntry[]>(`${this.baseUrl}/${quizId}/leaderboard`);
   }
+
+  // Download ulang sertifikat PDF 1 submission dari sisi admin (Summary) -- dipakai kalau
+  // respondent lupa/minta ulang download. responseType blob karena endpoint butuh Bearer token
+  // (beda dari link publik yang bisa langsung dibuka lewat <a href>).
+  downloadCertificate(quizId: number, submissionId: number): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${quizId}/submissions/${submissionId}/certificate`, {
+      responseType: 'blob',
+    });
+  }
 }
