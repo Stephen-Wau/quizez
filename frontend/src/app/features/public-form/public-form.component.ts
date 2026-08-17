@@ -21,6 +21,7 @@ import {
 } from './public-form.service';
 import { InputComponent } from '../../shared/ui/input/input.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
+import { CardComponent } from '../../shared/ui/card/card.component';
 import { SelectComponent, SelectOption } from '../../shared/ui/select/select.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 
@@ -69,7 +70,7 @@ interface StoredPublicSession {
 @Component({
   selector: 'app-public-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, InputComponent, ButtonComponent, SelectComponent],
+  imports: [CommonModule, ReactiveFormsModule, InputComponent, ButtonComponent, CardComponent, SelectComponent],
   templateUrl: './public-form.component.html',
   styleUrl: './public-form.component.scss',
 })
@@ -359,8 +360,9 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     this.loadForm(token, accessCode);
   }
 
-  acknowledgeWelcome(): void {
-    this.welcomeAcknowledged = true;
+  // acknowledgeWelcome toggle checkbox "sudah baca instruksi" -- dipakai sebagai gate sebelum Start Quiz.
+  acknowledgeWelcome(checked: boolean): void {
+    this.welcomeAcknowledged = checked;
     this.persistFormSession();
   }
 

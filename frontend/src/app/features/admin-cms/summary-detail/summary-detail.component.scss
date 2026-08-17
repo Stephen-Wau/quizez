@@ -115,14 +115,6 @@
   gap: 16px;
 }
 
-.summary-detail__card {
-  border-radius: 22px;
-  padding: 18px 20px;
-  background: #fff;
-  border: 1px solid #e6ebf5;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
-}
-
 .summary-detail__card span {
   display: block;
   color: #64748b;
@@ -134,22 +126,6 @@
   display: block;
   color: #17325c;
   font-size: 1.8rem;
-}
-
-.summary-detail__card--indigo {
-  background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
-}
-
-.summary-detail__card--emerald {
-  background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%);
-}
-
-.summary-detail__card--amber {
-  background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
-}
-
-.summary-detail__card--rose {
-  background: linear-gradient(135deg, #fff1f2 0%, #ffffff 100%);
 }
 
 .summary-detail__grid {

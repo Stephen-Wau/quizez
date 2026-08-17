@@ -88,15 +88,6 @@
   margin-top: 22px;
 }
 
-.public-form__meta-item,
-.public-form__result-stat,
-.public-form__welcome-card {
-  padding: 16px 18px;
-  border-radius: 18px;
-  background: #f8faff;
-  border: 1px solid #e5e9f5;
-}
-
 .public-form__meta-item span,
 .public-form__result-stat span,
 .public-form__welcome-card span,
@@ -114,8 +105,6 @@
 }
 
 .public-form__meta-item--danger {
-  background: #fff5f5;
-  border-color: #fecaca;
   color: #b91c1c;
 }
 
@@ -447,6 +436,24 @@
 
 .public-form__actions--start {
   justify-content: flex-start;
+}
+
+.public-form__ack-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  color: #334155;
+  font-size: 0.94rem;
+
+  input[type="checkbox"] {
+    margin-top: 3px;
+    width: 18px;
+    height: 18px;
+    accent-color: #4f46e5;
+    cursor: pointer;
+    flex: 0 0 18px;
+  }
 }
 
 .public-form__access-form {

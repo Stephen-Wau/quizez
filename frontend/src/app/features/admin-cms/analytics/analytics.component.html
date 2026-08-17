@@ -54,26 +54,26 @@
 <ng-container *ngIf="!isLoading && analytics as data">
   <!-- KPI cards -->
   <div class="analytics__cards">
-    <div class="analytics__card">
+    <app-card class="analytics__card">
       <span class="analytics__card-label">Total Submission</span>
       <span class="analytics__card-value">{{ data.stats.total_submissions }}</span>
-    </div>
-    <div class="analytics__card">
+    </app-card>
+    <app-card class="analytics__card">
       <span class="analytics__card-label">Unique Respondent</span>
       <span class="analytics__card-value">{{ data.stats.unique_respondents }}</span>
-    </div>
-    <div class="analytics__card">
+    </app-card>
+    <app-card class="analytics__card">
       <span class="analytics__card-label">Avg Completion</span>
       <span class="analytics__card-value">{{ data.stats.average_completion }}%</span>
-    </div>
-    <div class="analytics__card" *ngIf="data.quiz.type === 'quiz'">
+    </app-card>
+    <app-card class="analytics__card" *ngIf="data.quiz.type === 'quiz'">
       <span class="analytics__card-label">Avg Score</span>
       <span class="analytics__card-value">{{ data.stats.average_score ?? '-' }}</span>
-    </div>
-    <div class="analytics__card" *ngIf="data.quiz.type === 'quiz'">
+    </app-card>
+    <app-card class="analytics__card" *ngIf="data.quiz.type === 'quiz'">
       <span class="analytics__card-label">Passing Rate</span>
       <span class="analytics__card-value">{{ data.stats.passing_rate !== null ? data.stats.passing_rate + '%' : '-' }}</span>
-    </div>
+    </app-card>
   </div>
 
   <!-- Trend chart -->

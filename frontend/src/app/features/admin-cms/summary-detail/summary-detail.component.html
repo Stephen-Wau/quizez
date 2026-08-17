@@ -45,17 +45,14 @@
         [class.summary-detail__section-body--collapsed]="collapsedSections.overview"
       >
         <div class="summary-detail__cards">
-          <article
+          <app-card
             *ngFor="let card of summaryCards"
             class="summary-detail__card"
-            [class.summary-detail__card--indigo]="card.accent === 'indigo'"
-            [class.summary-detail__card--emerald]="card.accent === 'emerald'"
-            [class.summary-detail__card--amber]="card.accent === 'amber'"
-            [class.summary-detail__card--rose]="card.accent === 'rose'"
+            [variant]="card.accent || 'default'"
           >
             <span>{{ card.label }}</span>
             <strong>{{ card.value }}</strong>
-          </article>
+          </app-card>
         </div>
 
         <div class="summary-detail__grid">

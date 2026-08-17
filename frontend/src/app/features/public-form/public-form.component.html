@@ -27,22 +27,22 @@
           <span>/ {{ submitResult.max_point ?? 0 }}</span>
         </div>
         <div class="public-form__result-stats">
-          <div class="public-form__result-stat">
+          <app-card class="public-form__result-stat">
             <span>Score</span>
             <strong>{{ formatScorePercent(submitResult.score_percentage) }}%</strong>
-          </div>
-          <div class="public-form__result-stat">
+          </app-card>
+          <app-card class="public-form__result-stat">
             <span>Passing Grade</span>
             <strong>{{ submitResult.passing_grade ?? 0 }}</strong>
-          </div>
-          <div class="public-form__result-stat">
+          </app-card>
+          <app-card class="public-form__result-stat">
             <span>Correct</span>
             <strong>{{ submitResult.correct_answers }}/{{ submitResult.total_questions }}</strong>
-          </div>
-          <div class="public-form__result-stat">
+          </app-card>
+          <app-card class="public-form__result-stat">
             <span>Answered</span>
             <strong>{{ submitResult.answered_questions }}/{{ submitResult.total_questions }}</strong>
-          </div>
+          </app-card>
         </div>
         <div *ngIf="hasCertificate" class="public-form__certificate">
           <span class="public-form__badge-tier" [attr.data-tier]="submitResult.badge_tier">
@@ -111,38 +111,38 @@
               <p *ngIf="form.description">{{ form.description }}</p>
 
               <div class="public-form__meta">
-                <div class="public-form__meta-item">
+                <app-card class="public-form__meta-item">
                   <span>Periode</span>
                   <strong>{{ formatPeriod() }}</strong>
-                </div>
-                <div class="public-form__meta-item">
+                </app-card>
+                <app-card class="public-form__meta-item">
                   <span>Total Question</span>
                   <strong>{{ form.total_question }}</strong>
-                </div>
-                <div *ngIf="isQuiz" class="public-form__meta-item">
+                </app-card>
+                <app-card *ngIf="isQuiz" class="public-form__meta-item">
                   <span>Max Point</span>
                   <strong>{{ form.max_point ?? 0 }}</strong>
-                </div>
-                <div *ngIf="isQuiz" class="public-form__meta-item">
+                </app-card>
+                <app-card *ngIf="isQuiz" class="public-form__meta-item">
                   <span>Passing Grade</span>
                   <strong>{{ form.passing_grade ?? 0 }}</strong>
-                </div>
-                <div *ngIf="isQuiz && hasStartedQuiz" class="public-form__meta-item public-form__meta-item--danger">
+                </app-card>
+                <app-card *ngIf="isQuiz && hasStartedQuiz" variant="danger" class="public-form__meta-item public-form__meta-item--danger">
                   <span>Sisa Waktu</span>
                   <strong>{{ countdownLabel }}</strong>
-                </div>
-                <div class="public-form__meta-item" *ngIf="progressRestored">
+                </app-card>
+                <app-card class="public-form__meta-item" *ngIf="progressRestored">
                   <span>Progress</span>
                   <strong>Dipulihkan dari sesi terakhir</strong>
-                </div>
-                <div *ngIf="isQuiz && form.lock_mode" class="public-form__meta-item public-form__meta-item--danger">
+                </app-card>
+                <app-card *ngIf="isQuiz && form.lock_mode" variant="danger" class="public-form__meta-item public-form__meta-item--danger">
                   <span>Lock Mode</span>
                   <strong>Aktif — wajib fullscreen</strong>
-                </div>
-                <div *ngIf="lockModeRequired" class="public-form__meta-item public-form__meta-item--danger">
+                </app-card>
+                <app-card *ngIf="lockModeRequired" variant="danger" class="public-form__meta-item public-form__meta-item--danger">
                   <span>Pelanggaran</span>
                   <strong>{{ violationCount }} / {{ maxViolations }}</strong>
-                </div>
+                </app-card>
               </div>
             </div>
 
@@ -163,18 +163,18 @@
               </div>
 
               <div class="public-form__welcome-grid">
-                <div class="public-form__welcome-card">
+                <app-card class="public-form__welcome-card">
                   <span>Durasi Quiz</span>
                   <strong>{{ formatPeriod() }}</strong>
-                </div>
-                <div class="public-form__welcome-card">
+                </app-card>
+                <app-card class="public-form__welcome-card">
                   <span>Jumlah Soal</span>
                   <strong>{{ form.total_question }}</strong>
-                </div>
-                <div class="public-form__welcome-card">
+                </app-card>
+                <app-card class="public-form__welcome-card">
                   <span>Passing Grade</span>
                   <strong>{{ form.passing_grade ?? 0 }}</strong>
-                </div>
+                </app-card>
               </div>
 
               <ul class="public-form__welcome-list">
@@ -185,11 +185,14 @@
                 <li>Sebelum submit final, kamu bisa review semua jawaban lebih dulu.</li>
               </ul>
 
-              <div class="public-form__actions public-form__actions--start">
-                <app-button variant="ghost" type="button" (click)="acknowledgeWelcome()">
-                  {{ welcomeAcknowledged ? 'Instruksi Sudah Dibaca' : 'Saya Sudah Baca Instruksi' }}
-                </app-button>
-              </div>
+              <label class="public-form__ack-checkbox">
+                <input
+                  type="checkbox"
+                  [checked]="welcomeAcknowledged"
+                  (change)="acknowledgeWelcome($any($event.target).checked)"
+                />
+                <span>Saya sudah membaca dan memahami instruksi di atas.</span>
+              </label>
 
               <form [formGroup]="accessForm" (ngSubmit)="startQuiz()">
                 <app-input

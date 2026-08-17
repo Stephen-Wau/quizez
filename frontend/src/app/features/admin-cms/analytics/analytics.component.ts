@@ -11,6 +11,7 @@ import {
   QuizAnalyticsResponse,
 } from './analytics.service';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
+import { CardComponent } from '../../../shared/ui/card/card.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
 import { DatetimePickerComponent } from '../../../shared/ui/datetime-picker/datetime-picker.component';
 import { SelectComponent, SelectOption } from '../../../shared/ui/select/select.component';
@@ -29,7 +30,7 @@ const GROUP_BY_OPTIONS: SelectOption[] = [
   selector: 'app-analytics',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, ReactiveFormsModule, ButtonComponent, InputComponent,
+    CommonModule, FormsModule, ReactiveFormsModule, ButtonComponent, CardComponent, InputComponent,
     DatetimePickerComponent, SelectComponent, LucideAngularModule,
   ],
   templateUrl: './analytics.component.html',
