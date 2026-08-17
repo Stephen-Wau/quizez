@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { NgxDatatableModule, SortEvent } from '@swimlane/ngx-datatable';
 import { LucideAngularModule } from 'lucide-angular';
 
+import { BadgeComponent, BadgeVariant } from '../badge/badge.component';
+
 // Definisi 1 kolom: `prop` buat nampilin value langsung, atau `cellTemplate` buat cell custom
 // (ex: format tanggal, tombol aksi). `prop` tetap wajib diisi biar sort jalan walau kolomnya
 // pakai cellTemplate custom (ngx-datatable sort berdasarkan `prop`, bukan hasil render template).
@@ -52,7 +54,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 @Component({
   selector: 'app-data-table',
   standalone: true,
-  imports: [CommonModule, FormsModule, NgxDatatableModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, NgxDatatableModule, LucideAngularModule, BadgeComponent],
   templateUrl: './data-table.component.html',
   styleUrl: './data-table.component.scss',
 })
@@ -143,11 +145,11 @@ export class DataTableComponent implements OnChanges {
     return (column.prop ?? '').trim().toLowerCase() === 'status' && !column.cellTemplate;
   }
 
-  statusBadgeClass(value: unknown): string {
+  statusBadgeVariant(value: unknown): BadgeVariant {
     const normalized = String(value ?? '').trim().toLowerCase();
-    if (normalized === 'active') return 'app-data-table__status-badge app-data-table__status-badge--active';
-    if (normalized === 'inactive') return 'app-data-table__status-badge app-data-table__status-badge--inactive';
-    return 'app-data-table__status-badge app-data-table__status-badge--neutral';
+    if (normalized === 'active') return 'emerald';
+    if (normalized === 'inactive') return 'gray';
+    return 'default';
   }
 
   // Kumpulin state search/sort/page jadi satu DataTableQuery & emit ke parent (mode serverSide).

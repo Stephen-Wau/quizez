@@ -51,9 +51,9 @@
           ></ng-container>
         </ng-container>
         <ng-template #plainValue>
-          <span *ngIf="isStatusColumn(col); else plainTextValue" [class]="statusBadgeClass(value)">
+          <app-badge *ngIf="isStatusColumn(col); else plainTextValue" [variant]="statusBadgeVariant(value)">
             {{ value || '-' }}
-          </span>
+          </app-badge>
           <ng-template #plainTextValue>{{ value }}</ng-template>
         </ng-template>
       </ng-template>

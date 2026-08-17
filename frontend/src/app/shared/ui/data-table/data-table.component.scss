@@ -166,32 +166,6 @@
       justify-content: flex-end;
     }
 
-    .app-data-table__status-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: capitalize;
-      white-space: nowrap;
-    }
-
-    .app-data-table__status-badge--active {
-      background: #dcfce7;
-      color: #166534;
-    }
-
-    .app-data-table__status-badge--inactive {
-      background: #e5e7eb;
-      color: #4b5563;
-    }
-
-    .app-data-table__status-badge--neutral {
-      background: #e2e8f0;
-      color: #475569;
-    }
-
     .empty-row {
       padding: var(--spacing-3);
       color: var(--color-text-muted);
