@@ -220,6 +220,88 @@
       </div>
     </section>
 
+    <section class="summary-detail__section" *ngIf="isQuiz">
+      <div class="summary-detail__section-head">
+        <div>
+          <h2>Leaderboard</h2>
+          <p>Ranking respondent berdasarkan skor tertinggi, tie-break durasi pengerjaan tercepat.</p>
+        </div>
+        <button
+          class="summary-detail__collapse"
+          type="button"
+          [class.summary-detail__collapse--active]="!collapsedSections.leaderboard"
+          (click)="toggleSection('leaderboard')"
+        >
+          <span>{{ collapsedSections.leaderboard ? 'Expand' : 'Collapse' }}</span>
+          <span class="summary-detail__collapse-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none">
+              <path d="M5 8L10 13L15 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+        </button>
+      </div>
+
+      <div
+        class="summary-detail__section-body"
+        [class.summary-detail__section-body--collapsed]="collapsedSections.leaderboard"
+      >
+        <div *ngIf="leaderboard.length === 0" class="summary-detail__empty">Belum ada submission bernilai untuk leaderboard.</div>
+
+        <ng-container *ngIf="leaderboard.length > 0">
+          <div class="summary-detail__podium">
+            <div
+              class="summary-detail__podium-slot"
+              *ngFor="let slot of podium"
+              [class.summary-detail__podium-slot--empty]="!slot.entry"
+              [attr.data-place]="slot.label"
+            >
+              <ng-container *ngIf="slot.entry as entry; else emptySlot">
+                <span class="summary-detail__podium-rank" [attr.data-tier]="entry.badge_tier">{{ slot.label }}</span>
+                <span class="summary-detail__podium-avatar" [attr.data-tier]="entry.badge_tier">
+                  {{ initials(entry.respondent_name || entry.respondent_email) }}
+                </span>
+                <strong class="summary-detail__podium-name">{{ entry.respondent_name || entry.respondent_email || 'Anonymous respondent' }}</strong>
+                <span class="summary-detail__podium-score">{{ entry.score }} pts</span>
+                <span class="summary-detail__podium-badge" [attr.data-tier]="entry.badge_tier">{{ badgeTierLabel(entry.badge_tier) }}</span>
+              </ng-container>
+              <ng-template #emptySlot>
+                <span class="summary-detail__podium-rank">{{ slot.label }}</span>
+                <span class="summary-detail__podium-avatar summary-detail__podium-avatar--empty">-</span>
+                <strong class="summary-detail__podium-name">Belum ada</strong>
+              </ng-template>
+            </div>
+          </div>
+
+          <div class="summary-detail__leaderboard-table-wrap" *ngIf="leaderboardTableEntries.length > 0">
+            <table class="summary-detail__leaderboard-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Respondent</th>
+                  <th>Score</th>
+                  <th>Badge</th>
+                  <th>Durasi</th>
+                  <th>Terkirim</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let entry of leaderboardTableEntries; trackBy: trackByLeaderboard">
+                  <td>#{{ entry.rank }}</td>
+                  <td>{{ entry.respondent_name || entry.respondent_email || 'Anonymous respondent' }}</td>
+                  <td>{{ entry.score }}<span *ngIf="entry.score_percentage !== null"> ({{ formatPercent(entry.score_percentage) }}%)</span></td>
+                  <td>
+                    <span class="summary-detail__leaderboard-badge" [attr.data-tier]="entry.badge_tier">{{ badgeTierLabel(entry.badge_tier) }}</span>
+                  </td>
+                  <td>{{ formatDuration(entry.duration_seconds) }}</td>
+                  <td>{{ entry.submitted_at || '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </ng-container>
+      </div>
+    </section>
+
     <section class="summary-detail__section">
       <div class="summary-detail__section-head">
         <div>

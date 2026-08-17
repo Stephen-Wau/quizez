@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import {
+  LeaderboardEntry,
   QuestionOptionSummary,
   QuestionSummary,
   QuizSummaryResponse,
@@ -25,12 +26,14 @@ export class SummaryDetailComponent implements OnInit {
   loading = true;
   loadError = '';
   summary: QuizSummaryResponse | null = null;
+  leaderboard: LeaderboardEntry[] = [];
   readonly chartColors = ['#4f46e5', '#7c3aed', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444'];
   collapsedSections = {
     overview: false,
     respondent: false,
     analytics: false,
     submissions: false,
+    leaderboard: false,
   };
 
   constructor(
@@ -229,6 +232,9 @@ export class SummaryDetailComponent implements OnInit {
       next: (summary) => {
         this.loading = false;
         this.summary = summary;
+        if (summary.quiz.type === 'quiz') {
+          this.loadLeaderboard(quizId);
+        }
       },
       error: (err) => {
         this.loading = false;
@@ -238,6 +244,67 @@ export class SummaryDetailComponent implements OnInit {
         this.toast.error(this.loadError);
       },
     });
+  }
+
+  private loadLeaderboard(quizId: number): void {
+    this.summaryService.getLeaderboard(quizId).subscribe({
+      next: (leaderboard) => {
+        this.leaderboard = leaderboard;
+      },
+      error: () => {
+        this.leaderboard = [];
+      },
+    });
+  }
+
+  trackByLeaderboard(_: number, item: LeaderboardEntry): number {
+    return item.submission_id;
+  }
+
+  // podium 3 rank teratas ditampilkan terpisah dari table, urutan tampil kiri-tengah-kanan = 3rd-1st-2nd
+  // (pola podium juara umum) biar rank 1 langsung kelihatan paling menonjol di tengah.
+  get podium(): Array<{ label: string; entry: LeaderboardEntry | null }> {
+    return [
+      { label: '3rd', entry: this.leaderboard[2] ?? null },
+      { label: '1st', entry: this.leaderboard[0] ?? null },
+      { label: '2nd', entry: this.leaderboard[1] ?? null },
+    ];
+  }
+
+  // leaderboardTableEntries rank ke-4 dst -- 3 rank teratas udah punya tampilan sendiri di podium.
+  get leaderboardTableEntries(): LeaderboardEntry[] {
+    return this.leaderboard.slice(3);
+  }
+
+  initials(name: string | null): string {
+    const trimmed = (name ?? '').trim();
+    if (!trimmed) return '?';
+    return trimmed
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('');
+  }
+
+  // formatDuration ubah durasi detik pengerjaan jadi format mm:ss biar gampang dibaca di leaderboard.
+  formatDuration(seconds: number | null): string {
+    if (seconds === null || seconds < 0) return '-';
+    const minutes = Math.floor(seconds / 60);
+    const remaining = seconds % 60;
+    return `${minutes}m ${remaining}s`;
+  }
+
+  badgeTierLabel(tier: LeaderboardEntry['badge_tier']): string {
+    switch (tier) {
+      case 'gold':
+        return 'GOLD';
+      case 'silver':
+        return 'SILVER';
+      case 'bronze':
+        return 'BRONZE';
+      default:
+        return '-';
+    }
   }
 
   formatDateTime(value: string | null): string {

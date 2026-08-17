@@ -98,6 +98,19 @@ export interface QuizSubmissionDetailResponse {
   submission: SubmissionSummary;
 }
 
+// LeaderboardEntry 1 baris ranking respondent quiz (gamifikasi) -- score tertinggi, tie-break durasi tercepat.
+export interface LeaderboardEntry {
+  rank: number;
+  submission_id: number;
+  respondent_name: string | null;
+  respondent_email: string | null;
+  score: number;
+  score_percentage: number | null;
+  badge_tier: 'gold' | 'silver' | 'bronze' | null;
+  duration_seconds: number | null;
+  submitted_at: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SummaryService {
   private baseUrl = `${environment.apiUrl}/api/quizzes`;
@@ -112,5 +125,10 @@ export class SummaryService {
   // Drill-down detail satu submission respondent dari halaman summary.
   getSubmissionDetail(quizId: number, submissionId: number): Observable<QuizSubmissionDetailResponse> {
     return this.http.get<QuizSubmissionDetailResponse>(`${this.baseUrl}/${quizId}/submissions/${submissionId}`);
+  }
+
+  // Ranking leaderboard 1 quiz (gamifikasi), admin only.
+  getLeaderboard(quizId: number): Observable<LeaderboardEntry[]> {
+    return this.http.get<LeaderboardEntry[]>(`${this.baseUrl}/${quizId}/leaderboard`);
   }
 }
