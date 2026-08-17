@@ -183,41 +183,120 @@ func badgeTierLabel(tier string) string {
 	}
 }
 
-// BuildCertificatePDF susun sertifikat 1 halaman landscape (judul, nama respondent, skor, badge
-// tier) -- dipakai handler download sertifikat publik setelah submit quiz.
+// badgeTierColor RGB aksen warna per tier badge -- dipakai buat garis dekoratif & kotak badge
+// di sertifikat, biar gold/silver/bronze keliatan beda dari sekadar teks.
+func badgeTierColor(tier string) (int, int, int) {
+	switch tier {
+	case BadgeTierGold:
+		return 180, 130, 20
+	case BadgeTierSilver:
+		return 100, 116, 139
+	default:
+		return 154, 82, 18
+	}
+}
+
+// BuildCertificatePDF susun sertifikat 1 halaman landscape dengan border ganda, garis dekoratif,
+// dan badge box berwarna sesuai tier -- dipakai handler download sertifikat publik setelah submit quiz.
 func BuildCertificatePDF(data CertificateData) ([]byte, error) {
 	pdf := fpdf.New("L", "mm", "A4", "")
 	pdf.AddPage()
 
 	pageWidth, pageHeight := pdf.GetPageSize()
-	pdf.SetLineWidth(1.5)
-	pdf.Rect(8, 8, pageWidth-16, pageHeight-16, "D")
+	accentR, accentG, accentB := 67, 56, 202 // indigo, senada sama warna aksen sidebar admin (#4338CA)
+	tierR, tierG, tierB := badgeTierColor(data.BadgeTier)
 
-	pdf.SetY(30)
+	// Border ganda: garis luar tebal warna indigo, garis dalam tipis dengan jarak, biar kesan
+	// "frame sertifikat" -- bukan cuma kotak polos.
+	pdf.SetDrawColor(accentR, accentG, accentB)
+	pdf.SetLineWidth(1.2)
+	pdf.Rect(8, 8, pageWidth-16, pageHeight-16, "D")
+	pdf.SetLineWidth(0.4)
+	pdf.Rect(12, 12, pageWidth-24, pageHeight-24, "D")
+
+	centerX := pageWidth / 2
+
+	pdf.SetY(28)
+	pdf.SetTextColor(accentR, accentG, accentB)
 	pdf.SetFont("Arial", "B", 28)
 	pdf.CellFormat(0, 14, "SERTIFIKAT PENGHARGAAN", "", 1, "C", false, 0, "")
 
-	pdf.SetFont("Arial", "", 12)
+	// Garis dekoratif pendek di bawah judul, biar gak langsung nabrak ke teks berikutnya.
+	lineWidth := 60.0
+	pdf.Line(centerX-lineWidth/2, pdf.GetY()+2, centerX+lineWidth/2, pdf.GetY()+2)
+	pdf.Ln(10)
+
+	pdf.SetTextColor(60, 60, 60)
+	pdf.SetFont("Arial", "I", 12)
 	pdf.CellFormat(0, 10, "Diberikan kepada", "", 1, "C", false, 0, "")
 
-	pdf.Ln(4)
-	pdf.SetFont("Arial", "B", 24)
+	pdf.Ln(2)
+	pdf.SetTextColor(20, 20, 20)
+	pdf.SetFont("Arial", "B", 26)
 	pdf.CellFormat(0, 14, export.SanitizePDFText(data.RespondentName), "", 1, "C", false, 0, "")
 
-	pdf.Ln(4)
+	pdf.SetTextColor(60, 60, 60)
 	pdf.SetFont("Arial", "", 12)
 	pdf.CellFormat(0, 8, export.SanitizePDFText(fmt.Sprintf("atas partisipasi dan hasil yang diraih dalam quiz \"%s\"", data.QuizTitle)), "", 1, "C", false, 0, "")
 
-	pdf.Ln(6)
+	pdf.Ln(8)
+
+	// Skor & badge disusun sejajar di tengah halaman (bukan ditumpuk vertikal) biar lebih rapi
+	// dibaca sebagai satu "kartu hasil", bukan daftar teks.
+	scoreText := export.SanitizePDFText(fmt.Sprintf("Skor: %d / %d (%.2f%%)", data.Score, data.MaxPoint, data.ScorePercentage))
 	pdf.SetFont("Arial", "B", 16)
-	pdf.CellFormat(0, 10, export.SanitizePDFText(fmt.Sprintf("Skor: %d / %d (%.2f%%)", data.Score, data.MaxPoint, data.ScorePercentage)), "", 1, "C", false, 0, "")
+	scoreWidth := pdf.GetStringWidth(scoreText)
 
-	pdf.SetFont("Arial", "B", 14)
-	pdf.CellFormat(0, 10, export.SanitizePDFText(fmt.Sprintf("Badge: %s", badgeTierLabel(data.BadgeTier))), "", 1, "C", false, 0, "")
+	badgeLabel := badgeTierLabel(data.BadgeTier)
+	pdf.SetFont("Arial", "B", 12)
+	badgeTextWidth := pdf.GetStringWidth(badgeLabel)
+	badgeBoxWidth := badgeTextWidth + 16
+	badgeBoxHeight := 9.0
 
-	pdf.Ln(10)
+	gap := 10.0
+	rowY := pdf.GetY()
+	rowWidth := scoreWidth + gap + badgeBoxWidth
+	startX := centerX - rowWidth/2
+
+	pdf.SetTextColor(20, 20, 20)
+	pdf.SetFont("Arial", "B", 16)
+	pdf.SetXY(startX, rowY+1)
+	pdf.CellFormat(scoreWidth, 8, scoreText, "", 0, "L", false, 0, "")
+
+	badgeX := startX + scoreWidth + gap
+	pdf.SetFillColor(tierR, tierG, tierB)
+	pdf.RoundedRect(badgeX, rowY, badgeBoxWidth, badgeBoxHeight, 2, "1234", "F")
+	pdf.SetTextColor(255, 255, 255)
+	pdf.SetXY(badgeX, rowY)
+	pdf.CellFormat(badgeBoxWidth, badgeBoxHeight, badgeLabel, "", 0, "C", false, 0, "")
+
+	pdf.SetY(rowY + badgeBoxHeight + 14)
+
+	// Footer 2 kolom: tanggal di kiri, "stempel" lingkaran nama platform di kanan -- pola umum
+	// sertifikat (kolom tanda tangan/tanggal kiri-kanan) tapi disederhanain jadi teks + seal bulat.
+	footerY := pageHeight - 34
+	pdf.SetDrawColor(accentR, accentG, accentB)
+	pdf.SetLineWidth(0.3)
+
+	leftX := 40.0
+	pdf.Line(leftX, footerY, leftX+70, footerY)
+	pdf.SetXY(leftX, footerY+2)
+	pdf.SetTextColor(60, 60, 60)
 	pdf.SetFont("Arial", "", 10)
-	pdf.CellFormat(0, 6, export.SanitizePDFText(fmt.Sprintf("Diselesaikan pada: %s", data.SubmittedAt)), "", 1, "C", false, 0, "")
+	pdf.CellFormat(70, 6, export.SanitizePDFText(fmt.Sprintf("Diselesaikan pada: %s", data.SubmittedAt)), "", 0, "C", false, 0, "")
+
+	sealX := pageWidth - 55.0
+	sealY := footerY - 8
+	pdf.SetDrawColor(accentR, accentG, accentB)
+	pdf.SetLineWidth(0.6)
+	pdf.Circle(sealX, sealY, 12, "D")
+	pdf.SetTextColor(accentR, accentG, accentB)
+	pdf.SetFont("Arial", "B", 9)
+	pdf.SetXY(sealX-12, sealY-3)
+	pdf.CellFormat(24, 6, "QUIZEZ", "", 1, "C", false, 0, "")
+	pdf.SetFont("Arial", "", 7)
+	pdf.SetXY(sealX-12, sealY+1)
+	pdf.CellFormat(24, 5, "VERIFIED", "", 0, "C", false, 0, "")
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
