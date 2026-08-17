@@ -71,6 +71,7 @@ func main() {
 	mux.HandleFunc("/api/question-bank/import-template", withCORS(cfg.FrontendOrigin, auth.RequireAuth(cfg.JWTSecret, handlers.QuestionBankImportTemplateHandler())))
 	mux.HandleFunc("/api/public/quizzes/{token}", withCORS(cfg.FrontendOrigin, handlers.PublicQuizHandler(conn)))
 	mux.HandleFunc("/api/public/quizzes/{token}/submit", withCORS(cfg.FrontendOrigin, handlers.PublicQuizSubmitHandler(conn)))
+	mux.HandleFunc("/api/public/quizzes/{token}/submissions/{submissionId}/certificate", withCORS(cfg.FrontendOrigin, handlers.PublicSubmissionCertificateHandler(conn)))
 
 	addr := "127.0.0.1:" + cfg.AppPort
 	log.Printf("quizez backend listening on %s", addr)

@@ -96,6 +96,9 @@ type PublicSubmissionResult struct {
 	PassingGrade      *int                           `json:"passing_grade"`
 	ScorePercentage   *float64                       `json:"score_percentage"`
 	Passed            *bool                          `json:"passed"`
+	// BadgeTier tier gamifikasi (gold/silver/bronze) dihitung dari ScorePercentage, nil kalau quiz
+	// gak punya scoring (survey atau max_point belum di-set).
+	BadgeTier         *string                        `json:"badge_tier"`
 	CorrectAnswers    int                            `json:"correct_answers"`
 	AnsweredQuestions int                            `json:"answered_questions"`
 	TotalQuestions    int                            `json:"total_questions"`
@@ -333,7 +336,7 @@ func ValidateQuizShareAccessCode(share QuizShare, accessCode *string) bool {
 
 // SavePublicSubmission simpan satu submit publik beserta semua jawabannya dalam transaction yang
 // sama, sekaligus menghitung score quiz pilihan ganda tanpa membocorkan kunci jawaban ke FE.
-func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []PublicSubmissionAnswerInput, startedAt *time.Time, now time.Time, attemptSeed string, deviceFingerprint *string, violationCount int) (PublicSubmissionResult, error) {
+func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, name *string, answers []PublicSubmissionAnswerInput, startedAt *time.Time, now time.Time, attemptSeed string, deviceFingerprint *string, violationCount int) (PublicSubmissionResult, error) {
 	questions, err := ListQuestionsByQuiz(db, quiz.ID)
 	if err != nil {
 		return PublicSubmissionResult{}, err
@@ -603,6 +606,10 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 	if email != nil && strings.TrimSpace(*email) != "" {
 		emailValue = strings.ToLower(strings.TrimSpace(*email))
 	}
+	nameValue := interface{}(nil)
+	if name != nil && strings.TrimSpace(*name) != "" {
+		nameValue = strings.TrimSpace(*name)
+	}
 	startedAtValue := now
 	if startedAt != nil && !startedAt.IsZero() && !startedAt.After(now) {
 		startedAtValue = *startedAt
@@ -615,8 +622,8 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 	}
 
 	res, err := tx.Exec(
-		"INSERT INTO quiz_submissions (quiz_id, respondent_email, device_fingerprint, score, violation_count, started_at, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		quiz.ID, emailValue, fingerprintValue, scoreValue, violationCount, startedAtValue, now,
+		"INSERT INTO quiz_submissions (quiz_id, respondent_email, respondent_name, device_fingerprint, score, violation_count, started_at, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		quiz.ID, emailValue, nameValue, fingerprintValue, scoreValue, violationCount, startedAtValue, now,
 	)
 	if err != nil {
 		return PublicSubmissionResult{}, err
@@ -657,6 +664,7 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 	var resultScore *int
 	var passed *bool
 	var scorePercentage *float64
+	var badgeTier *string
 	message := "Terima kasih, jawaban berhasil dikirim."
 	if isQuizSubmission {
 		resultScore = &score
@@ -664,6 +672,7 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 		if quiz.MaxPoint != nil && *quiz.MaxPoint > 0 {
 			percentage := roundFloat((float64(score) / float64(*quiz.MaxPoint)) * 100)
 			scorePercentage = &percentage
+			badgeTier = ResolveBadgeTier(scorePercentage)
 		}
 		if quiz.PassingGrade != nil {
 			isPassed := score >= *quiz.PassingGrade
@@ -699,6 +708,7 @@ func SavePublicSubmission(db *sql.DB, quiz Quiz, email *string, answers []Public
 		PassingGrade:      quiz.PassingGrade,
 		ScorePercentage:   scorePercentage,
 		Passed:            passed,
+		BadgeTier:         badgeTier,
 		CorrectAnswers:    correctAnswers,
 		AnsweredQuestions: answeredQuestions,
 		TotalQuestions:    len(questions),

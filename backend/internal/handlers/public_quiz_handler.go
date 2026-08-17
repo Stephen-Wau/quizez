@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/mail"
 	"strconv"
@@ -14,7 +15,9 @@ import (
 )
 
 type publicSubmissionRequest struct {
-	Email      *string `json:"email"`
+	Email *string `json:"email"`
+	// Name nama respondent, wajib untuk quiz (dipakai cetak sertifikat & leaderboard).
+	Name       *string `json:"name"`
 	StartedAt  *string `json:"started_at"`
 	AccessCode *string `json:"access_code"`
 	// AttemptSeed dipakai untuk recompute subset random_question_count yang sama persis dengan
@@ -170,6 +173,11 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}
+		name, msg := validatePublicSubmissionName(publicQuiz, req.Name)
+		if msg != "" {
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
 		startedAt, msg := validatePublicSubmissionStartedAt(req.StartedAt)
 		if msg != "" {
 			http.Error(w, msg, http.StatusBadRequest)
@@ -242,7 +250,7 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 		if req.ViolationCount != nil && *req.ViolationCount > 0 {
 			violationCount = *req.ViolationCount
 		}
-		result, err := models.SavePublicSubmission(db, quiz, email, inputs, startedAt, now, attemptSeed, req.DeviceFingerprint, violationCount)
+		result, err := models.SavePublicSubmission(db, quiz, email, name, inputs, startedAt, now, attemptSeed, req.DeviceFingerprint, violationCount)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 				http.Error(w, "Email atau device ini sudah pernah mengirim quiz ini.", http.StatusConflict)
@@ -255,6 +263,54 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(result)
+	}
+}
+
+// PublicSubmissionCertificateHandler generate PDF sertifikat 1 submission quiz publik. Divalidasi
+// lewat token share (bukan cuma submission id) biar cuma submission milik quiz yang sama yang bisa diakses.
+func PublicSubmissionCertificateHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		token := strings.TrimSpace(r.PathValue("token"))
+		submissionID, err := strconv.ParseInt(r.PathValue("submissionId"), 10, 64)
+		if token == "" || err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+
+		share, err := models.GetQuizShareByToken(db, token)
+		if errors.Is(err, sql.ErrNoRows) || share.QuizID == nil {
+			http.Error(w, "Link tidak ditemukan.", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, "failed to load certificate", http.StatusInternalServerError)
+			return
+		}
+
+		data, err := models.GetCertificateData(db, *share.QuizID, submissionID)
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "Sertifikat tidak tersedia untuk submission ini.", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, "failed to load certificate", http.StatusInternalServerError)
+			return
+		}
+
+		pdfBytes, err := models.BuildCertificatePDF(data)
+		if err != nil {
+			http.Error(w, "failed to build certificate", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="sertifikat-submission-%d.pdf"`, submissionID))
+		w.Write(pdfBytes)
 	}
 }
 
@@ -301,6 +357,19 @@ func validatePublicSubmissionEmail(quiz models.PublicQuiz, email *string) (*stri
 		return nil, "Format email tidak valid."
 	}
 	return &normalized, ""
+}
+
+// validatePublicSubmissionName mewajibkan nama untuk tipe quiz (dipakai cetak sertifikat &
+// leaderboard), sementara survey boleh kosong karena gak ada sertifikat/leaderboard buat survey.
+func validatePublicSubmissionName(quiz models.PublicQuiz, name *string) (*string, string) {
+	if quiz.Type == nil || *quiz.Type != "quiz" {
+		return nil, ""
+	}
+	if name == nil || strings.TrimSpace(*name) == "" {
+		return nil, "Nama wajib diisi sebelum mulai quiz."
+	}
+	trimmed := strings.TrimSpace(*name)
+	return &trimmed, ""
 }
 
 // stringValue bantu baca pointer string handler tanpa perlu ngecek nil berulang.

@@ -77,6 +77,7 @@ type QuestionTextResponse struct {
 
 type SubmissionSummary struct {
 	ID                   int64                    `json:"id"`
+	RespondentName       *string                  `json:"respondent_name"`
 	RespondentEmail      *string                  `json:"respondent_email"`
 	Score                *int                     `json:"score"`
 	PassingGrade         *int                     `json:"passing_grade"`
@@ -183,7 +184,7 @@ func GetQuizSubmissionDetail(db *sql.DB, quizID int64, submissionID int64) (Quiz
 // tabel summary FE langsung enak dipindai tanpa sort tambahan.
 func listSubmissionSummaries(db *sql.DB, quizID int64) ([]SubmissionSummary, error) {
 	rows, err := db.Query(
-		"SELECT id, respondent_email, score, started_at, submitted_at FROM quiz_submissions WHERE quiz_id = ? ORDER BY submitted_at DESC, id DESC",
+		"SELECT id, respondent_name, respondent_email, score, started_at, submitted_at FROM quiz_submissions WHERE quiz_id = ? ORDER BY submitted_at DESC, id DESC",
 		quizID,
 	)
 	if err != nil {
@@ -195,14 +196,16 @@ func listSubmissionSummaries(db *sql.DB, quizID int64) ([]SubmissionSummary, err
 	for rows.Next() {
 		var (
 			item        SubmissionSummary
+			name        sql.NullString
 			email       sql.NullString
 			score       sql.NullInt64
 			startedAt   sql.NullTime
 			submittedAt sql.NullTime
 		)
-		if err := rows.Scan(&item.ID, &email, &score, &startedAt, &submittedAt); err != nil {
+		if err := rows.Scan(&item.ID, &name, &email, &score, &startedAt, &submittedAt); err != nil {
 			return nil, err
 		}
+		item.RespondentName = nullableString(name)
 		item.RespondentEmail = nullableString(email)
 		if score.Valid {
 			v := int(score.Int64)
