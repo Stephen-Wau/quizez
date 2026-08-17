@@ -82,6 +82,10 @@ export class QuestionBankComponent implements OnInit {
   answerSectionError = '';
 
   allTags: string[] = [];
+  // Property biasa (bukan getter!) -- app-select pakai *ngFor tanpa trackBy, getter yang balikin
+  // array+object baru tiap change-detection cycle bikin klik opsi dropdown bisa "ilang" (lihat
+  // pola sama yang di-fix di analytics.component.ts / data-table.component.ts).
+  tagOptions: SelectOption[] = [{ label: 'Semua Tag', value: '' }];
   activeTag = '';
 
   importFiles: UploadedFile[] = [];
@@ -134,11 +138,6 @@ export class QuestionBankComponent implements OnInit {
     return this.form.get('answers') as FormArray<FormGroup>;
   }
 
-  // Opsi dropdown filter tag Bank Soal, "Semua Tag" selalu jadi pilihan pertama.
-  get tagOptions(): SelectOption[] {
-    return [{ label: 'Semua Tag', value: '' }, ...this.allTags.map((tag) => ({ label: tag, value: tag }))];
-  }
-
   get isOptionBased(): boolean {
     const type = this.form.get('type_answer')?.value;
     return type === 'multiple_choice' || type === 'dropdown' || type === 'checkbox';
@@ -172,7 +171,10 @@ export class QuestionBankComponent implements OnInit {
 
   loadTags(): void {
     this.questionBankService.listTags().subscribe({
-      next: (tags) => (this.allTags = tags),
+      next: (tags) => {
+        this.allTags = tags;
+        this.tagOptions = [{ label: 'Semua Tag', value: '' }, ...tags.map((tag) => ({ label: tag, value: tag }))];
+      },
       error: () => this.toast.error('Gagal memuat daftar tag.'),
     });
   }

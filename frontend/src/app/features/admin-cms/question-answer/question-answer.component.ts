@@ -106,6 +106,10 @@ export class QuestionAnswerComponent implements OnInit {
   bankTotalCount = 0;
   bankPageSize = 10;
   bankAllTags: string[] = [];
+  // Property biasa (bukan getter!) -- app-select pakai *ngFor tanpa trackBy, getter yang balikin
+  // array+object baru tiap change-detection cycle bikin klik opsi dropdown bisa "ilang" (lihat
+  // pola sama yang di-fix di analytics.component.ts / data-table.component.ts).
+  bankTagOptions: SelectOption[] = [{ label: 'Semua Tag', value: '' }];
   bankActiveTag = '';
   selectedBankIds = new Set<number>();
   private bankQuery: DataTableQuery = {};
@@ -167,11 +171,6 @@ export class QuestionAnswerComponent implements OnInit {
 
   get matrixRowsArray(): FormArray<FormGroup> {
     return this.form.get('matrix_rows') as FormArray<FormGroup>;
-  }
-
-  // Opsi dropdown filter tag Bank Soal, "Semua Tag" selalu jadi pilihan pertama.
-  get bankTagOptions(): SelectOption[] {
-    return [{ label: 'Semua Tag', value: '' }, ...this.bankAllTags.map((tag) => ({ label: tag, value: tag }))];
   }
 
   // Ambil pesan error form control umum (required/min/dll) biar template tetap ringkas.
@@ -272,7 +271,10 @@ export class QuestionAnswerComponent implements OnInit {
     this.isBankPickerOpen = true;
     this.loadBankItems();
     this.questionBankService.listTags().subscribe({
-      next: (tags) => (this.bankAllTags = tags),
+      next: (tags) => {
+        this.bankAllTags = tags;
+        this.bankTagOptions = [{ label: 'Semua Tag', value: '' }, ...tags.map((tag) => ({ label: tag, value: tag }))];
+      },
       error: () => this.toast.error('Gagal memuat daftar tag.'),
     });
   }

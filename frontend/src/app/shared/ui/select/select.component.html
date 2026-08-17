@@ -16,7 +16,7 @@
 
     <ul class="select__panel" *ngIf="isOpen">
       <li
-        *ngFor="let option of options"
+        *ngFor="let option of options; trackBy: trackByValue"
         class="select__option"
         [class.select__option--active]="isSelected(option)"
         (click)="selectOption(option)"

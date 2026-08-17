@@ -85,6 +85,14 @@ export class SelectComponent implements ControlValueAccessor {
     return option.value === this.value;
   }
 
+  // trackBy by value (bukan index/reference) -- parent yang nyuplai [options] lewat getter/method
+  // call di template bakal ngirim array+object baru tiap change-detection cycle. Tanpa trackBy ini,
+  // *ngFor ngancurin & bikin ulang semua <li> tiap cycle, yang bisa bikin klik opsi "ilang" kalau
+  // itu kejadian pas mousedown-mouseup lagi jalan (lihat juga fix serupa di analytics.component.ts).
+  trackByValue(_: number, option: SelectOption): unknown {
+    return option.value;
+  }
+
   // Tutup panel kalau user klik di luar komponen ini (dropdown gak punya backdrop sendiri,
   // jadi listener di document yang jaga klik luar).
   @HostListener('document:click', ['$event'])

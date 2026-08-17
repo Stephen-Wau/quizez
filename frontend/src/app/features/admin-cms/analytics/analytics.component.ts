@@ -38,6 +38,11 @@ const GROUP_BY_OPTIONS: SelectOption[] = [
 })
 export class AnalyticsComponent implements OnInit {
   quizzes: Quiz[] = [];
+  // Property biasa (bukan getter!) -- app-select pakai *ngFor tanpa trackBy, getter yang balikin
+  // array+object baru tiap change-detection cycle bikin li dropdown kehancur-bikin ulang terus,
+  // yang bisa bikin klik opsi "ilang" kalau kejadian pas mousedown-mouseup lagi jalan (lihat pola
+  // yang sama di data-table.component.ts).
+  quizOptions: SelectOption[] = [];
   selectedQuizId: number | null = null;
   groupByOptions = GROUP_BY_OPTIONS;
   analytics: QuizAnalyticsResponse | null = null;
@@ -68,6 +73,7 @@ export class AnalyticsComponent implements OnInit {
     this.quizService.list({ per_page: 100, sort_by: 'title', sort_dir: 'asc' }).subscribe({
       next: (result) => {
         this.quizzes = result.data;
+        this.quizOptions = this.quizzes.map((quiz) => ({ label: quiz.title || '(Tanpa judul)', value: quiz.id }));
         if (this.quizzes.length > 0) {
           this.selectedQuizId = this.quizzes[0].id;
           this.loadAnalytics();
@@ -75,11 +81,6 @@ export class AnalyticsComponent implements OnInit {
       },
       error: () => this.toast.error('Gagal memuat daftar quiz.'),
     });
-  }
-
-  // Opsi dropdown app-select buat pemilih quiz, dibangun dari daftar quiz yang lagi ke-load.
-  get quizOptions(): SelectOption[] {
-    return this.quizzes.map((quiz) => ({ label: quiz.title || '(Tanpa judul)', value: quiz.id }));
   }
 
   // Dipanggil pas user ganti pilihan quiz di dropdown; muat ulang analytics buat quiz yang baru dipilih.
