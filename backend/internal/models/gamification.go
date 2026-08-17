@@ -31,6 +31,86 @@ func ResolveBadgeTier(scorePercentage *float64) *string {
 	return &tier
 }
 
+// LeaderboardEntry 1 baris ranking respondent quiz, sudah termasuk badge tier & durasi pengerjaan.
+type LeaderboardEntry struct {
+	Rank            int      `json:"rank"`
+	SubmissionID    int64    `json:"submission_id"`
+	RespondentName  *string  `json:"respondent_name"`
+	RespondentEmail *string  `json:"respondent_email"`
+	Score           int      `json:"score"`
+	ScorePercentage *float64 `json:"score_percentage"`
+	BadgeTier       *string  `json:"badge_tier"`
+	DurationSeconds *int64   `json:"duration_seconds"`
+	SubmittedAt     *string  `json:"submitted_at"`
+}
+
+// GetQuizLeaderboard ranking submission 1 quiz berdasarkan score tertinggi, tie-break durasi
+// pengerjaan tercepat (started_at ke submitted_at). Survey gak punya score jadi selalu balikin kosong.
+func GetQuizLeaderboard(db *sql.DB, quizID int64) ([]LeaderboardEntry, error) {
+	quiz, err := GetQuizByID(db, quizID)
+	if err != nil {
+		return nil, err
+	}
+	if quiz.Type == nil || *quiz.Type != "quiz" {
+		return []LeaderboardEntry{}, nil
+	}
+
+	rows, err := db.Query(
+		`SELECT id, respondent_name, respondent_email, score, started_at, submitted_at,
+			TIMESTAMPDIFF(SECOND, started_at, submitted_at) AS duration_seconds
+		FROM quiz_submissions
+		WHERE quiz_id = ? AND score IS NOT NULL
+		ORDER BY score DESC, duration_seconds ASC, submitted_at ASC`,
+		quizID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	entries := []LeaderboardEntry{}
+	for rows.Next() {
+		var (
+			id              int64
+			name            sql.NullString
+			email           sql.NullString
+			score           int
+			startedAt       sql.NullTime
+			submittedAt     sql.NullTime
+			durationSeconds sql.NullInt64
+		)
+		if err := rows.Scan(&id, &name, &email, &score, &startedAt, &submittedAt, &durationSeconds); err != nil {
+			return nil, err
+		}
+
+		entry := LeaderboardEntry{
+			SubmissionID:    id,
+			RespondentName:  nullableString(name),
+			RespondentEmail: nullableString(email),
+			Score:           score,
+			SubmittedAt:     nullableTime(submittedAt),
+		}
+		if durationSeconds.Valid {
+			v := durationSeconds.Int64
+			entry.DurationSeconds = &v
+		}
+		if quiz.MaxPoint != nil && *quiz.MaxPoint > 0 {
+			percentage := roundFloat((float64(score) / float64(*quiz.MaxPoint)) * 100)
+			entry.ScorePercentage = &percentage
+		}
+		entry.BadgeTier = ResolveBadgeTier(entry.ScorePercentage)
+		entries = append(entries, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for i := range entries {
+		entries[i].Rank = i + 1
+	}
+	return entries, nil
+}
+
 // CertificateData data siap-pakai buat cetak sertifikat PDF 1 submission.
 type CertificateData struct {
 	QuizTitle       string

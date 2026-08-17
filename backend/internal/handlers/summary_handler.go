@@ -39,6 +39,36 @@ func QuizSummaryHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+// QuizLeaderboardHandler balikin ranking submission 1 quiz (score tertinggi, tie-break durasi
+// pengerjaan tercepat) buat panel gamifikasi di menu Summary admin.
+func QuizLeaderboardHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid id", http.StatusBadRequest)
+			return
+		}
+
+		leaderboard, err := models.GetQuizLeaderboard(db, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "Quiz tidak ditemukan.", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, "failed to load leaderboard", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(leaderboard)
+	}
+}
+
 // QuizSubmissionDetailHandler balikin detail lengkap satu submission untuk drill-down per respondent.
 func QuizSubmissionDetailHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
