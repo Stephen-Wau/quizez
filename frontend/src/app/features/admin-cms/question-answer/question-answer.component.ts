@@ -24,6 +24,7 @@ import {
   DataTableComponent,
   DataTableQuery,
 } from '../../../shared/ui/data-table/data-table.component';
+import { BadgeComponent } from '../../../shared/ui/badge/badge.component';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
@@ -61,6 +62,7 @@ const BOOLEAN_ANSWER_OPTIONS: SelectOption[] = [
     FormsModule,
     ReactiveFormsModule,
     LucideAngularModule,
+    BadgeComponent,
     DataTableComponent,
     ButtonComponent,
     ModalComponent,

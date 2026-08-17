@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 
+import { BadgeComponent } from '../../../shared/ui/badge/badge.component';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import {
@@ -13,7 +14,7 @@ import {
 @Component({
   selector: 'app-summary-submission-detail',
   standalone: true,
-  imports: [CommonModule, ButtonComponent],
+  imports: [CommonModule, ButtonComponent, BadgeComponent],
   templateUrl: './summary-submission-detail.component.html',
   styleUrl: './summary-submission-detail.component.scss',
 })

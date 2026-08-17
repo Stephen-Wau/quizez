@@ -6,7 +6,7 @@
 </div>
 
 <ng-template #typeTpl let-value="value">
-  <span class="summary-page__badge" [class.summary-page__badge--survey]="value === 'survey'">{{ value || '-' }}</span>
+  <app-badge [variant]="value === 'survey' ? 'gray' : 'indigo'">{{ value || '-' }}</app-badge>
 </ng-template>
 
 <ng-template #periodTpl let-row="row">

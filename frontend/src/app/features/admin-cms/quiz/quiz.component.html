@@ -7,7 +7,7 @@
 </div>
 
 <ng-template #typeTpl let-value="value">
-  <span class="quiz__badge" [class.quiz__badge--survey]="value === 'survey'">{{ value || '-' }}</span>
+  <app-badge [variant]="value === 'survey' ? 'gray' : 'indigo'">{{ value || '-' }}</app-badge>
 </ng-template>
 
 <ng-template #periodTpl let-row="row">
@@ -15,11 +15,9 @@
 </ng-template>
 
 <ng-template #statusTpl let-value="value">
-  <span
-    class="quiz__status-badge"
-    [class.quiz__status-badge--inactive]="value === 'inactive'"
-    [class.quiz__status-badge--closed]="value === 'closed'"
-  >{{ value || '-' }}</span>
+  <app-badge [variant]="value === 'inactive' ? 'gray' : (value === 'closed' ? 'rose' : 'emerald')">
+    {{ value || '-' }}
+  </app-badge>
 </ng-template>
 
 <ng-template #aksiTpl let-row="row">

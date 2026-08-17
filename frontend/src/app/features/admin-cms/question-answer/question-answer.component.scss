@@ -27,21 +27,6 @@
   font-size: 0.85rem;
 }
 
-.question-page__badge {
-  display: inline-block;
-  padding: 2px var(--spacing-2);
-  border-radius: var(--radius);
-  background: var(--color-primary);
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: capitalize;
-
-  &--survey {
-    background: var(--color-text-muted);
-  }
-}
-
 .question-page__modal {
   display: flex;
   flex-direction: column;

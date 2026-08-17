@@ -61,9 +61,9 @@
 </section>
 
 <ng-template #adminRoleTpl let-row="row">
-  <span class="collaboration__role-badge" [class.collaboration__role-badge--super]="row.role === 'super_admin'">
+  <app-badge [variant]="row.role === 'super_admin' ? 'indigo' : 'gray'">
     {{ roleLabel(row.role) }}
-  </span>
+  </app-badge>
 </ng-template>
 
 <ng-template #adminActionTpl let-row="row">

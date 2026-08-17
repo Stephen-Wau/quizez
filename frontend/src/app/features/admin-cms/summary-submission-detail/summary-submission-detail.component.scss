@@ -114,25 +114,6 @@
   margin-bottom: 10px;
 }
 
-.submission-detail__badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.submission-detail__badge--pass {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.submission-detail__badge--fail {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
 .submission-detail__answer-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

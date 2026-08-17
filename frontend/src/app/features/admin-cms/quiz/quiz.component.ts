@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 
 import { Quiz, QuizPayload, QuizService } from './quiz.service';
+import { BadgeComponent } from '../../../shared/ui/badge/badge.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
 import { DatetimePickerComponent } from '../../../shared/ui/datetime-picker/datetime-picker.component';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
@@ -35,6 +36,7 @@ const STATUS_OPTIONS: SelectOption[] = [
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    BadgeComponent,
     InputComponent,
     DatetimePickerComponent,
     ButtonComponent,

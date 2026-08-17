@@ -63,14 +63,9 @@
             <span class="submission-detail__type">{{ answer.type_answer || '-' }}</span>
             <h3>{{ i + 1 }}. {{ answer.question || '-' }}</h3>
           </div>
-          <span
-            *ngIf="answer.is_correct !== null"
-            class="submission-detail__badge"
-            [class.submission-detail__badge--pass]="answer.is_correct"
-            [class.submission-detail__badge--fail]="answer.is_correct === false"
-          >
+          <app-badge *ngIf="answer.is_correct !== null" [variant]="answer.is_correct ? 'emerald' : 'rose'">
             {{ answer.is_correct ? 'Correct' : 'Incorrect' }}
-          </span>
+          </app-badge>
         </div>
 
         <div class="submission-detail__answer-grid">

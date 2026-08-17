@@ -3,6 +3,7 @@ import { Component, OnInit, TemplateRef, ViewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { AuthService, Me } from '../../../core/auth/auth.service';
+import { BadgeComponent } from '../../../shared/ui/badge/badge.component';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
 import {
   DataTableColumn,
@@ -37,6 +38,7 @@ const ROLE_OPTIONS: SelectOption[] = [
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    BadgeComponent,
     ButtonComponent,
     DataTableComponent,
     InputComponent,
