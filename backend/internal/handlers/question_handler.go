@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"quizez/backend/internal/models"
+	"quizez/backend/internal/response"
 )
 
 const (
@@ -48,7 +49,7 @@ func QuestionsHandler(db *sql.DB) http.HandlerFunc {
 		case http.MethodPost:
 			createQuestion(w, r, db)
 		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
 	}
 }
@@ -58,7 +59,7 @@ func QuestionHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil {
-			http.Error(w, "invalid id", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid id")
 			return
 		}
 		switch r.Method {
@@ -67,7 +68,7 @@ func QuestionHandler(db *sql.DB) http.HandlerFunc {
 		case http.MethodDelete:
 			deleteQuestion(w, r, db, id)
 		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
 	}
 }
@@ -77,27 +78,26 @@ func QuestionHandler(db *sql.DB) http.HandlerFunc {
 func listQuestions(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	quizID, err := strconv.ParseInt(r.URL.Query().Get("quiz_id"), 10, 64)
 	if err != nil || quizID <= 0 {
-		http.Error(w, "quiz_id wajib diisi.", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "quiz_id wajib diisi.")
 		return
 	}
 
 	exists, err := models.QuizExists(db, quizID)
 	if err != nil {
-		http.Error(w, "failed to load questions", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to load questions")
 		return
 	}
 	if !exists {
-		http.Error(w, "Quiz tidak ditemukan.", http.StatusNotFound)
+		response.Error(w, http.StatusNotFound, "Quiz tidak ditemukan.")
 		return
 	}
 
 	questions, err := models.ListQuestionsByQuiz(db, quizID)
 	if err != nil {
-		http.Error(w, "failed to load questions", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to load questions")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(questions)
+	response.JSON(w, http.StatusOK, questions)
 }
 
 // validateQuestionRequest cek business rule utama form question: type answer valid, aturan point,
@@ -251,43 +251,41 @@ func validateQuestionPointLimit(db *sql.DB, req questionRequest, excludeQuestion
 func createQuestion(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var req questionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if msg := validateQuestionRequest(req); msg != "" {
-		http.Error(w, msg, http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, msg)
 		return
 	}
 
 	exists, err := models.QuizExists(db, *req.QuizID)
 	if err != nil {
-		http.Error(w, "failed to save question", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to save question")
 		return
 	}
 	if !exists {
-		http.Error(w, "Quiz tidak ditemukan.", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Quiz tidak ditemukan.")
 		return
 	}
 	if msg, status := validateQuizNotLocked(db, *req.QuizID); msg != "" {
-		http.Error(w, msg, status)
+		response.Error(w, status, msg)
 		return
 	}
 	if msg := validateQuestionPointLimit(db, req, nil); msg != "" {
-		http.Error(w, msg, http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, msg)
 		return
 	}
 
 	q := mapQuestionRequestToModel(req)
 	id, err := models.CreateQuestion(db, q)
 	if err != nil {
-		http.Error(w, "failed to save question", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to save question")
 		return
 	}
 	q.ID = id
 	writeAuditLog(r, db, "question.create", "question", &q.ID, "Membuat soal quiz baru.")
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(q)
+	response.JSON(w, http.StatusCreated, q)
 }
 
 // updateQuestion handle PUT /api/questions/{id}: validasi payload baru, lalu overwrite question
@@ -295,61 +293,60 @@ func createQuestion(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 func updateQuestion(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 	var req questionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if msg := validateQuestionRequest(req); msg != "" {
-		http.Error(w, msg, http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, msg)
 		return
 	}
 
 	exists, err := models.QuizExists(db, *req.QuizID)
 	if err != nil {
-		http.Error(w, "failed to update question", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to update question")
 		return
 	}
 	if !exists {
-		http.Error(w, "Quiz tidak ditemukan.", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Quiz tidak ditemukan.")
 		return
 	}
 	if msg, status := validateQuizNotLocked(db, *req.QuizID); msg != "" {
-		http.Error(w, msg, status)
+		response.Error(w, status, msg)
 		return
 	}
 	if msg := validateQuestionPointLimit(db, req, &id); msg != "" {
-		http.Error(w, msg, http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, msg)
 		return
 	}
 
 	q := mapQuestionRequestToModel(req)
 	q.ID = id
 	if err := models.UpdateQuestion(db, q); err != nil {
-		http.Error(w, "failed to update question", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to update question")
 		return
 	}
 	writeAuditLog(r, db, "question.update", "question", &q.ID, "Memperbarui soal quiz.")
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(q)
+	response.JSON(w, http.StatusOK, q)
 }
 
 // deleteQuestion handle DELETE /api/questions/{id}. Answer ikut terhapus lewat FK cascade.
 func deleteQuestion(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 	quizID, err := models.GetQuestionQuizID(db, id)
 	if errors.Is(err, sql.ErrNoRows) {
-		http.Error(w, "Question tidak ditemukan.", http.StatusNotFound)
+		response.Error(w, http.StatusNotFound, "Question tidak ditemukan.")
 		return
 	}
 	if err != nil {
-		http.Error(w, "failed to delete question", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to delete question")
 		return
 	}
 	if msg, status := validateQuizNotLocked(db, quizID); msg != "" {
-		http.Error(w, msg, status)
+		response.Error(w, status, msg)
 		return
 	}
 
 	if err := models.DeleteQuestion(db, id); err != nil {
-		http.Error(w, "failed to delete question", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to delete question")
 		return
 	}
 	writeAuditLog(r, db, "question.delete", "question", &id, "Menghapus soal quiz.")

@@ -9,6 +9,7 @@ import (
 
 	"quizez/backend/internal/listquery"
 	"quizez/backend/internal/models"
+	"quizez/backend/internal/response"
 )
 
 type quizRequest struct {
@@ -33,7 +34,7 @@ func QuizzesHandler(db *sql.DB) http.HandlerFunc {
 		case http.MethodPost:
 			createQuiz(w, r, db)
 		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
 	}
 }
@@ -43,7 +44,7 @@ func QuizHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil {
-			http.Error(w, "invalid id", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid id")
 			return
 		}
 		switch r.Method {
@@ -52,7 +53,7 @@ func QuizHandler(db *sql.DB) http.HandlerFunc {
 		case http.MethodDelete:
 			deleteQuiz(w, r, db, id)
 		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
 	}
 }
@@ -63,14 +64,10 @@ func listQuizzes(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	params := listquery.Parse(r)
 	quizzes, total, err := models.ListQuizzes(db, params)
 	if err != nil {
-		http.Error(w, "failed to load quizzes", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to load quizzes")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(listquery.ListResponse[models.Quiz]{
-		Data: quizzes,
-		Meta: listquery.BuildMeta(params, total),
-	})
+	response.Paginated(w, quizzes, listquery.BuildMeta(params, total))
 }
 
 // Kolom DB tetap nullable, tapi API mewajibkan field-field ini diisi buat quiz yang valid dipakai.
@@ -127,11 +124,11 @@ func validateQuizRequest(req quizRequest) string {
 func createQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var req quizRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if msg := validateQuizRequest(req); msg != "" {
-		http.Error(w, msg, http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, msg)
 		return
 	}
 
@@ -144,25 +141,23 @@ func createQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 	id, err := models.CreateQuiz(db, q)
 	if err != nil {
-		http.Error(w, "failed to save quiz", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to save quiz")
 		return
 	}
 	q.ID = id
 	writeAuditLog(r, db, "quiz.create", "quiz", &q.ID, "Membuat quiz atau survey baru.")
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(q)
+	response.JSON(w, http.StatusCreated, q)
 }
 
 // updateQuiz handle PUT /api/quizzes/{id}: decode body, validasi, lalu overwrite quiz existing.
 func updateQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 	var req quizRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if msg := validateQuizRequest(req); msg != "" {
-		http.Error(w, msg, http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, msg)
 		return
 	}
 
@@ -174,18 +169,17 @@ func updateQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 		Status: normalizeStr(req.Status),
 	}
 	if err := models.UpdateQuiz(db, q); err != nil {
-		http.Error(w, "failed to update quiz", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to update quiz")
 		return
 	}
 	writeAuditLog(r, db, "quiz.update", "quiz", &q.ID, "Memperbarui quiz atau survey.")
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(q)
+	response.JSON(w, http.StatusOK, q)
 }
 
 // deleteQuiz handle DELETE /api/quizzes/{id}.
 func deleteQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 	if err := models.DeleteQuiz(db, id); err != nil {
-		http.Error(w, "failed to delete quiz", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to delete quiz")
 		return
 	}
 	writeAuditLog(r, db, "quiz.delete", "quiz", &id, "Menghapus quiz atau survey.")
@@ -198,34 +192,32 @@ func deleteQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 func QuizDuplicateHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil {
-			http.Error(w, "invalid id", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid id")
 			return
 		}
 
 		exists, err := models.QuizExists(db, id)
 		if err != nil {
-			http.Error(w, "failed to duplicate quiz", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to duplicate quiz")
 			return
 		}
 		if !exists {
-			http.Error(w, "Quiz tidak ditemukan.", http.StatusNotFound)
+			response.Error(w, http.StatusNotFound, "Quiz tidak ditemukan.")
 			return
 		}
 
 		duplicated, err := models.DuplicateQuiz(db, id)
 		if err != nil {
-			http.Error(w, "failed to duplicate quiz", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to duplicate quiz")
 			return
 		}
 		writeAuditLog(r, db, "quiz.duplicate", "quiz", &duplicated.ID, "Menduplikasi quiz menjadi versi baru.")
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(duplicated)
+		response.JSON(w, http.StatusCreated, duplicated)
 	}
 }
 

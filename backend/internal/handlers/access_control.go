@@ -9,27 +9,28 @@ import (
 
 	"quizez/backend/internal/auth"
 	"quizez/backend/internal/models"
+	"quizez/backend/internal/response"
 )
 
 // requireSuperAdmin pastikan aksi sensitif cuma bisa dijalankan akun dengan role super_admin.
 func requireSuperAdmin(w http.ResponseWriter, r *http.Request, db *sql.DB) bool {
 	claims := auth.ClaimsFromContext(r.Context())
 	if claims == nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		response.Error(w, http.StatusUnauthorized, "unauthorized")
 		return false
 	}
 
 	role, err := models.GetUserRoleByID(db, claims.UserID)
 	if errors.Is(err, sql.ErrNoRows) {
-		http.Error(w, "user not found", http.StatusUnauthorized)
+		response.Error(w, http.StatusUnauthorized, "user not found")
 		return false
 	}
 	if err != nil {
-		http.Error(w, "failed to validate permission", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to validate permission")
 		return false
 	}
 	if role != models.UserRoleSuperAdmin {
-		http.Error(w, "forbidden", http.StatusForbidden)
+		response.Error(w, http.StatusForbidden, "forbidden")
 		return false
 	}
 	return true

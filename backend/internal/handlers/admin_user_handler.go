@@ -11,6 +11,7 @@ import (
 	"quizez/backend/internal/auth"
 	"quizez/backend/internal/listquery"
 	"quizez/backend/internal/models"
+	"quizez/backend/internal/response"
 )
 
 type adminUserRequest struct {
@@ -32,7 +33,7 @@ func AdminUsersHandler(db *sql.DB) http.HandlerFunc {
 		case http.MethodPost:
 			createAdminUser(w, r, db)
 		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
 	}
 }
@@ -45,7 +46,7 @@ func AdminUserHandler(db *sql.DB) http.HandlerFunc {
 		}
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil {
-			http.Error(w, "invalid id", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid id")
 			return
 		}
 		switch r.Method {
@@ -54,7 +55,7 @@ func AdminUserHandler(db *sql.DB) http.HandlerFunc {
 		case http.MethodDelete:
 			deleteAdminUser(w, r, db, id)
 		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
 	}
 }
@@ -63,20 +64,16 @@ func AdminUserHandler(db *sql.DB) http.HandlerFunc {
 func AuditLogsHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 		params := listquery.Parse(r)
 		items, total, err := models.ListAuditLogs(db, params)
 		if err != nil {
-			http.Error(w, "failed to load audit logs", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to load audit logs")
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(listquery.ListResponse[models.AuditLog]{
-			Data: items,
-			Meta: listquery.BuildMeta(params, total),
-		})
+		response.Paginated(w, items, listquery.BuildMeta(params, total))
 	}
 }
 
@@ -105,25 +102,21 @@ func listAdminUsers(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	params := listquery.Parse(r)
 	items, total, err := models.ListUsers(db, params)
 	if err != nil {
-		http.Error(w, "failed to load admin users", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to load admin users")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(listquery.ListResponse[models.UserListItem]{
-		Data: items,
-		Meta: listquery.BuildMeta(params, total),
-	})
+	response.Paginated(w, items, listquery.BuildMeta(params, total))
 }
 
 // createAdminUser handle POST /api/admin-users untuk menambah admin CMS baru.
 func createAdminUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var req adminUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if msg := validateAdminUserRequest(req, true); msg != "" {
-		http.Error(w, msg, http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, msg)
 		return
 	}
 
@@ -135,10 +128,10 @@ func createAdminUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	})
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
-			http.Error(w, "Email admin sudah dipakai.", http.StatusConflict)
+			response.Error(w, http.StatusConflict, "Email admin sudah dipakai.")
 			return
 		}
-		http.Error(w, "failed to create admin user", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to create admin user")
 		return
 	}
 
@@ -146,12 +139,10 @@ func createAdminUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	user, err := models.GetUserByID(db, id)
 	if err != nil {
-		http.Error(w, "failed to load admin user", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to load admin user")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]any{
+	response.JSON(w, http.StatusCreated, map[string]any{
 		"id":    user.ID,
 		"email": user.Email,
 		"name":  user.Name,
@@ -163,17 +154,17 @@ func createAdminUser(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 func updateAdminUser(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 	var req adminUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if msg := validateAdminUserRequest(req, false); msg != "" {
-		http.Error(w, msg, http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, msg)
 		return
 	}
 
 	nextRole := strings.TrimSpace(*req.Role)
 	if err := models.EnsureSuperAdminStillExists(db, id, &nextRole, false); err != nil {
-		http.Error(w, err.Error(), http.StatusConflict)
+		response.Error(w, http.StatusConflict, err.Error())
 		return
 	}
 
@@ -190,10 +181,10 @@ func updateAdminUser(w http.ResponseWriter, r *http.Request, db *sql.DB, id int6
 		Password: password,
 	}); err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
-			http.Error(w, "Email admin sudah dipakai.", http.StatusConflict)
+			response.Error(w, http.StatusConflict, "Email admin sudah dipakai.")
 			return
 		}
-		http.Error(w, "failed to update admin user", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to update admin user")
 		return
 	}
 
@@ -201,15 +192,14 @@ func updateAdminUser(w http.ResponseWriter, r *http.Request, db *sql.DB, id int6
 
 	user, err := models.GetUserByID(db, id)
 	if errors.Is(err, sql.ErrNoRows) {
-		http.Error(w, "Admin tidak ditemukan.", http.StatusNotFound)
+		response.Error(w, http.StatusNotFound, "Admin tidak ditemukan.")
 		return
 	}
 	if err != nil {
-		http.Error(w, "failed to load admin user", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to load admin user")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
+	response.JSON(w, http.StatusOK, map[string]any{
 		"id":    user.ID,
 		"email": user.Email,
 		"name":  user.Name,
@@ -221,19 +211,19 @@ func updateAdminUser(w http.ResponseWriter, r *http.Request, db *sql.DB, id int6
 func deleteAdminUser(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 	claims := auth.ClaimsFromContext(r.Context())
 	if claims == nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		response.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	if claims.UserID == id {
-		http.Error(w, "Akun sendiri tidak bisa dihapus.", http.StatusConflict)
+		response.Error(w, http.StatusConflict, "Akun sendiri tidak bisa dihapus.")
 		return
 	}
 	if err := models.EnsureSuperAdminStillExists(db, id, nil, true); err != nil {
-		http.Error(w, err.Error(), http.StatusConflict)
+		response.Error(w, http.StatusConflict, err.Error())
 		return
 	}
 	if err := models.DeleteUser(db, id); err != nil {
-		http.Error(w, "failed to delete admin user", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to delete admin user")
 		return
 	}
 	writeAuditLog(r, db, "admin_user.delete", "admin_user", &id, "Menghapus admin CMS.")

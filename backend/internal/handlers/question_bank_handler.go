@@ -10,6 +10,7 @@ import (
 
 	"quizez/backend/internal/listquery"
 	"quizez/backend/internal/models"
+	"quizez/backend/internal/response"
 )
 
 type questionBankRequest struct {
@@ -40,7 +41,7 @@ func QuestionBankHandler(db *sql.DB) http.HandlerFunc {
 		case http.MethodPost:
 			createQuestionBankItem(w, r, db)
 		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
 	}
 }
@@ -50,7 +51,7 @@ func QuestionBankItemHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil {
-			http.Error(w, "invalid id", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid id")
 			return
 		}
 		switch r.Method {
@@ -59,7 +60,7 @@ func QuestionBankItemHandler(db *sql.DB) http.HandlerFunc {
 		case http.MethodDelete:
 			deleteQuestionBankItem(w, r, db, id)
 		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 		}
 	}
 }
@@ -68,16 +69,15 @@ func QuestionBankItemHandler(db *sql.DB) http.HandlerFunc {
 func QuestionBankTagsHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 		tags, err := models.ListQuestionBankTags(db)
 		if err != nil {
-			http.Error(w, "failed to load tags", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to load tags")
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(tags)
+		response.JSON(w, http.StatusOK, tags)
 	}
 }
 
@@ -85,14 +85,14 @@ func QuestionBankTagsHandler(db *sql.DB) http.HandlerFunc {
 func QuestionBankImportTemplateHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 		format := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format")))
 		if format == "xlsx" {
 			data, err := models.BuildQuestionBankTemplateXLSX()
 			if err != nil {
-				http.Error(w, "failed to build template", http.StatusInternalServerError)
+				response.Error(w, http.StatusInternalServerError, "failed to build template")
 				return
 			}
 			w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -110,19 +110,19 @@ func QuestionBankImportTemplateHandler() http.HandlerFunc {
 func QuestionBankImportHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 
 		var req questionBankImportRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "invalid request body", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 
 		data, err := decodeDataURI(req.FileData)
 		if err != nil {
-			http.Error(w, "File tidak valid.", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "File tidak valid.")
 			return
 		}
 
@@ -135,11 +135,11 @@ func QuestionBankImportHandler(db *sql.DB) http.HandlerFunc {
 		case strings.HasSuffix(lowerName, ".csv"):
 			items, rowErrors, err = models.ParseQuestionBankImportCSV(data)
 		default:
-			http.Error(w, "Format file harus .csv atau .xlsx.", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "Format file harus .csv atau .xlsx.")
 			return
 		}
 		if err != nil {
-			http.Error(w, "Gagal membaca file, pastikan formatnya sesuai template.", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "Gagal membaca file, pastikan formatnya sesuai template.")
 			return
 		}
 
@@ -153,8 +153,7 @@ func QuestionBankImportHandler(db *sql.DB) http.HandlerFunc {
 		}
 		writeAuditLog(r, db, "question_bank.import", "question_bank", nil, "Import bulk bank soal dari file.")
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		response.JSON(w, http.StatusOK, map[string]interface{}{
 			"created": created,
 			"errors":  rowErrors,
 		})
@@ -165,42 +164,42 @@ func QuestionBankImportHandler(db *sql.DB) http.HandlerFunc {
 func QuizQuestionsFromBankHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 		quizID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil {
-			http.Error(w, "invalid id", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid id")
 			return
 		}
 
 		var req questionBankFromBankRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "invalid request body", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		if len(req.BankIDs) == 0 {
-			http.Error(w, "Pilih minimal 1 soal dari bank.", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "Pilih minimal 1 soal dari bank.")
 			return
 		}
 
 		exists, err := models.QuizExists(db, quizID)
 		if err != nil {
-			http.Error(w, "failed to add questions", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to add questions")
 			return
 		}
 		if !exists {
-			http.Error(w, "Quiz tidak ditemukan.", http.StatusNotFound)
+			response.Error(w, http.StatusNotFound, "Quiz tidak ditemukan.")
 			return
 		}
 		if msg, status := validateQuizNotLocked(db, quizID); msg != "" {
-			http.Error(w, msg, status)
+			response.Error(w, status, msg)
 			return
 		}
 
 		items, err := models.GetQuestionBankByIDs(db, req.BankIDs)
 		if err != nil {
-			http.Error(w, "Ada soal bank yang tidak ditemukan.", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "Ada soal bank yang tidak ditemukan.")
 			return
 		}
 
@@ -214,20 +213,18 @@ func QuizQuestionsFromBankHandler(db *sql.DB) http.HandlerFunc {
 		}
 		maxPoint, usedPoint, err := models.QuizPointBudget(db, quizID, nil)
 		if err == nil && maxPoint != nil && usedPoint+totalNewPoint > *maxPoint {
-			http.Error(w, "Total point soal yang ditambahkan melebihi max point quiz.", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "Total point soal yang ditambahkan melebihi max point quiz.")
 			return
 		}
 
 		created, err := models.CopyQuestionBankItemsToQuiz(db, quizID, items)
 		if err != nil {
-			http.Error(w, "failed to add questions", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to add questions")
 			return
 		}
 		writeAuditLog(r, db, "question_bank.copy_to_quiz", "quiz", &quizID, "Menyalin soal dari bank soal ke quiz.")
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(created)
+		response.JSON(w, http.StatusCreated, created)
 	}
 }
 
@@ -237,14 +234,10 @@ func listQuestionBank(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	tagFilter := strings.TrimSpace(r.URL.Query().Get("tag"))
 	items, total, err := models.ListQuestionBank(db, params, tagFilter)
 	if err != nil {
-		http.Error(w, "failed to load question bank", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to load question bank")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(listquery.ListResponse[models.QuestionBankItem]{
-		Data: items,
-		Meta: listquery.BuildMeta(params, total),
-	})
+	response.Paginated(w, items, listquery.BuildMeta(params, total))
 }
 
 // validateQuestionBankRequest cek business rule form bank soal: mirip question per-quiz tapi
@@ -309,54 +302,51 @@ func validateQuestionBankRequest(req questionBankRequest) string {
 func createQuestionBankItem(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var req questionBankRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if msg := validateQuestionBankRequest(req); msg != "" {
-		http.Error(w, msg, http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, msg)
 		return
 	}
 
 	item := mapQuestionBankRequestToModel(req)
 	id, err := models.CreateQuestionBankItem(db, item)
 	if err != nil {
-		http.Error(w, "failed to save question bank item", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to save question bank item")
 		return
 	}
 	item.ID = id
 	writeAuditLog(r, db, "question_bank.create", "question_bank", &item.ID, "Membuat item bank soal baru.")
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(item)
+	response.JSON(w, http.StatusCreated, item)
 }
 
 // updateQuestionBankItem handle PUT /api/question-bank/{id}.
 func updateQuestionBankItem(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 	var req questionBankRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if msg := validateQuestionBankRequest(req); msg != "" {
-		http.Error(w, msg, http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, msg)
 		return
 	}
 
 	item := mapQuestionBankRequestToModel(req)
 	item.ID = id
 	if err := models.UpdateQuestionBankItem(db, item); err != nil {
-		http.Error(w, "failed to update question bank item", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to update question bank item")
 		return
 	}
 	writeAuditLog(r, db, "question_bank.update", "question_bank", &item.ID, "Memperbarui item bank soal.")
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(item)
+	response.JSON(w, http.StatusOK, item)
 }
 
 // deleteQuestionBankItem handle DELETE /api/question-bank/{id}.
 func deleteQuestionBankItem(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 	if err := models.DeleteQuestionBankItem(db, id); err != nil {
-		http.Error(w, "failed to delete question bank item", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "failed to delete question bank item")
 		return
 	}
 	writeAuditLog(r, db, "question_bank.delete", "question_bank", &id, "Menghapus item bank soal.")

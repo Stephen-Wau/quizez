@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"quizez/backend/internal/models"
+	"quizez/backend/internal/response"
 )
 
 type publicSubmissionRequest struct {
@@ -55,39 +56,38 @@ type quizShareResponse struct {
 func QuizShareHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil {
-			http.Error(w, "invalid id", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid id")
 			return
 		}
 
 		quiz, err := models.GetQuizByID(db, id)
 		if errors.Is(err, sql.ErrNoRows) {
-			http.Error(w, "Quiz tidak ditemukan.", http.StatusNotFound)
+			response.Error(w, http.StatusNotFound, "Quiz tidak ditemukan.")
 			return
 		}
 		if err != nil {
-			http.Error(w, "failed to generate share link", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to generate share link")
 			return
 		}
 		if !strings.EqualFold(strings.TrimSpace(stringValue(quiz.Status)), "active") {
-			http.Error(w, "Quiz inactive tidak bisa generate link share.", http.StatusConflict)
+			response.Error(w, http.StatusConflict, "Quiz inactive tidak bisa generate link share.")
 			return
 		}
 
 		share, err := models.GetOrCreateQuizShare(db, quiz.ID)
 		if err != nil {
-			http.Error(w, "failed to generate share link", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to generate share link")
 			return
 		}
 		writeAuditLog(r, db, "quiz.generate_share_link", "quiz", &quiz.ID, "Generate atau mengambil link share quiz.")
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(quizShareResponse{
+		response.JSON(w, http.StatusOK, quizShareResponse{
 			QuizID:     quiz.ID,
 			Token:      share.Token,
 			AccessCode: share.AccessCode,
@@ -99,13 +99,13 @@ func QuizShareHandler(db *sql.DB) http.HandlerFunc {
 func PublicQuizHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 
 		token := strings.TrimSpace(r.PathValue("token"))
 		if token == "" {
-			http.Error(w, "invalid token", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid token")
 			return
 		}
 
@@ -113,16 +113,15 @@ func PublicQuizHandler(db *sql.DB) http.HandlerFunc {
 		attemptSeed := r.URL.Query().Get("attempt")
 		quiz, err := models.GetPublicQuizByToken(db, token, accessCode, time.Now(), attemptSeed)
 		if errors.Is(err, sql.ErrNoRows) {
-			http.Error(w, "Link tidak ditemukan.", http.StatusNotFound)
+			response.Error(w, http.StatusNotFound, "Link tidak ditemukan.")
 			return
 		}
 		if err != nil {
-			http.Error(w, "failed to load public quiz", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to load public quiz")
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(quiz)
+		response.JSON(w, http.StatusOK, quiz)
 	}
 }
 
@@ -131,19 +130,19 @@ func PublicQuizHandler(db *sql.DB) http.HandlerFunc {
 func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 
 		token := strings.TrimSpace(r.PathValue("token"))
 		if token == "" {
-			http.Error(w, "invalid token", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid token")
 			return
 		}
 
 		var req publicSubmissionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "invalid request body", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 
@@ -151,36 +150,36 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 		now := time.Now()
 		publicQuiz, err := models.GetPublicQuizByToken(db, token, req.AccessCode, now, attemptSeed)
 		if errors.Is(err, sql.ErrNoRows) {
-			http.Error(w, "Link tidak ditemukan.", http.StatusNotFound)
+			response.Error(w, http.StatusNotFound, "Link tidak ditemukan.")
 			return
 		}
 		if err != nil {
-			http.Error(w, "failed to submit quiz", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to submit quiz")
 			return
 		}
 
 		if msg, status := validatePublicQuizAvailability(publicQuiz); msg != "" {
-			http.Error(w, msg, status)
+			response.Error(w, status, msg)
 			return
 		}
 		if publicQuiz.AccessCodeRequired && !publicQuiz.AccessGranted {
-			http.Error(w, "PIN akses form tidak valid.", http.StatusForbidden)
+			response.Error(w, http.StatusForbidden, "PIN akses form tidak valid.")
 			return
 		}
 
 		email, msg := validatePublicSubmissionEmail(publicQuiz, req.Email)
 		if msg != "" {
-			http.Error(w, msg, http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, msg)
 			return
 		}
 		name, msg := validatePublicSubmissionName(publicQuiz, req.Name)
 		if msg != "" {
-			http.Error(w, msg, http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, msg)
 			return
 		}
 		startedAt, msg := validatePublicSubmissionStartedAt(req.StartedAt)
 		if msg != "" {
-			http.Error(w, msg, http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, msg)
 			return
 		}
 
@@ -188,11 +187,11 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 		if isQuizType && email != nil {
 			exists, err := models.HasSubmittedEmail(db, publicQuiz.ID, *email)
 			if err != nil {
-				http.Error(w, "failed to submit quiz", http.StatusInternalServerError)
+				response.Error(w, http.StatusInternalServerError, "failed to submit quiz")
 				return
 			}
 			if exists {
-				http.Error(w, "Email ini sudah pernah mengirim quiz ini.", http.StatusConflict)
+				response.Error(w, http.StatusConflict, "Email ini sudah pernah mengirim quiz ini.")
 				return
 			}
 		}
@@ -202,11 +201,11 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 		if isQuizType && fingerprint != "" {
 			exists, err := models.HasSubmittedFingerprint(db, publicQuiz.ID, fingerprint)
 			if err != nil {
-				http.Error(w, "failed to submit quiz", http.StatusInternalServerError)
+				response.Error(w, http.StatusInternalServerError, "failed to submit quiz")
 				return
 			}
 			if exists {
-				http.Error(w, "Device ini sudah pernah mengirim quiz ini.", http.StatusConflict)
+				response.Error(w, http.StatusConflict, "Device ini sudah pernah mengirim quiz ini.")
 				return
 			}
 		}
@@ -214,7 +213,7 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 		inputs := make([]models.PublicSubmissionAnswerInput, 0, len(req.Answers))
 		for _, answer := range req.Answers {
 			if answer.QuestionID == nil {
-				http.Error(w, "Question wajib dipilih.", http.StatusBadRequest)
+				response.Error(w, http.StatusBadRequest, "Question wajib dipilih.")
 				return
 			}
 			matrixAnswers := make([]models.PublicMatrixAnswerInput, 0, len(answer.MatrixAnswers))
@@ -253,16 +252,14 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 		result, err := models.SavePublicSubmission(db, quiz, email, name, inputs, startedAt, now, attemptSeed, req.DeviceFingerprint, violationCount)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
-				http.Error(w, "Email atau device ini sudah pernah mengirim quiz ini.", http.StatusConflict)
+				response.Error(w, http.StatusConflict, "Email atau device ini sudah pernah mengirim quiz ini.")
 				return
 			}
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(result)
+		response.JSON(w, http.StatusCreated, result)
 	}
 }
 
@@ -271,40 +268,40 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 func PublicSubmissionCertificateHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 
 		token := strings.TrimSpace(r.PathValue("token"))
 		submissionID, err := strconv.ParseInt(r.PathValue("submissionId"), 10, 64)
 		if token == "" || err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid request")
 			return
 		}
 
 		share, err := models.GetQuizShareByToken(db, token)
 		if errors.Is(err, sql.ErrNoRows) || share.QuizID == nil {
-			http.Error(w, "Link tidak ditemukan.", http.StatusNotFound)
+			response.Error(w, http.StatusNotFound, "Link tidak ditemukan.")
 			return
 		}
 		if err != nil {
-			http.Error(w, "failed to load certificate", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to load certificate")
 			return
 		}
 
 		data, err := models.GetCertificateData(db, *share.QuizID, submissionID)
 		if errors.Is(err, sql.ErrNoRows) {
-			http.Error(w, "Sertifikat tidak tersedia untuk submission ini.", http.StatusNotFound)
+			response.Error(w, http.StatusNotFound, "Sertifikat tidak tersedia untuk submission ini.")
 			return
 		}
 		if err != nil {
-			http.Error(w, "failed to load certificate", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to load certificate")
 			return
 		}
 
 		pdfBytes, err := models.BuildCertificatePDF(data)
 		if err != nil {
-			http.Error(w, "failed to build certificate", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to build certificate")
 			return
 		}
 

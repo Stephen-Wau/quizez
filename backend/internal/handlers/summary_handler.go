@@ -2,41 +2,40 @@ package handlers
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"quizez/backend/internal/models"
+	"quizez/backend/internal/response"
 )
 
 // QuizSummaryHandler balikin analytics summary 1 quiz/survey lengkap buat halaman dashboard admin.
 func QuizSummaryHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil {
-			http.Error(w, "invalid id", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid id")
 			return
 		}
 
 		summary, err := models.GetQuizSummary(db, id)
 		if errors.Is(err, sql.ErrNoRows) {
-			http.Error(w, "Quiz tidak ditemukan.", http.StatusNotFound)
+			response.Error(w, http.StatusNotFound, "Quiz tidak ditemukan.")
 			return
 		}
 		if err != nil {
-			http.Error(w, "failed to load quiz summary", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to load quiz summary")
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(summary)
+		response.JSON(w, http.StatusOK, summary)
 	}
 }
 
@@ -45,28 +44,27 @@ func QuizSummaryHandler(db *sql.DB) http.HandlerFunc {
 func QuizLeaderboardHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil {
-			http.Error(w, "invalid id", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid id")
 			return
 		}
 
 		leaderboard, err := models.GetQuizLeaderboard(db, id)
 		if errors.Is(err, sql.ErrNoRows) {
-			http.Error(w, "Quiz tidak ditemukan.", http.StatusNotFound)
+			response.Error(w, http.StatusNotFound, "Quiz tidak ditemukan.")
 			return
 		}
 		if err != nil {
-			http.Error(w, "failed to load leaderboard", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to load leaderboard")
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(leaderboard)
+		response.JSON(w, http.StatusOK, leaderboard)
 	}
 }
 
@@ -74,33 +72,32 @@ func QuizLeaderboardHandler(db *sql.DB) http.HandlerFunc {
 func QuizSubmissionDetailHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 
 		quizID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil {
-			http.Error(w, "invalid quiz id", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid quiz id")
 			return
 		}
 		submissionID, err := strconv.ParseInt(r.PathValue("submissionId"), 10, 64)
 		if err != nil {
-			http.Error(w, "invalid submission id", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid submission id")
 			return
 		}
 
 		detail, err := models.GetQuizSubmissionDetail(db, quizID, submissionID)
 		if errors.Is(err, sql.ErrNoRows) {
-			http.Error(w, "Submission tidak ditemukan.", http.StatusNotFound)
+			response.Error(w, http.StatusNotFound, "Submission tidak ditemukan.")
 			return
 		}
 		if err != nil {
-			http.Error(w, "failed to load submission detail", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to load submission detail")
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(detail)
+		response.JSON(w, http.StatusOK, detail)
 	}
 }
 
@@ -110,34 +107,34 @@ func QuizSubmissionDetailHandler(db *sql.DB) http.HandlerFunc {
 func QuizSubmissionCertificateHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			response.Error(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
 
 		quizID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil {
-			http.Error(w, "invalid quiz id", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid quiz id")
 			return
 		}
 		submissionID, err := strconv.ParseInt(r.PathValue("submissionId"), 10, 64)
 		if err != nil {
-			http.Error(w, "invalid submission id", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "invalid submission id")
 			return
 		}
 
 		data, err := models.GetCertificateData(db, quizID, submissionID)
 		if errors.Is(err, sql.ErrNoRows) {
-			http.Error(w, "Sertifikat tidak tersedia untuk submission ini.", http.StatusNotFound)
+			response.Error(w, http.StatusNotFound, "Sertifikat tidak tersedia untuk submission ini.")
 			return
 		}
 		if err != nil {
-			http.Error(w, "failed to load certificate", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to load certificate")
 			return
 		}
 
 		pdfBytes, err := models.BuildCertificatePDF(data)
 		if err != nil {
-			http.Error(w, "failed to build certificate", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "failed to build certificate")
 			return
 		}
 
