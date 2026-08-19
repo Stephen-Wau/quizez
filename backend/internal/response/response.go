@@ -29,8 +29,9 @@ func JSON(w http.ResponseWriter, status int, data any) {
 	json.NewEncoder(w).Encode(data)
 }
 
-// Error nulis response error format {"error": "..."}. Kalau message dikosongin, pakai
-// pesan default sesuai status code dari defaultMessages.
+// Error nulis error sebagai plain text (bukan JSON) - sengaja disamain sama http.Error
+// karena FE baca error message lewat `typeof err.error === 'string'` (HttpErrorResponse
+// body apa adanya). Kalau message dikosongin, pakai pesan default sesuai status code.
 func Error(w http.ResponseWriter, status int, message string) {
 	if message == "" {
 		if def, ok := defaultMessages[status]; ok {
@@ -39,7 +40,7 @@ func Error(w http.ResponseWriter, status int, message string) {
 			message = "Terjadi kesalahan."
 		}
 	}
-	JSON(w, status, map[string]string{"error": message})
+	http.Error(w, message, status)
 }
 
 // Paginated bungkus response list yang butuh meta pagination (dipakai bareng
