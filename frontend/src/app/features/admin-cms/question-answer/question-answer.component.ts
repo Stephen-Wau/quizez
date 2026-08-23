@@ -26,6 +26,7 @@ import {
 } from '../../../shared/ui/data-table/data-table.component';
 import { BadgeComponent } from '../../../shared/ui/badge/badge.component';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
+import { IconButtonComponent } from '../../../shared/ui/icon-button/icon-button.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
 import { SelectComponent, SelectOption } from '../../../shared/ui/select/select.component';
@@ -65,6 +66,7 @@ const BOOLEAN_ANSWER_OPTIONS: SelectOption[] = [
     BadgeComponent,
     DataTableComponent,
     ButtonComponent,
+    IconButtonComponent,
     ModalComponent,
     InputComponent,
     SelectComponent,

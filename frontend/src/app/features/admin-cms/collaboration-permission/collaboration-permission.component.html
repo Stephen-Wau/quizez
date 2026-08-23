@@ -68,8 +68,8 @@
 
 <ng-template #adminActionTpl let-row="row">
   <div class="collaboration__actions">
-    <app-button size="sm" variant="ghost" type="button" (click)="openEditModal(row)">Edit</app-button>
-    <app-button size="sm" variant="danger" type="button" (click)="removeAdmin(row)">Hapus</app-button>
+    <app-icon-button icon="pencil" label="Edit" (click)="openEditModal(row)"></app-icon-button>
+    <app-icon-button variant="danger" icon="trash-2" label="Hapus" (click)="removeAdmin(row)"></app-icon-button>
   </div>
 </ng-template>
 

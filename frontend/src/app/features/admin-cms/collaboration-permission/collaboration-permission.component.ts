@@ -5,6 +5,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService, Me } from '../../../core/auth/auth.service';
 import { BadgeComponent } from '../../../shared/ui/badge/badge.component';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
+import { IconButtonComponent } from '../../../shared/ui/icon-button/icon-button.component';
 import {
   DataTableColumn,
   DataTableComponent,
@@ -40,6 +41,7 @@ const ROLE_OPTIONS: SelectOption[] = [
     ReactiveFormsModule,
     BadgeComponent,
     ButtonComponent,
+    IconButtonComponent,
     DataTableComponent,
     InputComponent,
     ModalComponent,

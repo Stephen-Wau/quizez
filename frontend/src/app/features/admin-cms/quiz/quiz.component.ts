@@ -8,6 +8,7 @@ import { BadgeComponent } from '../../../shared/ui/badge/badge.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
 import { DatetimePickerComponent } from '../../../shared/ui/datetime-picker/datetime-picker.component';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
+import { IconButtonComponent } from '../../../shared/ui/icon-button/icon-button.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
 import {
   DataTableColumn,
@@ -40,6 +41,7 @@ const STATUS_OPTIONS: SelectOption[] = [
     InputComponent,
     DatetimePickerComponent,
     ButtonComponent,
+    IconButtonComponent,
     ModalComponent,
     LucideAngularModule,
     DataTableComponent,

@@ -16,6 +16,7 @@ import {
   DataTableQuery,
 } from '../../../shared/ui/data-table/data-table.component';
 import { ButtonComponent } from '../../../shared/ui/button/button.component';
+import { IconButtonComponent } from '../../../shared/ui/icon-button/icon-button.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
 import { InputComponent } from '../../../shared/ui/input/input.component';
 import { FilesUploadComponent, UploadedFile } from '../../../shared/ui/files-upload/files-upload.component';
@@ -54,6 +55,7 @@ const BOOLEAN_ANSWER_OPTIONS: SelectOption[] = [
     LucideAngularModule,
     DataTableComponent,
     ButtonComponent,
+    IconButtonComponent,
     ModalComponent,
     InputComponent,
     FilesUploadComponent,

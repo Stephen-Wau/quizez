@@ -22,33 +22,22 @@
 
 <ng-template #aksiTpl let-row="row">
   <div class="quiz__actions">
-    <app-button
+    <app-icon-button
       *ngIf="canShareQuiz($any(row))"
-      variant="ghost"
-      size="sm"
+      icon="share-2"
+      label="Share"
       (click)="share($any(row))"
       [disabled]="sharingQuizId === $any(row).id"
-    >
-      Share
-    </app-button>
-    <app-button variant="ghost" size="sm" (click)="openEditModal($any(row))">
-      <lucide-icon name="pencil" [size]="14"></lucide-icon>
-      Edit
-    </app-button>
-    <app-button
+    ></app-icon-button>
+    <app-icon-button icon="pencil" label="Edit" (click)="openEditModal($any(row))"></app-icon-button>
+    <app-icon-button
       *ngIf="$any(row).has_submissions"
-      variant="ghost"
-      size="sm"
+      icon="copy"
+      label="Duplicate"
       (click)="duplicate($any(row))"
       [disabled]="duplicatingQuizId === $any(row).id"
-    >
-      <lucide-icon name="copy" [size]="14"></lucide-icon>
-      Duplicate
-    </app-button>
-    <app-button variant="danger" size="sm" (click)="remove($any(row))">
-      <lucide-icon name="trash-2" [size]="14"></lucide-icon>
-      Delete
-    </app-button>
+    ></app-icon-button>
+    <app-icon-button variant="danger" icon="trash-2" label="Delete" (click)="remove($any(row))"></app-icon-button>
   </div>
 </ng-template>
 

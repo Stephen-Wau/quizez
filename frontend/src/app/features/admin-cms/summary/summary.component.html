@@ -14,7 +14,7 @@
 </ng-template>
 
 <ng-template #actionTpl let-row="row">
-  <app-button size="sm" (click)="openSummary($any(row))">Show Summary</app-button>
+  <app-icon-button icon="eye" label="Show Summary" (click)="openSummary($any(row))"></app-icon-button>
 </ng-template>
 
 <app-data-table

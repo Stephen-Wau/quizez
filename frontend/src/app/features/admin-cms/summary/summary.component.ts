@@ -8,7 +8,7 @@ import {
   DataTableComponent,
   DataTableQuery,
 } from '../../../shared/ui/data-table/data-table.component';
-import { ButtonComponent } from '../../../shared/ui/button/button.component';
+import { IconButtonComponent } from '../../../shared/ui/icon-button/icon-button.component';
 import { BadgeComponent } from '../../../shared/ui/badge/badge.component';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { loadPagedList } from '../../../shared/utils/load-paged-list.util';
@@ -16,7 +16,7 @@ import { loadPagedList } from '../../../shared/utils/load-paged-list.util';
 @Component({
   selector: 'app-summary',
   standalone: true,
-  imports: [CommonModule, DataTableComponent, ButtonComponent, BadgeComponent],
+  imports: [CommonModule, DataTableComponent, IconButtonComponent, BadgeComponent],
   templateUrl: './summary.component.html',
   styleUrl: './summary.component.scss',
 })

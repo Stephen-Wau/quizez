@@ -30,14 +30,8 @@
 
 <ng-template #actionTpl let-row="row">
   <div class="question-bank__actions">
-    <app-button variant="ghost" size="sm" (click)="openEditModal($any(row))">
-      <lucide-icon name="pencil" [size]="14"></lucide-icon>
-      Edit
-    </app-button>
-    <app-button variant="danger" size="sm" (click)="remove($any(row))">
-      <lucide-icon name="trash-2" [size]="14"></lucide-icon>
-      Delete
-    </app-button>
+    <app-icon-button icon="pencil" label="Edit" (click)="openEditModal($any(row))"></app-icon-button>
+    <app-icon-button variant="danger" icon="trash-2" label="Delete" (click)="remove($any(row))"></app-icon-button>
   </div>
 </ng-template>
 
