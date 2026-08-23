@@ -23,6 +23,10 @@ export class SidebarComponent {
   // Di-emit tiap kali sidebar mestinya ditutup dari dalam (klik menu item, atau logout),
   // parent (CmsLayoutComponent) yang pegang source-of-truth isOpen-nya.
   @Output() closed = new EventEmitter<void>();
+  // Collapse/expand sidebar desktop (icon-only vs full width) — beda dari isOpen (drawer mobile).
+  // Source-of-truth-nya juga di parent (CmsLayoutComponent), biar kepersist ke localStorage di sana.
+  @Input() collapsed = false;
+  @Output() toggleCollapse = new EventEmitter<void>();
 
   constructor(
     private auth: AuthService,

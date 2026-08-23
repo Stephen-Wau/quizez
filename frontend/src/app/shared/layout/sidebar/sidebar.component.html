@@ -1,12 +1,29 @@
-<aside class="sidebar" [class.sidebar--open]="isOpen">
+<aside class="sidebar" [class.sidebar--open]="isOpen" [class.sidebar--collapsed]="collapsed">
+  <button
+    type="button"
+    class="sidebar__collapse-toggle"
+    (click)="toggleCollapse.emit()"
+    [attr.aria-label]="collapsed ? 'Buka sidebar' : 'Ciutkan sidebar'"
+  >
+    <lucide-icon name="chevron-left" [size]="15"></lucide-icon>
+  </button>
+
   <div class="sidebar__profile">
     <div class="sidebar__avatar">{{ (user?.name || user?.email || '?').charAt(0).toUpperCase() }}</div>
-    <p class="sidebar__name">{{ user?.name || '-' }}</p>
-    <p class="sidebar__email">{{ user?.email || '' }}</p>
-    <p class="sidebar__role" *ngIf="roleLabel">{{ roleLabel }}</p>
-    <app-button variant="ghost" (click)="logout()">
+    <div class="sidebar__profile-text">
+      <p class="sidebar__name">{{ user?.name || '-' }}</p>
+      <p class="sidebar__email">{{ user?.email || '' }}</p>
+      <p class="sidebar__role" *ngIf="roleLabel">{{ roleLabel }}</p>
+    </div>
+    <app-button
+      variant="ghost"
+      (click)="logout()"
+      class="sidebar__has-tooltip"
+      [attr.data-tooltip]="collapsed ? 'Logout' : null"
+      [attr.aria-label]="collapsed ? 'Logout' : null"
+    >
       <lucide-icon name="log-out" [size]="16"></lucide-icon>
-      Logout
+      <span class="sidebar__btn-label">Logout</span>
     </app-button>
   </div>
 
@@ -16,7 +33,9 @@
       [routerLink]="item.path"
       routerLinkActive="sidebar__menu-item--active"
       [routerLinkActiveOptions]="{ exact: true }"
-      class="sidebar__menu-item"
+      class="sidebar__menu-item sidebar__has-tooltip"
+      [attr.data-tooltip]="collapsed ? item.label : null"
+      [attr.aria-label]="collapsed ? item.label : null"
       (click)="onMenuItemClick()"
     >
       <lucide-icon *ngIf="item.icon === 'dashboard'" name="layout-dashboard" [size]="18"></lucide-icon>
@@ -26,7 +45,7 @@
       <lucide-icon *ngIf="item.icon === 'summary'" name="file-bar-chart" [size]="18"></lucide-icon>
       <lucide-icon *ngIf="item.icon === 'analytics'" name="bar-chart-3" [size]="18"></lucide-icon>
       <lucide-icon *ngIf="item.icon === 'collaboration-permission'" name="users" [size]="18"></lucide-icon>
-      {{ item.label }}
+      <span class="sidebar__menu-label">{{ item.label }}</span>
     </a>
   </nav>
 </aside>

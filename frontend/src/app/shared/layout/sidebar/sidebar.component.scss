@@ -1,4 +1,5 @@
 .sidebar {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 240px;
@@ -7,6 +8,84 @@
   background: linear-gradient(160deg, var(--gradient-accent-start), var(--gradient-accent-end));
   color: #fff;
   flex-shrink: 0;
+  // Width doang yang di-transition (flex:1 punya .content otomatis ngikutin reflow-nya) --
+  // ini yang bikin collapse/expand-nya kerasa smooth tanpa perlu animasi terpisah di sisi konten.
+  transition: width 0.25s ease, padding 0.25s ease;
+}
+
+.sidebar--collapsed {
+  width: 84px;
+  padding-left: var(--spacing-2);
+  padding-right: var(--spacing-2);
+}
+
+// Tombol bulat kecil "nempel" di border kanan sidebar (setengah nongol ke area konten), biar gampang
+// diklik dari mana aja tanpa makan tempat di dalam sidebar sendiri. Disembunyikan di mobile (lihat
+// media query 880px) karena mobile udah punya mekanisme sendiri (drawer + tombol hamburger).
+.sidebar__collapse-toggle {
+  position: absolute;
+  top: var(--spacing-4);
+  right: -14px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--gradient-accent-end);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition: transform 0.25s ease, background 0.15s ease;
+
+  &:hover {
+    background: #f1f0ff;
+  }
+
+  lucide-icon {
+    transition: transform 0.25s ease;
+  }
+}
+
+.sidebar--collapsed .sidebar__collapse-toggle lucide-icon {
+  transform: rotate(180deg);
+}
+
+// Tooltip custom (bukan native `title`) buat menu item & tombol Logout pas sidebar collapsed --
+// nongol di sisi kanan icon, isi teksnya dari attr `data-tooltip` yang cuma di-isi Angular pas
+// collapsed=true (lihat sidebar.component.html). Selector wajib disyaratin [data-tooltip] (bukan
+// cuma class) -- kalau nggak, ::after tetep kebentuk (background+padding doang, teks kosong) dan
+// nongol pas di-hover walau attr-nya udah di-remove Angular pas sidebar expanded.
+.sidebar__has-tooltip[data-tooltip] {
+  position: relative;
+
+  &::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translate(-6px, -50%);
+    background: #17325c;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1;
+    padding: 6px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 970;
+  }
+
+  &:hover::after,
+  &:focus-visible::after {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
 }
 
 // Di layar sempit, sidebar jadi drawer off-canvas (fixed, disembunyikan lewat translateX)
@@ -28,6 +107,48 @@
 
   .sidebar--open {
     transform: translateX(0);
+  }
+
+  // Toggle collapse cuma konsep desktop -- di mobile sidebar-nya drawer overlay yang udah punya
+  // mekanisme buka/tutup sendiri (hamburger + backdrop), jadi paksa tetep full width & sembunyiin
+  // tombolnya, walau state isSidebarCollapsed kebawa true dari sesi desktop sebelumnya (localStorage).
+  .sidebar--collapsed {
+    width: 260px;
+    padding-left: var(--spacing-3);
+    padding-right: var(--spacing-3);
+  }
+
+  .sidebar__collapse-toggle {
+    display: none;
+  }
+
+  // Paksa semua elemen yang di-collapse (avatar, teks profile, label menu/tombol) balik full walau
+  // class .sidebar--collapsed kebawa true dari localStorage -- drawer mobile emang gak punya mode
+  // icon-only sama sekali.
+  .sidebar--collapsed .sidebar__avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 1.25rem;
+  }
+
+  .sidebar--collapsed .sidebar__profile-text {
+    max-height: 200px;
+    opacity: 1;
+    margin: unset;
+  }
+
+  .sidebar--collapsed .sidebar__menu-item {
+    justify-content: flex-start;
+    gap: var(--spacing-2);
+    padding-left: var(--spacing-3);
+    padding-right: var(--spacing-3);
+  }
+
+  .sidebar--collapsed .sidebar__menu-label,
+  .sidebar--collapsed .sidebar__btn-label {
+    max-width: 180px;
+    opacity: 1;
+    margin: unset;
   }
 }
 
@@ -56,6 +177,29 @@
   font-weight: 700;
   font-size: 1.25rem;
   margin-bottom: var(--spacing-1);
+  flex-shrink: 0;
+  transition: width 0.25s ease, height 0.25s ease, font-size 0.25s ease;
+}
+
+.sidebar--collapsed .sidebar__avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 1rem;
+}
+
+// Teks profile (nama/email/role) & label menu/tombol di-collapse pakai max-height/max-width + opacity
+// (bukan *ngIf/display:none) biar transisinya smooth ngikutin animasi width sidebar, bukan langsung ilang.
+.sidebar__profile-text {
+  max-height: 200px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.15s ease, margin 0.25s ease;
+}
+
+.sidebar--collapsed .sidebar__profile-text {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
 }
 
 .sidebar__name {
@@ -95,6 +239,27 @@
   }
 }
 
+// Label teks "Logout" (span di dalam ng-content app-button) -- di-collapse pakai max-width biar
+// tombolnya nyusut jadi bulat icon-only, konsisten sama pola app-icon-button di kolom action datatable.
+.sidebar__btn-label {
+  display: inline-block;
+  max-width: 120px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: max-width 0.2s ease, opacity 0.15s ease, margin 0.2s ease;
+}
+
+.sidebar--collapsed .sidebar__btn-label {
+  max-width: 0;
+  opacity: 0;
+  margin: 0;
+}
+
+.sidebar--collapsed ::ng-deep .btn {
+  padding-left: var(--spacing-2) !important;
+  padding-right: var(--spacing-2) !important;
+}
+
 .sidebar__menu {
   display: flex;
   flex-direction: column;
@@ -121,6 +286,36 @@
     background: rgba(255, 255, 255, 0.16);
     color: #fff;
     transform: translateX(4px);
+  }
+}
+
+.sidebar--collapsed .sidebar__menu-item {
+  justify-content: center;
+  gap: 0;
+  padding-left: var(--spacing-2);
+  padding-right: var(--spacing-2);
+}
+
+.sidebar__menu-label {
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 180px;
+  transition: max-width 0.2s ease, opacity 0.15s ease, margin 0.2s ease;
+}
+
+.sidebar--collapsed .sidebar__menu-label {
+  max-width: 0;
+  opacity: 0;
+  margin: 0;
+}
+
+// Biar icon bener-bener center pas collapsed (gak kegeser translateX kayak state aktif biasa).
+.sidebar--collapsed .sidebar__menu-item,
+.sidebar--collapsed .sidebar__menu-item--active {
+  transform: none;
+
+  &:hover {
+    transform: none;
   }
 }
 

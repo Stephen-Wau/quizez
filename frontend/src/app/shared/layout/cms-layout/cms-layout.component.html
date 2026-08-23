@@ -10,7 +10,13 @@
 
   <div class="cms-layout__backdrop" *ngIf="isSidebarOpen" (click)="closeSidebar()"></div>
 
-  <app-sidebar [user]="user" [isOpen]="isSidebarOpen" (closed)="closeSidebar()"></app-sidebar>
+  <app-sidebar
+    [user]="user"
+    [isOpen]="isSidebarOpen"
+    [collapsed]="isSidebarCollapsed"
+    (closed)="closeSidebar()"
+    (toggleCollapse)="toggleSidebarCollapse()"
+  ></app-sidebar>
 
   <main class="content">
     <router-outlet></router-outlet>
