@@ -39,6 +39,10 @@ export interface PublicFormDetail {
   passing_grade: number | null;
   // lock_mode: anti-cheat (khusus quiz) -- wajib fullscreen, keluar tab/fullscreen dihitung pelanggaran.
   lock_mode: boolean;
+  // max_attempts: batas jumlah retake (khusus quiz) -- null/1 = cuma boleh 1x.
+  max_attempts: number | null;
+  // language: bahasa teks UI form ("id"/"en") yang dipilih admin -- null dianggap "id".
+  language: 'id' | 'en' | null;
   total_question: number;
   status: string | null;
   state: PublicFormState;

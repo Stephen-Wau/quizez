@@ -1,25 +1,25 @@
 <div class="public-form">
   <div class="public-form__shell">
     <div *ngIf="loading" class="public-form__card public-form__card--center">
-      <h1>Memuat Form</h1>
-      <p>Mohon tunggu, kami sedang menyiapkan quiz atau survey-nya.</p>
+      <h1>{{ t('loading_title') }}</h1>
+      <p>{{ t('loading_body') }}</p>
     </div>
 
     <div *ngIf="!loading && loadError" class="public-form__card public-form__card--center">
-      <h1>Link Tidak Tersedia</h1>
+      <h1>{{ t('link_unavailable_title') }}</h1>
       <p>{{ loadError }}</p>
     </div>
 
     <ng-container *ngIf="!loading && !loadError && detail as form">
       <div *ngIf="submitResult && isQuiz" class="public-form__card public-form__card--center public-form__card--result">
-        <span class="public-form__eyebrow">Quiz Selesai</span>
-        <h1>{{ submitResult.title || 'Quiz' }}</h1>
+        <span class="public-form__eyebrow">{{ t('quiz_done_eyebrow') }}</span>
+        <h1>{{ submitResult.title || t('quiz_fallback') }}</h1>
         <span
           class="public-form__result-badge"
           [class.public-form__result-badge--pass]="quizPassed === true"
           [class.public-form__result-badge--fail]="quizPassed === false"
         >
-          {{ quizPassed === true ? 'Passed' : (quizPassed === false ? 'Not Passed' : 'Completed') }}
+          {{ quizPassed === true ? t('passed') : (quizPassed === false ? t('not_passed') : t('completed')) }}
         </span>
         <p>{{ submitResult.message }}</p>
         <div class="public-form__score">
@@ -28,59 +28,59 @@
         </div>
         <div class="public-form__result-stats">
           <app-card class="public-form__result-stat">
-            <span>Score</span>
+            <span>{{ t('score_label') }}</span>
             <strong>{{ formatScorePercent(submitResult.score_percentage) }}%</strong>
           </app-card>
           <app-card class="public-form__result-stat">
-            <span>Passing Grade</span>
+            <span>{{ t('passing_grade_label') }}</span>
             <strong>{{ submitResult.passing_grade ?? 0 }}</strong>
           </app-card>
           <app-card class="public-form__result-stat">
-            <span>Correct</span>
+            <span>{{ t('correct_label') }}</span>
             <strong>{{ submitResult.correct_answers }}/{{ submitResult.total_questions }}</strong>
           </app-card>
           <app-card class="public-form__result-stat">
-            <span>Answered</span>
+            <span>{{ t('answered_label') }}</span>
             <strong>{{ submitResult.answered_questions }}/{{ submitResult.total_questions }}</strong>
           </app-card>
         </div>
         <div *ngIf="hasCertificate" class="public-form__certificate">
           <span class="public-form__badge-tier" [attr.data-tier]="submitResult.badge_tier">
-            Badge: {{ badgeTierLabel() }}
+            {{ t('badge_prefix') }}: {{ badgeTierLabel() }}
           </span>
           <a class="public-form__certificate-link" [href]="certificateUrl" target="_blank" rel="noopener">
-            Download Sertifikat
+            {{ t('download_certificate') }}
           </a>
         </div>
-        <p class="public-form__meta-line">Terkirim pada {{ submitResult.submitted_at }}</p>
+        <p class="public-form__meta-line">{{ t('submitted_at_prefix') }} {{ submitResult.submitted_at }}</p>
         <div class="public-form__result-review">
           <article class="public-form__result-answer" *ngFor="let answer of submitResult.answer_details; let i = index">
             <div class="public-form__result-answer-head">
-              <strong>{{ i + 1 }}. {{ answer.question || 'Question' }}</strong>
+              <strong>{{ i + 1 }}. {{ answer.question || t('question_fallback') }}</strong>
               <span
                 *ngIf="answer.is_correct !== null"
                 [class.public-form__result-answer-pass]="answer.is_correct"
                 [class.public-form__result-answer-fail]="answer.is_correct === false"
               >
-                {{ answer.is_correct ? 'Correct' : 'Incorrect' }}
+                {{ answer.is_correct ? t('correct') : t('incorrect') }}
               </span>
             </div>
-            <p>Jawaban kamu: {{ resultAnswerPreview(answer) }}</p>
-            <p *ngIf="(answer.correct_answers ?? []).length > 0">Jawaban benar: {{ resultCorrectAnswer(answer) }}</p>
+            <p>{{ t('your_answer_prefix') }}: {{ resultAnswerPreview(answer) }}</p>
+            <p *ngIf="(answer.correct_answers ?? []).length > 0">{{ t('correct_answer_prefix') }}: {{ resultCorrectAnswer(answer) }}</p>
           </article>
         </div>
       </div>
 
       <div *ngIf="submitResult && isSurvey" class="public-form__card public-form__card--center public-form__card--result">
-        <span class="public-form__eyebrow">Terima Kasih</span>
-        <h1>{{ submitResult.title || 'Survey' }}</h1>
+        <span class="public-form__eyebrow">{{ t('thanks_eyebrow') }}</span>
+        <h1>{{ submitResult.title || t('survey_fallback') }}</h1>
         <p>{{ submitResult.message }}</p>
-        <app-button type="button" (click)="refillSurvey()">Isi Kembali Survey</app-button>
+        <app-button type="button" (click)="refillSurvey()">{{ t('refill_survey') }}</app-button>
       </div>
 
       <ng-container *ngIf="!submitResult">
         <div *ngIf="!canFillNow" class="public-form__card public-form__card--center">
-          <span class="public-form__eyebrow">{{ form.type === 'quiz' ? 'Quiz Publik' : 'Survey Publik' }}</span>
+          <span class="public-form__eyebrow">{{ form.type === 'quiz' ? t('quiz_public') : t('survey_public') }}</span>
           <h1>{{ statusTitle() }}</h1>
           <p>{{ statusDescription() }}</p>
           <div class="public-form__period">{{ formatPeriod() }}</div>
@@ -88,101 +88,105 @@
 
         <ng-container *ngIf="canFillNow">
           <div *ngIf="form.access_code_required && !accessVerified" class="public-form__card public-form__card--center public-form__card--access">
-            <span class="public-form__eyebrow">{{ form.type === 'quiz' ? 'Quiz Publik' : 'Survey Publik' }}</span>
-            <h1>Akses Dengan PIN</h1>
-            <p>{{ form.access_message || 'Masukkan PIN unik untuk membuka form ini.' }}</p>
+            <span class="public-form__eyebrow">{{ form.type === 'quiz' ? t('quiz_public') : t('survey_public') }}</span>
+            <h1>{{ t('access_with_pin') }}</h1>
+            <p>{{ form.access_message || t('access_message_default') }}</p>
             <form [formGroup]="accessForm" (ngSubmit)="submitAccessCode()" class="public-form__access-form">
               <app-input
-                label="Access Code / PIN"
+                [label]="t('access_code_label')"
                 [required]="true"
                 formControlName="access_code"
-                [errorMessage]="accessForm.get('access_code')?.touched && !accessForm.get('access_code')?.value ? 'PIN wajib diisi.' : ''"
+                [errorMessage]="accessForm.get('access_code')?.touched && !accessForm.get('access_code')?.value ? t('pin_required') : ''"
               ></app-input>
               <div class="public-form__actions public-form__actions--center">
-                <app-button type="submit">Buka Form</app-button>
+                <app-button type="submit">{{ t('open_form') }}</app-button>
               </div>
             </form>
           </div>
 
           <ng-container *ngIf="accessVerified">
             <div class="public-form__card">
-              <span class="public-form__eyebrow">{{ form.type === 'quiz' ? 'Quiz Publik' : 'Survey Publik' }}</span>
-              <h1>{{ form.title || 'Form Publik' }}</h1>
+              <span class="public-form__eyebrow">{{ form.type === 'quiz' ? t('quiz_public') : t('survey_public') }}</span>
+              <h1>{{ form.title || t('form_public_fallback') }}</h1>
               <p *ngIf="form.description">{{ form.description }}</p>
 
               <div class="public-form__meta">
                 <app-card class="public-form__meta-item">
-                  <span>Periode</span>
+                  <span>{{ t('period_label') }}</span>
                   <strong>{{ formatPeriod() }}</strong>
                 </app-card>
                 <app-card class="public-form__meta-item">
-                  <span>Total Question</span>
+                  <span>{{ t('total_question_label') }}</span>
                   <strong>{{ form.total_question }}</strong>
                 </app-card>
                 <app-card *ngIf="isQuiz" class="public-form__meta-item">
-                  <span>Max Point</span>
+                  <span>{{ t('max_point_label') }}</span>
                   <strong>{{ form.max_point ?? 0 }}</strong>
                 </app-card>
                 <app-card *ngIf="isQuiz" class="public-form__meta-item">
-                  <span>Passing Grade</span>
+                  <span>{{ t('passing_grade_label') }}</span>
                   <strong>{{ form.passing_grade ?? 0 }}</strong>
                 </app-card>
+                <app-card *ngIf="isQuiz && maxAttempts > 1" class="public-form__meta-item">
+                  <span>{{ t('max_attempts_label') }}</span>
+                  <strong>{{ maxAttempts }}x</strong>
+                </app-card>
                 <app-card *ngIf="isQuiz && hasStartedQuiz" variant="danger" class="public-form__meta-item public-form__meta-item--danger">
-                  <span>Sisa Waktu</span>
+                  <span>{{ t('remaining_time_label') }}</span>
                   <strong>{{ countdownLabel }}</strong>
                 </app-card>
                 <app-card class="public-form__meta-item" *ngIf="progressRestored">
-                  <span>Progress</span>
-                  <strong>Dipulihkan dari sesi terakhir</strong>
+                  <span>{{ t('progress_label') }}</span>
+                  <strong>{{ t('progress_restored') }}</strong>
                 </app-card>
                 <app-card *ngIf="isQuiz && form.lock_mode" variant="danger" class="public-form__meta-item public-form__meta-item--danger">
-                  <span>Lock Mode</span>
-                  <strong>Aktif — wajib fullscreen</strong>
+                  <span>{{ t('lock_mode_label') }}</span>
+                  <strong>{{ t('lock_mode_active') }}</strong>
                 </app-card>
                 <app-card *ngIf="lockModeRequired" variant="danger" class="public-form__meta-item public-form__meta-item--danger">
-                  <span>Pelanggaran</span>
+                  <span>{{ t('violation_label') }}</span>
                   <strong>{{ violationCount }} / {{ maxViolations }}</strong>
                 </app-card>
               </div>
             </div>
 
             <div *ngIf="lockModeRequired && !isFullscreenActive" class="public-form__card public-form__card--center public-form__card--danger">
-              <span class="public-form__eyebrow">Lock Mode Aktif</span>
-              <h1>Masuk Mode Fullscreen</h1>
-              <p>Quiz ini pakai anti-cheat: kamu wajib mengerjakan dalam mode fullscreen. Keluar tab atau fullscreen dihitung pelanggaran.</p>
-              <app-button type="button" (click)="enterLockFullscreen()">Masuk Fullscreen & Lanjutkan</app-button>
+              <span class="public-form__eyebrow">{{ t('lock_mode_active_eyebrow') }}</span>
+              <h1>{{ t('enter_fullscreen_title') }}</h1>
+              <p>{{ t('enter_fullscreen_desc') }}</p>
+              <app-button type="button" (click)="enterLockFullscreen()">{{ t('enter_fullscreen_button') }}</app-button>
             </div>
 
             <div *ngIf="isQuiz && !hasStartedQuiz" class="public-form__card public-form__card--welcome">
               <div class="public-form__welcome-head">
                 <div>
-                  <h2>Welcome Page & Instruction</h2>
-                  <p>Baca aturan quiz dulu, lalu mulai dengan email yang valid.</p>
+                  <h2>{{ t('welcome_title') }}</h2>
+                  <p>{{ t('welcome_desc') }}</p>
                 </div>
-                <span class="public-form__welcome-badge">Ready to start</span>
+                <span class="public-form__welcome-badge">{{ t('ready_to_start') }}</span>
               </div>
 
               <div class="public-form__welcome-grid">
                 <app-card class="public-form__welcome-card">
-                  <span>Durasi Quiz</span>
+                  <span>{{ t('quiz_duration_label') }}</span>
                   <strong>{{ formatPeriod() }}</strong>
                 </app-card>
                 <app-card class="public-form__welcome-card">
-                  <span>Jumlah Soal</span>
+                  <span>{{ t('question_count_label') }}</span>
                   <strong>{{ form.total_question }}</strong>
                 </app-card>
                 <app-card class="public-form__welcome-card">
-                  <span>Passing Grade</span>
+                  <span>{{ t('passing_grade_label') }}</span>
                   <strong>{{ form.passing_grade ?? 0 }}</strong>
                 </app-card>
               </div>
 
               <ul class="public-form__welcome-list">
-                <li>Urutan soal dan pilihan jawaban dapat berbeda untuk setiap peserta.</li>
-                <li>Jawaban akan tersimpan di browser ini selama form belum dikirim.</li>
-                <li>Jika browser direfresh, quiz akan dipulihkan dari sesi terakhir selama waktunya masih aktif.</li>
-                <li>Email yang sama tidak bisa mengirim quiz ini dua kali.</li>
-                <li>Sebelum submit final, kamu bisa review semua jawaban lebih dulu.</li>
+                <li>{{ t('rule_random_order') }}</li>
+                <li>{{ t('rule_autosave') }}</li>
+                <li>{{ t('rule_restore') }}</li>
+                <li>{{ t('rule_dedup', { max: maxAttempts }) }}</li>
+                <li>{{ t('rule_review') }}</li>
               </ul>
 
               <label class="public-form__ack-checkbox">
@@ -191,28 +195,28 @@
                   [checked]="welcomeAcknowledged"
                   (change)="acknowledgeWelcome($any($event.target).checked)"
                 />
-                <span>Saya sudah membaca dan memahami instruksi di atas.</span>
+                <span>{{ t('ack_instructions') }}</span>
               </label>
 
               <form [formGroup]="accessForm" (ngSubmit)="startQuiz()">
                 <app-input
-                  label="Nama"
+                  [label]="t('name_label')"
                   type="text"
                   [required]="true"
                   formControlName="name"
-                  [errorMessage]="accessForm.get('name')?.touched && accessForm.get('name')?.invalid ? 'Nama wajib diisi.' : ''"
+                  [errorMessage]="accessForm.get('name')?.touched && accessForm.get('name')?.invalid ? t('name_required') : ''"
                 ></app-input>
 
                 <app-input
-                  label="Email"
+                  [label]="t('email_label')"
                   type="email"
                   [required]="true"
                   formControlName="email"
-                  [errorMessage]="accessForm.get('email')?.touched && accessForm.get('email')?.invalid ? 'Email wajib valid.' : ''"
+                  [errorMessage]="accessForm.get('email')?.touched && accessForm.get('email')?.invalid ? t('email_required') : ''"
                 ></app-input>
 
                 <div class="public-form__actions">
-                  <app-button type="submit">Start Quiz</app-button>
+                  <app-button type="submit">{{ t('start_quiz') }}</app-button>
                 </div>
               </form>
             </div>
@@ -220,11 +224,11 @@
             <div *ngIf="(isSurvey || hasStartedQuiz) && !isReviewStep && (!lockModeRequired || isFullscreenActive)" class="public-form__card">
               <div class="public-form__pager">
                 <div>
-                  <span class="public-form__pager-label">Question {{ currentQuestionNumber }} of {{ totalQuestions }}</span>
-                  <strong>{{ progressPercent }}% selesai</strong>
+                  <span class="public-form__pager-label">{{ t('question_of', { current: currentQuestionNumber, total: totalQuestions }) }}</span>
+                  <strong>{{ t('percent_done', { percent: progressPercent }) }}</strong>
                 </div>
                 <div class="public-form__pager-status">
-                  <span>{{ answeredCount }} terjawab</span>
+                  <span>{{ t('answered_count', { count: answeredCount }) }}</span>
                 </div>
               </div>
 
@@ -236,7 +240,7 @@
                 <div formArrayName="answers" class="public-form__questions" *ngIf="activeQuestion as question">
                   <div [formGroupName]="currentQuestionIndex" class="public-form__question">
                     <div class="public-form__question-head">
-                      <h3>{{ currentQuestionNumber }}. {{ question.question || 'Question' }}</h3>
+                      <h3>{{ currentQuestionNumber }}. {{ question.question || t('question_fallback') }}</h3>
                       <span class="public-form__question-type">{{ question.type_answer || '-' }}</span>
                     </div>
 
@@ -258,7 +262,7 @@
 
                     <div *ngIf="question.type_answer === 'dropdown'" class="public-form__field">
                       <app-select
-                        placeholder="Pilih jawaban..."
+                        [placeholder]="t('choose_answer_placeholder')"
                         [options]="dropdownOptions(question)"
                         formControlName="question_answer_id"
                       ></app-select>
@@ -296,7 +300,7 @@
 
                     <app-input
                       *ngIf="question.type_answer === 'free_text'"
-                      label="Jawaban"
+                      [label]="t('answer_label')"
                       [required]="true"
                       [multiline]="true"
                       formControlName="answer_text"
@@ -306,18 +310,18 @@
                       *ngIf="activeAnswerGroup?.touched && activeAnswerGroup?.invalid"
                       class="public-form__error"
                     >
-                      Jawaban untuk question ini wajib diisi.
+                      {{ t('answer_required') }}
                     </p>
                   </div>
                 </div>
 
                 <div class="public-form__actions public-form__actions--between">
                   <app-button variant="ghost" type="button" (click)="previousQuestion()" [disabled]="currentQuestionIndex === 0">
-                    Previous
+                    {{ t('previous') }}
                   </app-button>
 
-                  <app-button *ngIf="!isLastQuestion" type="button" (click)="nextQuestion()">Next Question</app-button>
-                  <app-button *ngIf="isLastQuestion" type="button" (click)="openReview()">Review Before Submit</app-button>
+                  <app-button *ngIf="!isLastQuestion" type="button" (click)="nextQuestion()">{{ t('next_question') }}</app-button>
+                  <app-button *ngIf="isLastQuestion" type="button" (click)="openReview()">{{ t('review_before_submit') }}</app-button>
                 </div>
               </form>
             </div>
@@ -325,32 +329,32 @@
             <div *ngIf="(isSurvey || hasStartedQuiz) && isReviewStep && (!lockModeRequired || isFullscreenActive)" class="public-form__card">
               <div class="public-form__review-head">
                 <div>
-                  <h2>Review Before Submit</h2>
-                  <p>Cek ulang semua jawaban sebelum dikirim final.</p>
+                  <h2>{{ t('review_before_submit') }}</h2>
+                  <p>{{ t('review_desc') }}</p>
                 </div>
-                <span class="public-form__welcome-badge">{{ answeredCount }}/{{ totalQuestions }} terjawab</span>
+                <span class="public-form__welcome-badge">{{ t('answered_count', { count: answeredCount + '/' + totalQuestions }) }}</span>
               </div>
 
               <div class="public-form__review-list">
                 <article class="public-form__review-item" *ngFor="let item of reviewItems">
                   <div class="public-form__review-item-head">
                     <div>
-                      <strong>{{ item.index + 1 }}. {{ item.question.question || 'Question' }}</strong>
+                      <strong>{{ item.index + 1 }}. {{ item.question.question || t('question_fallback') }}</strong>
                       <span class="public-form__question-type">{{ item.question.type_answer || '-' }}</span>
                     </div>
                     <span class="public-form__review-badge" [class.public-form__review-badge--done]="item.answered">
-                      {{ item.answered ? 'Answered' : 'Missing' }}
+                      {{ item.answered ? t('answered_badge') : t('missing_badge') }}
                     </span>
                   </div>
                   <p>{{ item.answerPreview }}</p>
-                  <button type="button" class="public-form__text-button" (click)="jumpToQuestion(item.index)">Edit Jawaban</button>
+                  <button type="button" class="public-form__text-button" (click)="jumpToQuestion(item.index)">{{ t('edit_answer') }}</button>
                 </article>
               </div>
 
               <div class="public-form__actions public-form__actions--between">
-                <app-button variant="ghost" type="button" (click)="backToQuestions()">Back to Questions</app-button>
+                <app-button variant="ghost" type="button" (click)="backToQuestions()">{{ t('back_to_questions') }}</app-button>
                 <app-button type="button" [disabled]="isSubmitting" (click)="submit()">
-                  {{ isSubmitting ? 'Mengirim...' : (isQuiz ? 'Submit Quiz Final' : 'Submit Survey Final') }}
+                  {{ isSubmitting ? t('submitting') : (isQuiz ? t('submit_quiz_final') : t('submit_survey_final')) }}
                 </app-button>
               </div>
             </div>

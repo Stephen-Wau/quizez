@@ -19,6 +19,7 @@ import {
   PublicFormSubmitPayload,
   PublicFormSubmitResult,
 } from './public-form.service';
+import { PUBLIC_FORM_I18N, PublicFormLanguage } from './public-form.i18n';
 import { InputComponent } from '../../shared/ui/input/input.component';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { CardComponent } from '../../shared/ui/card/card.component';
@@ -105,10 +106,10 @@ export class PublicFormComponent implements OnInit, OnDestroy {
   private lastViolationAt = 0;
   private deviceFingerprint = '';
   private readonly handleVisibilityChange = (): void => {
-    if (document.hidden) this.registerViolation('Kamu terdeteksi berpindah tab atau aplikasi lain.');
+    if (document.hidden) this.registerViolation(this.t('violation_tab_switch'));
   };
   private readonly handleFullscreenChange = (): void => {
-    if (!document.fullscreenElement) this.registerViolation('Kamu keluar dari mode fullscreen.');
+    if (!document.fullscreenElement) this.registerViolation(this.t('violation_exit_fullscreen'));
   };
 
   constructor(
@@ -167,7 +168,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     if (!this.lockModeRequired) return;
     const el = document.documentElement as HTMLElement & { requestFullscreen?: () => Promise<void> };
     if (!el.requestFullscreen) {
-      this.toast.error('Browser ini tidak mendukung mode fullscreen.');
+      this.toast.error(this.t('toast_fullscreen_unsupported'));
       return;
     }
     el.requestFullscreen()
@@ -175,7 +176,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
         this.lockModeArmed = true;
       })
       .catch(() => {
-        this.toast.error('Gagal masuk mode fullscreen, coba lagi.');
+        this.toast.error(this.t('toast_fullscreen_failed'));
       });
   }
 
@@ -198,11 +199,13 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     this.persistFormSession();
 
     if (this.violationCount >= this.maxViolations) {
-      this.toast.error(`Pelanggaran ke-${this.violationCount}: ${reason} Quiz otomatis dikirim.`);
+      this.toast.error(this.t('toast_violation_final', { count: this.violationCount, reason }));
       this.exitLockFullscreen();
       this.submit(true);
     } else {
-      this.toast.error(`Peringatan ${this.violationCount}/${this.maxViolations}: ${reason} Kembali ke fullscreen sekarang.`);
+      this.toast.error(
+        this.t('toast_violation_warning', { count: this.violationCount, max: this.maxViolations, reason }),
+      );
     }
   }
 
@@ -224,6 +227,30 @@ export class PublicFormComponent implements OnInit, OnDestroy {
 
   get isSurvey(): boolean {
     return this.detail?.type === 'survey';
+  }
+
+  // language bahasa teks UI form ("id"/"en") sesuai setting admin di quiz ini, default "id".
+  get language(): PublicFormLanguage {
+    return (this.detail?.language as PublicFormLanguage) || 'id';
+  }
+
+  // t ambil teks UI statis (label/tombol/instruksi) sesuai bahasa quiz ini, dengan interpolasi
+  // sederhana {token} -> value. Soal/jawaban/pesan dari backend TIDAK lewat sini (tetap apa adanya).
+  t(key: keyof typeof PUBLIC_FORM_I18N, params?: Record<string, string | number>): string {
+    const entry = PUBLIC_FORM_I18N[key];
+    let text = entry ? entry[this.language] : String(key);
+    if (params) {
+      for (const [token, value] of Object.entries(params)) {
+        text = text.replace(`{${token}}`, String(value));
+      }
+    }
+    return text;
+  }
+
+  // maxAttempts batas retake quiz ini (nil/<=1 = 1x doang) -- dipakai buat tampilin "Percobaan ke-X
+  // dari Y" & aturan retake di welcome page.
+  get maxAttempts(): number {
+    return this.detail?.max_attempts && this.detail.max_attempts > 1 ? this.detail.max_attempts : 1;
   }
 
   get canFillNow(): boolean {
@@ -354,7 +381,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     const accessCode = this.readAccessCode();
     if (!accessCode) {
       this.accessForm.get('access_code')?.markAsTouched();
-      this.toast.error('PIN akses wajib diisi.');
+      this.toast.error(this.t('toast_pin_required'));
       return;
     }
     this.loadForm(token, accessCode);
@@ -370,7 +397,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
   startQuiz(): void {
     if (!this.isQuiz || !this.detail) return;
     if (!this.welcomeAcknowledged) {
-      this.toast.info('Baca instruksi dulu sebelum mulai quiz.');
+      this.toast.info(this.t('toast_read_instructions'));
       return;
     }
     if (this.accessForm.get('name')?.invalid || this.accessForm.get('email')?.invalid) {
@@ -425,7 +452,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
   submit(autoSubmit = false): void {
     if (!this.detail) return;
     if (!autoSubmit && !this.canSubmitAllAnswers()) {
-      this.toast.error('Masih ada jawaban yang belum lengkap.');
+      this.toast.error(this.t('toast_incomplete_answers'));
       return;
     }
 
@@ -439,12 +466,12 @@ export class PublicFormComponent implements OnInit, OnDestroy {
         this.clearFormSession();
         this.exitLockFullscreen();
         if (this.isSurvey) {
-          this.toast.success('Survey berhasil dikirim.');
+          this.toast.success(this.t('toast_survey_submitted'));
         }
       },
       error: (err) => {
         this.isSubmitting = false;
-        const message = typeof err?.error === 'string' && err.error ? err.error : 'Gagal mengirim jawaban.';
+        const message = typeof err?.error === 'string' && err.error ? err.error : this.t('toast_submit_failed');
         this.toast.error(message);
       },
     });
@@ -526,13 +553,13 @@ export class PublicFormComponent implements OnInit, OnDestroy {
   statusTitle(): string {
     switch (this.detail?.state) {
       case 'upcoming':
-        return 'Form Belum Dibuka';
+        return this.t('status_upcoming_title');
       case 'expired':
-        return 'Form Expired';
+        return this.t('status_expired_title');
       case 'inactive':
-        return 'Form Tidak Aktif';
+        return this.t('status_inactive_title');
       default:
-        return 'Form Tidak Tersedia';
+        return this.t('status_unavailable_title');
     }
   }
 
@@ -544,43 +571,43 @@ export class PublicFormComponent implements OnInit, OnDestroy {
 
     if (this.detail.state === 'upcoming') {
       return this.isQuiz
-        ? `Quiz ini baru bisa dimulai mulai pukul ${quizTimeOnly}.`
-        : `Form ini baru bisa diisi mulai ${quizTimeOnly}.`;
+        ? this.t('status_upcoming_quiz', { time: quizTimeOnly })
+        : this.t('status_upcoming_other', { time: quizTimeOnly });
     }
     if (this.detail.state === 'expired') {
-      return this.isSurvey
-        ? 'Periode survey sudah selesai, jadi link ini tidak menerima jawaban baru.'
-        : 'Waktu quiz hari ini sudah habis, jadi link ini tidak bisa dipakai lagi.';
+      return this.isSurvey ? this.t('status_expired_survey') : this.t('status_expired_quiz');
     }
-    return 'Admin sedang menonaktifkan form ini untuk sementara.';
+    return this.t('status_inactive_body');
   }
 
   answerPreview(index: number, question: PublicQuestion): string {
     const group = this.answersArray.at(index);
-    if (!group) return 'Belum dijawab';
+    if (!group) return this.t('not_answered');
     if (question.type_answer === 'free_text') {
-      return group.get('answer_text')?.value?.trim() || 'Belum dijawab';
+      return group.get('answer_text')?.value?.trim() || this.t('not_answered');
     }
     if (question.type_answer === 'checkbox') {
       const selectedIds = (group.get('selected_answer_ids')?.value ?? []) as number[];
       const labels = question.answers.filter((option) => selectedIds.includes(option.id)).map((option) => option.label);
-      return labels.length > 0 ? labels.join(', ') : 'Belum dijawab';
+      return labels.length > 0 ? labels.join(', ') : this.t('not_answered');
     }
     if (question.type_answer === 'matrix') {
       const rows = this.matrixAnswersArray(index).controls;
       const answeredCount = rows.filter((row) => !!row.get('question_answer_id')?.value).length;
-      return rows.length > 0 ? `${answeredCount} dari ${rows.length} baris terisi` : 'Belum dijawab';
+      return rows.length > 0
+        ? (this.language === 'en' ? `${answeredCount} of ${rows.length} rows filled` : `${answeredCount} dari ${rows.length} baris terisi`)
+        : this.t('not_answered');
     }
 
     const optionId = Number(group.get('question_answer_id')?.value ?? 0);
     const selected = question.answers.find((option) => option.id === optionId);
-    return selected?.label || 'Belum dijawab';
+    return selected?.label || this.t('not_answered');
   }
 
   resultAnswerPreview(answer: PublicFormSubmitResult['answer_details'][number]): string {
     if (answer.selected_answer_text) return answer.selected_answer_text;
     if (answer.selected_answer_label) return answer.selected_answer_label;
-    return 'Tidak dijawab';
+    return this.t('not_answered_result');
   }
 
   resultCorrectAnswer(answer: PublicFormSubmitResult['answer_details'][number]): string {
@@ -990,7 +1017,7 @@ export class PublicFormComponent implements OnInit, OnDestroy {
     if (!control) return true;
     if (control.valid) return true;
     control.markAllAsTouched();
-    this.toast.error('Jawaban untuk question ini wajib diisi sebelum lanjut.');
+    this.toast.error(this.t('toast_answer_required_next'));
     return false;
   }
 
