@@ -22,6 +22,9 @@ type quizRequest struct {
 	PassingGrade        *int    `json:"passing_grade"`
 	RandomQuestionCount *int    `json:"random_question_count"`
 	LockMode            bool    `json:"lock_mode"`
+	MaxAttempts         *int    `json:"max_attempts"`
+	RetakeScorePolicy   *string `json:"retake_score_policy"`
+	Language            *string `json:"language"`
 	Status              *string `json:"status"`
 }
 
@@ -117,6 +120,25 @@ func validateQuizRequest(req quizRequest) string {
 	if req.RandomQuestionCount != nil && *req.RandomQuestionCount <= 0 {
 		return "Jumlah soal random harus lebih dari 0."
 	}
+	// Retake cuma masuk akal buat quiz (survey emang udah bebas diisi berkali-kali dari awal).
+	if req.MaxAttempts != nil {
+		if *req.MaxAttempts < 1 {
+			return "Max attempts minimal 1."
+		}
+		if req.Type != nil && *req.Type != "quiz" {
+			return "Max attempts cuma berlaku untuk tipe quiz."
+		}
+	}
+	// Retake score policy wajib jelas ("best"/"latest") begitu retake diaktifkan (max_attempts > 1),
+	// biar leaderboard/hasil akhir tau attempt mana yang dipakai.
+	if req.MaxAttempts != nil && *req.MaxAttempts > 1 {
+		if req.RetakeScorePolicy == nil || (*req.RetakeScorePolicy != "best" && *req.RetakeScorePolicy != "latest") {
+			return "Pilih skor yang dipakai (Terbaik/Terakhir) untuk quiz yang bisa diulang."
+		}
+	}
+	if req.Language != nil && *req.Language != "id" && *req.Language != "en" {
+		return "Bahasa form harus Indonesia atau English."
+	}
 	return ""
 }
 
@@ -132,12 +154,20 @@ func createQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 
+	isQuizType := req.Type != nil && *req.Type == "quiz"
 	q := models.Quiz{
 		Title: normalizeStr(req.Title), Type: normalizeStr(req.Type),
 		StartTime: req.StartTime, EndTime: req.EndTime,
 		Description: normalizeStr(req.Description), MaxPoint: req.MaxPoint, PassingGrade: req.PassingGrade,
-		RandomQuestionCount: req.RandomQuestionCount, LockMode: req.Type != nil && *req.Type == "quiz" && req.LockMode,
-		Status: normalizeStr(req.Status),
+		RandomQuestionCount: req.RandomQuestionCount, LockMode: isQuizType && req.LockMode,
+		Status:   normalizeStr(req.Status),
+		Language: normalizeStr(req.Language),
+	}
+	// Retake (max_attempts/retake_score_policy) cuma berlaku buat quiz -- survey emang udah bebas
+	// diisi berkali-kali dari awal, jadi dipaksa kosong biar gak nyangkut kalau type-nya diganti.
+	if isQuizType {
+		q.MaxAttempts = req.MaxAttempts
+		q.RetakeScorePolicy = normalizeStr(req.RetakeScorePolicy)
 	}
 	id, err := models.CreateQuiz(db, q)
 	if err != nil {
@@ -161,12 +191,18 @@ func updateQuiz(w http.ResponseWriter, r *http.Request, db *sql.DB, id int64) {
 		return
 	}
 
+	isQuizType := req.Type != nil && *req.Type == "quiz"
 	q := models.Quiz{
 		ID: id, Title: normalizeStr(req.Title), Type: normalizeStr(req.Type),
 		StartTime: req.StartTime, EndTime: req.EndTime,
 		Description: normalizeStr(req.Description), MaxPoint: req.MaxPoint, PassingGrade: req.PassingGrade,
-		RandomQuestionCount: req.RandomQuestionCount, LockMode: req.Type != nil && *req.Type == "quiz" && req.LockMode,
-		Status: normalizeStr(req.Status),
+		RandomQuestionCount: req.RandomQuestionCount, LockMode: isQuizType && req.LockMode,
+		Status:   normalizeStr(req.Status),
+		Language: normalizeStr(req.Language),
+	}
+	if isQuizType {
+		q.MaxAttempts = req.MaxAttempts
+		q.RetakeScorePolicy = normalizeStr(req.RetakeScorePolicy)
 	}
 	if err := models.UpdateQuiz(db, q); err != nil {
 		response.Error(w, http.StatusInternalServerError, "failed to update quiz")

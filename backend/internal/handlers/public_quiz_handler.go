@@ -184,28 +184,33 @@ func PublicQuizSubmitHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		isQuizType := publicQuiz.Type != nil && *publicQuiz.Type == "quiz"
+		// max_attempts nil/<=0 berarti behavior lama: cuma boleh 1x.
+		maxAttempts := 1
+		if publicQuiz.MaxAttempts != nil && *publicQuiz.MaxAttempts > 0 {
+			maxAttempts = *publicQuiz.MaxAttempts
+		}
 		if isQuizType && email != nil {
-			exists, err := models.HasSubmittedEmail(db, publicQuiz.ID, *email)
+			count, err := models.CountSubmissionsByEmail(db, publicQuiz.ID, *email)
 			if err != nil {
 				response.Error(w, http.StatusInternalServerError, "failed to submit quiz")
 				return
 			}
-			if exists {
-				response.Error(w, http.StatusConflict, "Email ini sudah pernah mengirim quiz ini.")
+			if count >= maxAttempts {
+				response.Error(w, http.StatusConflict, retakeLimitMessage("Email ini", maxAttempts))
 				return
 			}
 		}
-		// Dedup device fingerprint (anti-cheat) cuma buat quiz -- survey sengaja dibiarkan bebas
-		// diisi berkali-kali dari device yang sama (lihat fitur "Isi Ulang" survey).
+		// Dedup device fingerprint (anti-cheat) cuma buat quiz -- limit-nya sama kayak email, biar 1
+		// device gak bisa nge-farm attempt lebih banyak dari max_attempts pakai email yang beda-beda.
 		fingerprint := stringValue(req.DeviceFingerprint)
 		if isQuizType && fingerprint != "" {
-			exists, err := models.HasSubmittedFingerprint(db, publicQuiz.ID, fingerprint)
+			count, err := models.CountSubmissionsByFingerprint(db, publicQuiz.ID, fingerprint)
 			if err != nil {
 				response.Error(w, http.StatusInternalServerError, "failed to submit quiz")
 				return
 			}
-			if exists {
-				response.Error(w, http.StatusConflict, "Device ini sudah pernah mengirim quiz ini.")
+			if count >= maxAttempts {
+				response.Error(w, http.StatusConflict, retakeLimitMessage("Device ini", maxAttempts))
 				return
 			}
 		}
@@ -367,6 +372,15 @@ func validatePublicSubmissionName(quiz models.PublicQuiz, name *string) (*string
 	}
 	trimmed := strings.TrimSpace(*name)
 	return &trimmed, ""
+}
+
+// retakeLimitMessage pesan error 409 saat batas percobaan (max_attempts) tercapai, beda kalimat
+// buat maxAttempts=1 (behavior lama, "sudah pernah") vs >1 (retake, sebut angka batasnya).
+func retakeLimitMessage(subject string, maxAttempts int) string {
+	if maxAttempts <= 1 {
+		return fmt.Sprintf("%s sudah pernah mengirim quiz ini.", subject)
+	}
+	return fmt.Sprintf("%s sudah mencapai batas maksimal %d kali percobaan quiz ini.", subject, maxAttempts)
 }
 
 // stringValue bantu baca pointer string handler tanpa perlu ngecek nil berulang.

@@ -58,16 +58,20 @@ type PublicQuiz struct {
 	MaxPoint     *int    `json:"max_point"`
 	PassingGrade *int    `json:"passing_grade"`
 	// RandomQuestionCount diteruskan biar handler submit bisa recompute subset yang sama tanpa query ulang ke DB.
-	RandomQuestionCount *int             `json:"-"`
-	LockMode            bool             `json:"lock_mode"`
-	TotalQuestion       int              `json:"total_question"`
-	Status              *string          `json:"status"`
-	State               string           `json:"state"`
-	ServerTime          string           `json:"server_time"`
-	AccessCodeRequired  bool             `json:"access_code_required"`
-	AccessGranted       bool             `json:"access_granted"`
-	AccessMessage       *string          `json:"access_message"`
-	Questions           []PublicQuestion `json:"questions"`
+	RandomQuestionCount *int `json:"-"`
+	LockMode            bool `json:"lock_mode"`
+	// MaxAttempts diteruskan biar FE bisa nampilin info "percobaan ke-X dari Y" (nil/<=1 = 1x doang).
+	MaxAttempts *int `json:"max_attempts"`
+	// Language bahasa form publik ("id"/"en"), nil dianggap "id" di FE.
+	Language           *string          `json:"language"`
+	TotalQuestion      int              `json:"total_question"`
+	Status             *string          `json:"status"`
+	State              string           `json:"state"`
+	ServerTime         string           `json:"server_time"`
+	AccessCodeRequired bool             `json:"access_code_required"`
+	AccessGranted      bool             `json:"access_granted"`
+	AccessMessage      *string          `json:"access_message"`
+	Questions          []PublicQuestion `json:"questions"`
 }
 
 type PublicSubmissionAnswerInput struct {
@@ -88,14 +92,14 @@ type PublicMatrixAnswerInput struct {
 }
 
 type PublicSubmissionResult struct {
-	SubmissionID      int64                          `json:"submission_id"`
-	Title             *string                        `json:"title"`
-	Type              *string                        `json:"type"`
-	Score             *int                           `json:"score"`
-	MaxPoint          *int                           `json:"max_point"`
-	PassingGrade      *int                           `json:"passing_grade"`
-	ScorePercentage   *float64                       `json:"score_percentage"`
-	Passed            *bool                          `json:"passed"`
+	SubmissionID    int64    `json:"submission_id"`
+	Title           *string  `json:"title"`
+	Type            *string  `json:"type"`
+	Score           *int     `json:"score"`
+	MaxPoint        *int     `json:"max_point"`
+	PassingGrade    *int     `json:"passing_grade"`
+	ScorePercentage *float64 `json:"score_percentage"`
+	Passed          *bool    `json:"passed"`
 	// BadgeTier tier gamifikasi (gold/silver/bronze) dihitung dari ScorePercentage, nil kalau quiz
 	// gak punya scoring (survey atau max_point belum di-set).
 	BadgeTier         *string                        `json:"badge_tier"`
@@ -193,6 +197,7 @@ func GetOrCreateQuizShare(db *sql.DB, quizID int64) (QuizShare, error) {
 func GetPublicQuizByToken(db *sql.DB, token string, accessCode *string, now time.Time, attemptSeed string) (PublicQuiz, error) {
 	row := db.QueryRow(
 		"SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, q.random_question_count, q.lock_mode, "+
+			"q.max_attempts, q.retake_score_policy, q.language, "+
 			"(SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS total_question, q.status, q.duplicated_from_id "+
 			"FROM quizzes q INNER JOIN quiz_shares qs ON qs.quiz_id = q.id WHERE qs.token = ? LIMIT 1",
 		token,
@@ -280,6 +285,8 @@ func GetPublicQuizByToken(db *sql.DB, token string, accessCode *string, now time
 		PassingGrade:        quiz.PassingGrade,
 		RandomQuestionCount: quiz.RandomQuestionCount,
 		LockMode:            quiz.LockMode,
+		MaxAttempts:         quiz.MaxAttempts,
+		Language:            quiz.Language,
 		TotalQuestion:       totalQuestionForResponse,
 		Status:              quiz.Status,
 		State:               ResolvePublicQuizState(quiz, now),
@@ -295,33 +302,28 @@ func GetQuizShareByToken(db *sql.DB, token string) (QuizShare, error) {
 	return getQuizShareByToken(db, token)
 }
 
-// HasSubmittedEmail dipakai alur quiz publik untuk mencegah email yang sama submit dua kali.
-func HasSubmittedEmail(db *sql.DB, quizID int64, email string) (bool, error) {
-	var exists int
+// CountSubmissionsByEmail hitung berapa kali 1 email udah submit quiz ini -- dipakai buat cek batas
+// retake (quiz.max_attempts), gantiin HasSubmittedEmail lama yang cuma exists-check (1x doang).
+func CountSubmissionsByEmail(db *sql.DB, quizID int64, email string) (int, error) {
+	var count int
 	err := db.QueryRow(
-		"SELECT 1 FROM quiz_submissions WHERE quiz_id = ? AND LOWER(respondent_email) = ? LIMIT 1",
+		"SELECT COUNT(*) FROM quiz_submissions WHERE quiz_id = ? AND LOWER(respondent_email) = ?",
 		quizID,
 		strings.ToLower(strings.TrimSpace(email)),
-	).Scan(&exists)
-	if err == sql.ErrNoRows {
-		return false, nil
-	}
-	return err == nil, err
+	).Scan(&count)
+	return count, err
 }
 
-// HasSubmittedFingerprint dipakai alur quiz publik (anti-cheat) untuk mencegah 1 device submit
-// quiz yang sama dua kali walau pakai email berbeda-beda.
-func HasSubmittedFingerprint(db *sql.DB, quizID int64, fingerprint string) (bool, error) {
-	var exists int
+// CountSubmissionsByFingerprint hitung berapa kali 1 device udah submit quiz ini (anti-cheat) --
+// dipakai bareng CountSubmissionsByEmail biar 1 device gak bisa nge-farm attempt lewat email beda-beda.
+func CountSubmissionsByFingerprint(db *sql.DB, quizID int64, fingerprint string) (int, error) {
+	var count int
 	err := db.QueryRow(
-		"SELECT 1 FROM quiz_submissions WHERE quiz_id = ? AND device_fingerprint = ? LIMIT 1",
+		"SELECT COUNT(*) FROM quiz_submissions WHERE quiz_id = ? AND device_fingerprint = ?",
 		quizID,
 		strings.TrimSpace(fingerprint),
-	).Scan(&exists)
-	if err == sql.ErrNoRows {
-		return false, nil
-	}
-	return err == nil, err
+	).Scan(&count)
+	return count, err
 }
 
 func ValidateQuizShareAccessCode(share QuizShare, accessCode *string) bool {

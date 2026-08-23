@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/go-pdf/fpdf"
 
@@ -107,10 +109,65 @@ func GetQuizLeaderboard(db *sql.DB, quizID int64) ([]LeaderboardEntry, error) {
 		return nil, err
 	}
 
+	entries = dedupeLeaderboardByRespondent(entries, stringPtrValue(quiz.RetakeScorePolicy))
 	for i := range entries {
 		entries[i].Rank = i + 1
 	}
 	return entries, nil
+}
+
+// dedupeLeaderboardByRespondent pilih 1 attempt per respondent (email) sesuai retake_score_policy
+// quiz ini, biar 1 orang yang retake berkali-kali gak numpuk banyak baris di leaderboard:
+//   - "best" (default/kosong, termasuk quiz yang emang gak retake): entries yang masuk sini udah
+//     terurut score DESC/duration ASC/submitted_at ASC, jadi occurrence PERTAMA per email itu
+//     otomatis attempt terbaiknya -- tinggal diambil, gak perlu sort ulang.
+//   - "latest": urutkan dulu submitted_at DESC biar occurrence pertama per email = attempt paling
+//     baru, ambil itu, lalu SORT ULANG hasilnya balik ke urutan ranking score DESC/duration ASC.
+func dedupeLeaderboardByRespondent(entries []LeaderboardEntry, policy string) []LeaderboardEntry {
+	source := entries
+	if policy == "latest" {
+		source = make([]LeaderboardEntry, len(entries))
+		copy(source, entries)
+		sort.SliceStable(source, func(i, j int) bool {
+			return stringPtrValue(source[i].SubmittedAt) > stringPtrValue(source[j].SubmittedAt)
+		})
+	}
+
+	seen := map[string]bool{}
+	deduped := make([]LeaderboardEntry, 0, len(source))
+	for _, entry := range source {
+		key := strings.ToLower(strings.TrimSpace(stringPtrValue(entry.RespondentEmail)))
+		if key == "" {
+			// Jaga-jaga kalau ada submission tanpa email (harusnya gak terjadi buat quiz, tapi
+			// biar gak ke-drop diam-diam, pakai submission id sebagai key unik sendiri).
+			key = fmt.Sprintf("__submission_%d__", entry.SubmissionID)
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		deduped = append(deduped, entry)
+	}
+
+	if policy == "latest" {
+		sort.SliceStable(deduped, func(i, j int) bool {
+			if deduped[i].Score != deduped[j].Score {
+				return deduped[i].Score > deduped[j].Score
+			}
+			di, dj := int64(0), int64(0)
+			if deduped[i].DurationSeconds != nil {
+				di = *deduped[i].DurationSeconds
+			}
+			if deduped[j].DurationSeconds != nil {
+				dj = *deduped[j].DurationSeconds
+			}
+			if di != dj {
+				return di < dj
+			}
+			return stringPtrValue(deduped[i].SubmittedAt) < stringPtrValue(deduped[j].SubmittedAt)
+		})
+	}
+	return deduped
 }
 
 // CertificateData data siap-pakai buat cetak sertifikat PDF 1 submission.

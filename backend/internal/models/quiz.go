@@ -41,7 +41,14 @@ type Quiz struct {
 	RandomQuestionCount *int `json:"random_question_count"`
 	// LockMode aktifin anti-cheat di public form (khusus type=quiz): wajib fullscreen, keluar
 	// tab/fullscreen dihitung pelanggaran & auto-submit paksa setelah 3x pelanggaran.
-	LockMode      bool    `json:"lock_mode"`
+	LockMode bool `json:"lock_mode"`
+	// MaxAttempts batas jumlah retake (khusus type=quiz) -- nil/<=1 berarti cuma boleh 1x (behavior lama).
+	MaxAttempts *int `json:"max_attempts"`
+	// RetakeScorePolicy cuma relevan kalau MaxAttempts > 1: "best" (skor tertinggi) atau "latest"
+	// (attempt terakhir) yang dipakai buat leaderboard/hasil akhir.
+	RetakeScorePolicy *string `json:"retake_score_policy"`
+	// Language bahasa form publik ("id"/"en"), nil dianggap "id" di level aplikasi.
+	Language      *string `json:"language"`
 	TotalQuestion int     `json:"total_question"`
 	Status        *string `json:"status"`
 	// DuplicatedFromID nunjuk ke quiz asal kalau quiz ini hasil "Duplicate jadi versi baru".
@@ -59,6 +66,7 @@ type quizRowScanner interface {
 func GetQuizByID(db *sql.DB, id int64) (Quiz, error) {
 	row := db.QueryRow(
 		"SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, q.random_question_count, q.lock_mode, "+
+			"q.max_attempts, q.retake_score_policy, q.language, "+
 			"(SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS total_question, q.status, q.duplicated_from_id "+
 			"FROM quizzes q WHERE q.id = ? LIMIT 1",
 		id,
@@ -89,6 +97,7 @@ func ListQuizzes(db *sql.DB, params listquery.Params) ([]Quiz, int, error) {
 
 	sortCol := params.SortColumn(quizSortColumns, "id")
 	query := "SELECT q.id, q.title, q.type, q.start_time, q.end_time, q.description, q.max_point, q.passing_grade, q.random_question_count, q.lock_mode, " +
+		"q.max_attempts, q.retake_score_policy, q.language, " +
 		"(SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS total_question, q.status, q.duplicated_from_id FROM quizzes q" + whereClause +
 		fmt.Sprintf(" ORDER BY %s %s LIMIT ? OFFSET ?", sortCol, params.SortDirSQL())
 	args = append(args, params.PerPage, params.Offset())
@@ -185,6 +194,9 @@ func DuplicateQuiz(db *sql.DB, sourceID int64) (Quiz, error) {
 		PassingGrade:        source.PassingGrade,
 		RandomQuestionCount: source.RandomQuestionCount,
 		LockMode:            source.LockMode,
+		MaxAttempts:         source.MaxAttempts,
+		RetakeScorePolicy:   source.RetakeScorePolicy,
+		Language:            source.Language,
 		Status:              &inactive,
 		DuplicatedFromID:    &sourceID,
 	}
@@ -218,16 +230,22 @@ func DuplicateQuiz(db *sql.DB, sourceID int64) (Quiz, error) {
 // dst) di-scan ke sql.NullString/NullTime dulu baru dikonversi ke pointer biar JSON-nya bisa null.
 func scanQuiz(row quizRowScanner) (Quiz, error) {
 	var (
-		q                    Quiz
-		title, qType, status sql.NullString
-		description          sql.NullString
-		startTime, endTime   sql.NullTime
-		maxPoint             sql.NullInt64
-		passingGrade         sql.NullInt64
-		randomQuestionCount  sql.NullInt64
-		duplicatedFromID     sql.NullInt64
+		q                           Quiz
+		title, qType, status        sql.NullString
+		description                 sql.NullString
+		startTime, endTime          sql.NullTime
+		maxPoint                    sql.NullInt64
+		passingGrade                sql.NullInt64
+		randomQuestionCount         sql.NullInt64
+		maxAttempts                 sql.NullInt64
+		retakeScorePolicy, language sql.NullString
+		duplicatedFromID            sql.NullInt64
 	)
-	if err := row.Scan(&q.ID, &title, &qType, &startTime, &endTime, &description, &maxPoint, &passingGrade, &randomQuestionCount, &q.LockMode, &q.TotalQuestion, &status, &duplicatedFromID); err != nil {
+	if err := row.Scan(
+		&q.ID, &title, &qType, &startTime, &endTime, &description, &maxPoint, &passingGrade, &randomQuestionCount, &q.LockMode,
+		&maxAttempts, &retakeScorePolicy, &language,
+		&q.TotalQuestion, &status, &duplicatedFromID,
+	); err != nil {
 		return Quiz{}, err
 	}
 	q.Title = nullableString(title)
@@ -248,6 +266,12 @@ func scanQuiz(row quizRowScanner) (Quiz, error) {
 		v := int(randomQuestionCount.Int64)
 		q.RandomQuestionCount = &v
 	}
+	if maxAttempts.Valid {
+		v := int(maxAttempts.Int64)
+		q.MaxAttempts = &v
+	}
+	q.RetakeScorePolicy = nullableString(retakeScorePolicy)
+	q.Language = nullableString(language)
 	if duplicatedFromID.Valid {
 		v := duplicatedFromID.Int64
 		q.DuplicatedFromID = &v
@@ -268,8 +292,8 @@ func CreateQuiz(db *sql.DB, q Quiz) (int64, error) {
 	}
 
 	res, err := db.Exec(
-		"INSERT INTO quizzes (title, type, start_time, end_time, description, max_point, passing_grade, random_question_count, lock_mode, status, duplicated_from_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		strPtrValue(q.Title), strPtrValue(q.Type), startTime, endTime, strPtrValue(q.Description), intPtrValue(q.MaxPoint), intPtrValue(q.PassingGrade), intPtrValue(q.RandomQuestionCount), q.LockMode, strPtrValue(q.Status), int64PtrValue(q.DuplicatedFromID),
+		"INSERT INTO quizzes (title, type, start_time, end_time, description, max_point, passing_grade, random_question_count, lock_mode, max_attempts, retake_score_policy, language, status, duplicated_from_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		strPtrValue(q.Title), strPtrValue(q.Type), startTime, endTime, strPtrValue(q.Description), intPtrValue(q.MaxPoint), intPtrValue(q.PassingGrade), intPtrValue(q.RandomQuestionCount), q.LockMode, intPtrValue(q.MaxAttempts), strPtrValue(q.RetakeScorePolicy), strPtrValue(q.Language), strPtrValue(q.Status), int64PtrValue(q.DuplicatedFromID),
 	)
 	if err != nil {
 		return 0, err
@@ -289,8 +313,8 @@ func UpdateQuiz(db *sql.DB, q Quiz) error {
 	}
 
 	_, err = db.Exec(
-		"UPDATE quizzes SET title = ?, type = ?, start_time = ?, end_time = ?, description = ?, max_point = ?, passing_grade = ?, random_question_count = ?, lock_mode = ?, status = ? WHERE id = ?",
-		strPtrValue(q.Title), strPtrValue(q.Type), startTime, endTime, strPtrValue(q.Description), intPtrValue(q.MaxPoint), intPtrValue(q.PassingGrade), intPtrValue(q.RandomQuestionCount), q.LockMode, strPtrValue(q.Status), q.ID,
+		"UPDATE quizzes SET title = ?, type = ?, start_time = ?, end_time = ?, description = ?, max_point = ?, passing_grade = ?, random_question_count = ?, lock_mode = ?, max_attempts = ?, retake_score_policy = ?, language = ?, status = ? WHERE id = ?",
+		strPtrValue(q.Title), strPtrValue(q.Type), startTime, endTime, strPtrValue(q.Description), intPtrValue(q.MaxPoint), intPtrValue(q.PassingGrade), intPtrValue(q.RandomQuestionCount), q.LockMode, intPtrValue(q.MaxAttempts), strPtrValue(q.RetakeScorePolicy), strPtrValue(q.Language), strPtrValue(q.Status), q.ID,
 	)
 	return err
 }
