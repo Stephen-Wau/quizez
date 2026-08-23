@@ -79,13 +79,19 @@
   color: rgba(255, 255, 255, 0.65);
 }
 
-// Override tombol Logout (variant ghost) supaya kebaca di atas background gradien.
+// Override tombol Logout (variant ghost) supaya kebaca di atas background gradien -- !important
+// wajib di sini, soalnya urutan load style component Angular gak jamin ::ng-deep di sini menang
+// atas base style .btn--ghost di button.component.scss (kejadian nyata: tanpa !important override-nya
+// ke-timpa balik, jadi tombol tetep transparan+indigo di atas ungu = nyaris gak kelihatan).
 :host ::ng-deep .btn--ghost {
-  border-color: rgba(255, 255, 255, 0.6);
-  color: #fff;
+  border-color: transparent !important;
+  background: #fff !important;
+  color: var(--gradient-accent-end) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18) !important;
 
   &:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.15);
+    background: #f1f0ff !important;
   }
 }
 
