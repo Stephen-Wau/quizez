@@ -1,0 +1,9 @@
+<button
+  type="button"
+  class="icon-btn"
+  [class]="'icon-btn--' + variant + ' icon-btn--' + size"
+  [disabled]="disabled"
+  [attr.aria-label]="label"
+>
+  <lucide-icon [name]="icon" [size]="size === 'sm' ? 15 : 18"></lucide-icon>
+</button>

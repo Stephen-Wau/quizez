@@ -1,0 +1,59 @@
+.icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+
+  &:hover:not(:disabled) {
+    transform: scale(1.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.icon-btn--sm {
+  width: 30px;
+  height: 30px;
+}
+
+.icon-btn--md {
+  width: 36px;
+  height: 36px;
+}
+
+.icon-btn--ghost {
+  color: #4338ca;
+
+  &:hover:not(:disabled) {
+    background: #eef2ff;
+  }
+}
+
+.icon-btn--danger {
+  color: var(--color-danger);
+
+  &:hover:not(:disabled) {
+    background: var(--color-danger);
+    color: #fff;
+  }
+}
+
+.icon-btn--primary {
+  color: #fff;
+  background: var(--color-primary);
+
+  &:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+  }
+}
