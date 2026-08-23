@@ -31,6 +31,16 @@ const STATUS_OPTIONS: SelectOption[] = [
   { label: 'Inactive', value: 'inactive' },
 ];
 
+const RETAKE_SCORE_POLICY_OPTIONS: SelectOption[] = [
+  { label: 'Skor Terbaik', value: 'best' },
+  { label: 'Skor Terakhir', value: 'latest' },
+];
+
+const LANGUAGE_OPTIONS: SelectOption[] = [
+  { label: 'Indonesia', value: 'id' },
+  { label: 'English', value: 'en' },
+];
+
 @Component({
   selector: 'app-quiz',
   standalone: true,
@@ -53,6 +63,8 @@ const STATUS_OPTIONS: SelectOption[] = [
 export class QuizComponent implements OnInit {
   typeOptions = TYPE_OPTIONS;
   statusOptions = STATUS_OPTIONS;
+  retakeScorePolicyOptions = RETAKE_SCORE_POLICY_OPTIONS;
+  languageOptions = LANGUAGE_OPTIONS;
   @ViewChild('typeTpl', { static: true }) typeTpl!: TemplateRef<unknown>;
   @ViewChild('periodTpl', { static: true }) periodTpl!: TemplateRef<unknown>;
   @ViewChild('statusTpl', { static: true }) statusTpl!: TemplateRef<unknown>;
@@ -86,6 +98,9 @@ export class QuizComponent implements OnInit {
       passing_grade: [null],
       random_question_count: [null, [Validators.min(1)]],
       lock_mode: [false],
+      max_attempts: [null, [Validators.min(1)]],
+      retake_score_policy: [null],
+      language: ['id', Validators.required],
       status: ['active', Validators.required],
     });
 
@@ -93,11 +108,29 @@ export class QuizComponent implements OnInit {
     // (wajib diisi), jadi kosongin dulu biar gak ada value nyangkut dari format tipe sebelumnya.
     this.form.get('type')!.valueChanges.subscribe((type) => {
       this.form.patchValue({ start_input: '', end_input: '', max_point: null, passing_grade: null });
-      // Lock mode (anti-cheat) cuma relevan buat quiz, survey gak ada scoring/waktu ketat.
-      if (type !== 'quiz') this.form.patchValue({ lock_mode: false });
+      // Lock mode & retake cuma relevan buat quiz, survey gak ada scoring/dedup submission.
+      if (type !== 'quiz') this.form.patchValue({ lock_mode: false, max_attempts: null, retake_score_policy: null });
       this.applyMaxPointValidator(type);
     });
     this.applyMaxPointValidator(this.form.get('type')!.value);
+
+    // Retake Score Policy cuma wajib diisi begitu Max Attempts > 1 (retake aktif) -- di bawah itu
+    // gak relevan, dikosongin lagi biar gak nyangkut kalau max_attempts diturunin balik ke 1/kosong.
+    this.form.get('max_attempts')!.valueChanges.subscribe((value) => {
+      const policyControl = this.form.get('retake_score_policy')!;
+      if (Number(value) > 1) {
+        policyControl.setValidators([Validators.required]);
+      } else {
+        policyControl.clearValidators();
+        policyControl.setValue(null);
+      }
+      policyControl.updateValueAndValidity();
+    });
+  }
+
+  // Dipakai template buat toggle tampilan field Retake Score Policy (cuma relevan kalau retake aktif).
+  get isRetakeActive(): boolean {
+    return Number(this.form.get('max_attempts')?.value) > 1;
   }
 
   // max_point dan passing_grade cuma wajib untuk quiz, sedangkan survey tidak memakai scoring lulus.
@@ -183,7 +216,8 @@ export class QuizComponent implements OnInit {
     this.editingId = null;
     this.form.reset({
       title: '', type: 'quiz', start_input: '', end_input: '', description: '', max_point: null, passing_grade: null,
-      random_question_count: null, lock_mode: false, status: 'active',
+      random_question_count: null, lock_mode: false, max_attempts: null, retake_score_policy: null,
+      language: 'id', status: 'active',
     });
     this.applyMaxPointValidator('quiz');
     this.isModalOpen = true;
@@ -203,6 +237,9 @@ export class QuizComponent implements OnInit {
       passing_grade: quiz.passing_grade,
       random_question_count: quiz.random_question_count,
       lock_mode: quiz.lock_mode ?? false,
+      max_attempts: quiz.max_attempts,
+      retake_score_policy: quiz.retake_score_policy,
+      language: quiz.language ?? 'id',
       status: quiz.status ?? 'active',
     });
     this.applyMaxPointValidator(quiz.type ?? 'quiz');
@@ -236,6 +273,9 @@ export class QuizComponent implements OnInit {
       random_question_count:
         raw.random_question_count !== null && raw.random_question_count !== '' ? Number(raw.random_question_count) : null,
       lock_mode: isQuiz && !!raw.lock_mode,
+      max_attempts: isQuiz && raw.max_attempts !== null && raw.max_attempts !== '' ? Number(raw.max_attempts) : null,
+      retake_score_policy: isQuiz && raw.retake_score_policy ? (raw.retake_score_policy as 'best' | 'latest') : null,
+      language: (raw.language as 'id' | 'en') || null,
       status: raw.status || null,
     };
 

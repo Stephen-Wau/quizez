@@ -19,6 +19,13 @@ export interface Quiz {
   random_question_count: number | null;
   // lock_mode: anti-cheat (khusus type=quiz) -- wajib fullscreen, keluar tab/fullscreen dihitung pelanggaran.
   lock_mode: boolean;
+  // max_attempts: batas jumlah retake (khusus type=quiz) -- null/1 = behavior lama, cuma boleh 1x.
+  max_attempts: number | null;
+  // retake_score_policy: cuma relevan kalau max_attempts > 1 -- attempt mana yang dipakai buat
+  // leaderboard/hasil akhir ("best" = skor tertinggi, "latest" = attempt paling baru).
+  retake_score_policy: 'best' | 'latest' | null;
+  // language: bahasa form publik ("id"/"en"), null dianggap "id".
+  language: 'id' | 'en' | null;
   total_question: number;
   // status bisa "active"/"inactive" (dipilih admin) atau "closed" (auto di-set sistem khusus survey
   // yang udah lewat end_time, lihat AutoCloseSurveyIfExpired di backend).

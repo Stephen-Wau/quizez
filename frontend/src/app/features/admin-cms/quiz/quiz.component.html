@@ -136,6 +136,24 @@
     </div>
 
     <app-input
+      *ngIf="isQuizType"
+      label="Max Attempts (opsional, kosongkan = 1x doang / gak bisa diulang)"
+      type="number"
+      formControlName="max_attempts"
+      [errorMessage]="fieldError('max_attempts')"
+    ></app-input>
+
+    <app-select
+      *ngIf="isQuizType && isRetakeActive"
+      label="Skor Yang Dipakai"
+      [required]="true"
+      [options]="retakeScorePolicyOptions"
+      formControlName="retake_score_policy"
+    ></app-select>
+
+    <app-select label="Bahasa Form Publik" [required]="true" [options]="languageOptions" formControlName="language"></app-select>
+
+    <app-input
       label="Description"
       formControlName="description"
       [multiline]="true"
