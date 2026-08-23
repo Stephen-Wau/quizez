@@ -9,6 +9,16 @@
   padding: var(--spacing-4);
   min-width: 0;
   overflow-y: auto;
+  // Gradien tipis pakai warna aksen yang sama kayak sidebar (indigo -> ungu), ditaro di pojok
+  // kanan-atas & kiri-bawah (bukan nempel ke sidebar) biar keliatan jadi aksen dekoratif tersendiri,
+  // bukan numpuk sama warna sidebar-nya. Fixed (bukan scroll sama konten) biar posisinya tetep pas
+  // di sudut viewport walau konten discroll.
+  background-color: var(--color-bg);
+  background-image:
+    radial-gradient(900px 520px at 100% 0%, rgba(99, 102, 241, 0.2), transparent 62%),
+    radial-gradient(1700px 1000px at 0% 100%, rgba(67, 56, 202, 0.22), transparent 70%);
+  background-repeat: no-repeat;
+  background-attachment: fixed, fixed;
 }
 
 // Tombol hamburger & backdrop drawer cuma dipakai di layar sempit (lihat breakpoint yang sama
