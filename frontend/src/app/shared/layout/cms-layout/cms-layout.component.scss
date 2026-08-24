@@ -1,7 +1,19 @@
+@use '../../../../styles/dark-theme-tokens' as dark;
+
 .cms-layout {
   display: flex;
   height: 100vh;
   overflow: hidden;
+}
+
+// Override token warna global cuma buat area CMS (class ini di-pasang di host lewat ThemeService,
+// lihat cms-layout.component.ts) -- custom property CSS ngalir turun ke semua descendant lewat
+// inheritance normal, ga peduli view encapsulation komponen anak (sidebar, tiap halaman /admin-cms/*),
+// jadi landing page/login/public-form tetep selalu terang karena class ini gak pernah nempel di sana.
+// Token-nya di-share lewat mixin (bukan didefinisikan ulang manual) sama app.component.scss -- lihat
+// alasannya di situ (toast-container di luar cms-layout, butuh override sama biar ikut gelap juga).
+:host(.theme-dark) {
+  @include dark.tokens;
 }
 
 .content {
@@ -9,6 +21,12 @@
   padding: var(--spacing-4);
   min-width: 0;
   overflow-y: auto;
+  // Wajib set eksplisit di sini (bukan cuma andelin inherit dari <body>) -- <body> ada di LUAR
+  // :host(.theme-dark), jadi `color` yang ke-resolve di situ kekunci ke value terang selamanya
+  // (custom property emang ngalir turun sampe ke elemen manapun, tapi `color` biasa yang udah
+  // ke-compute di ancestor gak "hidup ulang" ngikutin var() baru). Tanpa baris ini, teks polos yang
+  // gak declare color sendiri (ex: judul quiz di data-table) bakal tetep gelap & ilang pas dark mode.
+  color: var(--color-text);
   // Gradien tipis pakai warna aksen yang sama kayak sidebar (indigo -> ungu), ditaro di pojok
   // kanan-atas & kiri-bawah (bukan nempel ke sidebar) biar keliatan jadi aksen dekoratif tersendiri,
   // bukan numpuk sama warna sidebar-nya. Fixed (bukan scroll sama konten) biar posisinya tetep pas

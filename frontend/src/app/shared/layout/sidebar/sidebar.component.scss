@@ -137,7 +137,8 @@
     margin: unset;
   }
 
-  .sidebar--collapsed .sidebar__menu-item {
+  .sidebar--collapsed .sidebar__menu-item,
+  .sidebar--collapsed .sidebar__theme-toggle {
     justify-content: flex-start;
     gap: var(--spacing-2);
     padding-left: var(--spacing-3);
@@ -326,6 +327,82 @@
   &:hover {
     transform: none;
   }
+}
+
+// Tombol switch tema, sengaja dipisah dari .sidebar__menu (bukan salah satu CMS_MENU_ITEMS) supaya
+// selalu nempel di dasar sidebar (margin-top: auto ngedorong dia ke bawah sisa ruang flex column)
+// terlepas dari berapa banyak menu yang keliatan (menu ke-filter per role, lihat sidebar.component.ts).
+.sidebar__theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  margin-top: auto;
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+}
+
+// Pill switch ala iOS: track diem, thumb yang geser kiri<->kanan lewat translateX pas class
+// --dark nempel/kelepas (di-toggle dari sidebar.component.ts, bukan pure CSS, karena state-nya
+// (ThemeService.isDark) juga dipakai buat nentuin icon sun/moon di dalam thumb-nya).
+.sidebar__switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 38px;
+  height: 21px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  transition: background-color 0.3s ease;
+}
+
+.sidebar__switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--gradient-accent-end);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
+
+  lucide-icon {
+    transition: transform 0.3s ease;
+  }
+}
+
+.sidebar__theme-toggle--dark .sidebar__switch {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.sidebar__theme-toggle--dark .sidebar__switch-thumb {
+  transform: translateX(17px);
+}
+
+.sidebar__theme-toggle:hover .sidebar__switch-thumb lucide-icon {
+  transform: rotate(-20deg) scale(1.15);
+}
+
+.sidebar--collapsed .sidebar__theme-toggle {
+  justify-content: center;
+  gap: 0;
+  padding-left: var(--spacing-2);
+  padding-right: var(--spacing-2);
 }
 
 .sidebar__menu-item--active {

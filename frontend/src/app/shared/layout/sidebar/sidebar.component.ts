@@ -4,6 +4,7 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 
 import { AuthService, Me } from '../../../core/auth/auth.service';
+import { ThemeService } from '../../../core/theme/theme.service';
 import { ButtonComponent } from '../../ui/button/button.component';
 import { CMS_MENU_ITEMS } from '../cms-menu.config';
 
@@ -31,6 +32,9 @@ export class SidebarComponent {
   constructor(
     private auth: AuthService,
     private router: Router,
+    // Public biar kepakai langsung di template (toggle & baca state isDark), gak perlu Input/Output
+    // tambahan cuma buat nyambung ke ThemeService yang udah root-provided & shared sama CmsLayoutComponent.
+    public theme: ThemeService,
   ) {}
 
   // Menu difilter per role: item tanpa `roles` keliatan buat semua, item dengan `roles` cuma

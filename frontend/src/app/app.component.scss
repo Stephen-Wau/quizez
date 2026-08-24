@@ -1,0 +1,8 @@
+@use '../styles/dark-theme-tokens' as dark;
+
+// Sama kayak :host(.theme-dark) di cms-layout.component.scss, tapi di-taro di root juga karena
+// <app-toast-container> di-render sebagai sibling <router-outlet> (lihat app.component.html) --
+// bukan descendant cms-layout -- jadi gak otomatis kebagian override token dari sana.
+:host(.theme-dark) {
+  @include dark.tokens;
+}

@@ -5,7 +5,7 @@ import {
   LucideAngularModule, X, RefreshCw, File, Paperclip, ImagePlus, Trash2, LogIn, Plus, Pencil, Save,
   Filter, FileDown, ListPlus, Upload, Download, Copy, Lock, Menu, LogOut, LayoutDashboard,
   ClipboardList, ListChecks, BookOpen, FileBarChart, BarChart3, Users, ChevronDown, Share2, Eye,
-  ChevronLeft, Sparkles, Rocket, Trophy, ShieldCheck,
+  ChevronLeft, Sparkles, Rocket, Trophy, ShieldCheck, Sun, Moon,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -22,7 +22,7 @@ export const appConfig: ApplicationConfig = {
         X, RefreshCw, File, Paperclip, ImagePlus, Trash2, LogIn, Plus, Pencil, Save, Filter,
         FileDown, ListPlus, Upload, Download, Copy, Lock, Menu, LogOut, LayoutDashboard,
         ClipboardList, ListChecks, BookOpen, FileBarChart, BarChart3, Users, ChevronDown, Share2, Eye,
-        ChevronLeft, Sparkles, Rocket, Trophy, ShieldCheck,
+        ChevronLeft, Sparkles, Rocket, Trophy, ShieldCheck, Sun, Moon,
       })
     ),
   ]

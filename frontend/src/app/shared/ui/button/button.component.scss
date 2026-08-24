@@ -31,11 +31,11 @@
   // Border netral (var(--color-border)) kelewat pudar di atas card putih -- dipertegas pakai
   // warna aksen indigo yang sama dipakai di sidebar/card/badge, biar tombol ghost (Back, Cancel,
   // dst) kebaca jelas di mana pun dipakai, bukan cuma nyatu jadi kotak putih polos.
-  color: #4338ca;
-  border-color: #6366f1;
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 
   &:hover:not(:disabled) {
-    background: #eef2ff;
+    background: var(--color-primary-soft);
   }
 }
 

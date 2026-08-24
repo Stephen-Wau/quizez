@@ -5,12 +5,23 @@
 :root {
   --color-primary: #4f46e5;
   --color-primary-hover: #4338ca;
+  --color-primary-soft: #eef2ff;
   --color-danger: #dc2626;
   --color-text: #1f2937;
   --color-text-muted: #6b7280;
+  --color-heading: #17325c;
   --color-border: #e5e7eb;
   --color-bg: #f9fafb;
   --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+  --color-success-bg: #dcfce7;
+  --color-success-text: #166534;
+  --color-warning-bg: #fef3c7;
+  --color-warning-text: #92400e;
+  --color-neutral-bg: #e2e8f0;
+  --color-neutral-text: #475569;
+  --color-danger-bg: #fee2e2;
+  --color-danger-text: #991b1b;
   --gradient-accent-start: #6366f1;
   --gradient-accent-end: #4338ca;
   --radius: 8px;

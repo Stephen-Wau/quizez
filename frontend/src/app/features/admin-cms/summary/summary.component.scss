@@ -9,11 +9,11 @@
 .summary-page__header h1 {
   margin: 0;
   font-size: 2.5rem;
-  color: #17325c;
+  color: var(--color-heading);
 }
 
 .summary-page__header p {
   margin: 8px 0 0;
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 

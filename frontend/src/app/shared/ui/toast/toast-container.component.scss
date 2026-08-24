@@ -24,6 +24,7 @@
   max-width: 440px;
   padding: var(--spacing-4);
   border-radius: var(--radius);
+  color: var(--color-text);
   background: var(--color-surface);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
   animation: toast-in 0.15s ease-out;

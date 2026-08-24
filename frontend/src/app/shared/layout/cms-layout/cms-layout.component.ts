@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, HostBinding, OnInit } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 
 import { AuthService, Me } from '../../../core/auth/auth.service';
+import { ThemeService } from '../../../core/theme/theme.service';
 import { ToastService } from '../../ui/toast/toast.service';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 
@@ -19,6 +20,12 @@ const SIDEBAR_COLLAPSED_KEY = 'quizez_sidebar_collapsed';
   styleUrl: './cms-layout.component.scss',
 })
 export class CmsLayoutComponent implements OnInit {
+  // Class ini yang men-trigger override token warna dark mode (lihat :host(.theme-dark) di scss) --
+  // dipasang di host cms-layout biar dark mode cuma nyala di area CMS, gak nyenggol landing/login/public-form.
+  @HostBinding('class.theme-dark') get isDarkTheme(): boolean {
+    return this.theme.isDark();
+  }
+
   user: Me | null = null;
   // Cuma relevan di layar sempit (<=880px, lihat sidebar-nya jadi drawer) — di desktop sidebar
   // selalu keliatan terlepas dari state ini (CSS di sidebar.component.scss yang nentuin).
@@ -31,6 +38,7 @@ export class CmsLayoutComponent implements OnInit {
     private auth: AuthService,
     private router: Router,
     private toast: ToastService,
+    private theme: ThemeService,
   ) {}
 
   // Ambil data user yang lagi login buat ditampilin di layout (sidebar), sekaligus validasi sesi

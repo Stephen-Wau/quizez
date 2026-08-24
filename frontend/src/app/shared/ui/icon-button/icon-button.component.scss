@@ -8,7 +8,7 @@
   border-radius: 50%;
   border: 1px solid transparent;
   background: transparent;
-  color: #64748b;
+  color: var(--color-text-muted);
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease, transform 0.2s ease;
 
@@ -33,10 +33,10 @@
 }
 
 .icon-btn--ghost {
-  color: #4338ca;
+  color: var(--color-primary);
 
   &:hover:not(:disabled) {
-    background: #eef2ff;
+    background: var(--color-primary-soft);
   }
 }
 

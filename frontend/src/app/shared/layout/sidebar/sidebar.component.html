@@ -48,4 +48,20 @@
       <span class="sidebar__menu-label">{{ item.label }}</span>
     </a>
   </nav>
+
+  <button
+    type="button"
+    class="sidebar__theme-toggle sidebar__has-tooltip"
+    [class.sidebar__theme-toggle--dark]="theme.isDark()"
+    (click)="theme.toggle()"
+    [attr.data-tooltip]="collapsed ? (theme.isDark() ? 'Mode Terang' : 'Mode Gelap') : null"
+    [attr.aria-label]="theme.isDark() ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'"
+  >
+    <span class="sidebar__menu-label">{{ theme.isDark() ? 'Mode Gelap' : 'Mode Terang' }}</span>
+    <span class="sidebar__switch">
+      <span class="sidebar__switch-thumb">
+        <lucide-icon [name]="theme.isDark() ? 'moon' : 'sun'" [size]="12"></lucide-icon>
+      </span>
+    </span>
+  </button>
 </aside>

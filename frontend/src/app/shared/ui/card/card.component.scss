@@ -4,31 +4,34 @@
   padding: 16px 18px;
   // Gradient netral tapi cukup kontras dari sekadar putih polos -- biar kerasa "timbul" walau
   // gak dikasih variant warna.
-  background: linear-gradient(165deg, #ffffff 0%, #eef1f8 100%);
-  border: 1px solid #d9e2f0;
+  background: linear-gradient(165deg, var(--color-surface) 0%, var(--color-surface-muted) 100%);
+  border: 1px solid var(--color-border);
   // Shadow dikasih tint warna aksen sidebar (--gradient-accent-start/#6366f1) bukan abu-abu netral,
   // biar nyambung sama palet brand yang sama dipakai di sidebar/tombol utama.
   box-shadow: 0 10px 24px rgba(99, 102, 241, 0.14);
 }
 
+// Semua variant pakai token semantik (--color-*-bg) bukan hex statis, biar tetep legible pas dark
+// mode CMS aktif -- token itu udah didefinisikan versi terang & gelapnya (lihat styles.scss &
+// cms-layout.component.scss), teks di dalam card (var(--color-text)/var(--color-heading)) ngikut tema.
 :host(.app-card--indigo) {
-  background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
+  background: linear-gradient(135deg, var(--color-primary-soft) 0%, var(--color-surface) 100%);
 }
 
 :host(.app-card--emerald) {
-  background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%);
+  background: linear-gradient(135deg, var(--color-success-bg) 0%, var(--color-surface) 100%);
 }
 
 :host(.app-card--amber) {
-  background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+  background: linear-gradient(135deg, var(--color-warning-bg) 0%, var(--color-surface) 100%);
 }
 
 :host(.app-card--rose) {
-  background: linear-gradient(135deg, #fff1f2 0%, #ffffff 100%);
+  background: linear-gradient(135deg, var(--color-danger-bg) 0%, var(--color-surface) 100%);
 }
 
 :host(.app-card--danger) {
-  border-color: #fecaca;
-  background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+  border-color: var(--color-danger-bg);
+  background: linear-gradient(135deg, var(--color-danger-bg) 0%, var(--color-surface) 100%);
   box-shadow: 0 10px 24px rgba(239, 68, 68, 0.14);
 }
