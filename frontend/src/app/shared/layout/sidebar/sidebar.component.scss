@@ -287,6 +287,15 @@
     color: #fff;
     transform: translateX(4px);
   }
+
+  lucide-icon {
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+  }
+
+  &:hover lucide-icon {
+    transform: scale(1.15) rotate(-10deg);
+  }
 }
 
 .sidebar--collapsed .sidebar__menu-item {
