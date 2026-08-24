@@ -1,7 +1,18 @@
 <div class="modal-backdrop" *ngIf="open" (click)="close()">
-  <div class="modal" [style.max-width]="maxWidth" (click)="$event.stopPropagation()">
+  <div
+    class="modal"
+    [class.modal--accent]="accent"
+    [style.max-width]="maxWidth"
+    [style.--modal-accent]="accent || null"
+    (click)="$event.stopPropagation()"
+  >
     <div class="modal__header">
-      <h2>{{ title }}</h2>
+      <div class="modal__header-title">
+        <span class="modal__header-icon" *ngIf="headerIcon">
+          <lucide-icon [name]="headerIcon" [size]="20"></lucide-icon>
+        </span>
+        <h2>{{ title }}</h2>
+      </div>
       <button type="button" class="modal__close" (click)="close()">
         <lucide-icon name="x" [size]="20"></lucide-icon>
       </button>

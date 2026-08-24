@@ -1,0 +1,121 @@
+<div class="landing">
+  <div class="landing__blob landing__blob--1"></div>
+  <div class="landing__blob landing__blob--2"></div>
+
+  <header class="landing__nav">
+    <div class="landing__brand">
+      <lucide-icon name="sparkles" [size]="20"></lucide-icon>
+      <span>Quizez</span>
+    </div>
+    <a class="landing__nav-cta" routerLink="/admin-cms/login">Masuk CMS</a>
+  </header>
+
+  <section class="landing__hero">
+    <span class="landing__badge">
+      <lucide-icon name="sparkles" [size]="14"></lucide-icon>
+      Quiz & Survey CMS
+    </span>
+    <h1>Bikin quiz atau survey, sebar link-nya, <span class="landing__highlight">hasilnya kelihatan seketika.</span></h1>
+    <p>
+      Quizez bantu kamu bikin quiz atau survey lengkap dengan scoring otomatis, anti-cheat,
+      leaderboard, sampai laporan analytics — tanpa responden perlu login sama sekali.
+    </p>
+    <div class="landing__hero-actions">
+      <a class="landing__cta landing__cta--primary" routerLink="/admin-cms/login">
+        <lucide-icon name="log-in" [size]="16"></lucide-icon>
+        Masuk ke CMS
+      </a>
+    </div>
+
+    <div class="landing__stats">
+      @for (stat of stats; track stat.label) {
+        <div class="landing__stat">
+          <lucide-icon [name]="stat.icon" [size]="18"></lucide-icon>
+          <div>
+            <strong>{{ stat.value }}</strong>
+            <span>{{ stat.label }}</span>
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <section class="landing__section">
+    <h2>Fitur Utama</h2>
+    <p class="landing__section-sub">
+      Semua yang dibutuhin buat ngelola quiz/survey dari awal sampai laporan akhir.
+      Klik salah satu card buat lihat detail cara kerjanya.
+    </p>
+
+    <div class="landing__grid">
+      @for (feature of features; track feature.title; let i = $index) {
+        <article
+          class="landing__card"
+          [class]="'landing__card--' + feature.accent"
+          [style.--card-index]="i"
+          tabindex="0"
+          (click)="openFeature(feature)"
+          (keydown.enter)="openFeature(feature)"
+        >
+          <div class="landing__card-icon">
+            <lucide-icon [name]="feature.icon" [size]="22"></lucide-icon>
+          </div>
+          <h3>{{ feature.title }}</h3>
+          <p>{{ feature.desc }}</p>
+          <span class="landing__card-more">
+            Lihat detail
+            <lucide-icon name="chevron-down" [size]="14"></lucide-icon>
+          </span>
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="landing__section landing__section--muted">
+    <h2>Cara Kerja</h2>
+    <div class="landing__steps">
+      @for (step of steps; track step.number) {
+        <div class="landing__step">
+          <span class="landing__step-circle">{{ step.number }}</span>
+          <h3>{{ step.title }}</h3>
+          <p>{{ step.desc }}</p>
+        </div>
+      }
+    </div>
+  </section>
+
+  <section class="landing__cta-banner">
+    <h2>Siap coba kelola quiz/survey kamu sendiri?</h2>
+    <a class="landing__cta landing__cta--primary" routerLink="/admin-cms/login">
+      <lucide-icon name="rocket" [size]="16"></lucide-icon>
+      Mulai Sekarang
+    </a>
+  </section>
+
+  <footer class="landing__footer">
+    <span>&copy; {{ currentYear }} Quizez</span>
+    <span class="landing__footer-dot">&middot;</span>
+    <span>Dibuat oleh Stephen Wau</span>
+  </footer>
+</div>
+
+<app-modal
+  [open]="!!activeFeature"
+  [title]="activeFeature?.title || ''"
+  [headerIcon]="activeFeature?.icon || ''"
+  [accent]="activeAccentHex"
+  maxWidth="480px"
+  (closed)="closeFeature()"
+>
+  @if (activeFeature) {
+    <p class="landing__modal-desc">{{ activeFeature.desc }}</p>
+    <ol class="landing__modal-steps">
+      @for (step of activeFeature.steps; track step; let i = $index) {
+        <li [style.animation-delay.ms]="i * 70">
+          <span class="landing__modal-step-index">{{ i + 1 }}</span>
+          <span class="landing__modal-step-text">{{ step }}</span>
+        </li>
+      }
+    </ol>
+  }
+</app-modal>

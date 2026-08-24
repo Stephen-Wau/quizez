@@ -4,7 +4,12 @@ import { authGuard } from './core/auth/auth.guard';
 
 // Daftar route aplikasi, semua komponen di-lazy load pake loadComponent biar bundle awal kecil.
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'admin-cms' },
+  {
+    path: '',
+    // Landing page profil aplikasi, publik tanpa authGuard.
+    pathMatch: 'full',
+    loadComponent: () => import('./features/landing/landing.component').then((m) => m.LandingComponent),
+  },
   {
     path: 'public-form/:token',
     // Route publik buat pengisian quiz/survey dari link share, sengaja tanpa authGuard.

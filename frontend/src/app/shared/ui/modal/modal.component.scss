@@ -21,6 +21,10 @@
   animation: modal-in 0.15s ease-out;
 }
 
+.modal--accent {
+  border-top: 3px solid var(--modal-accent, var(--color-primary));
+}
+
 .modal__header {
   display: flex;
   align-items: center;
@@ -32,6 +36,24 @@
     margin: 0;
     font-size: 1.1rem;
   }
+}
+
+.modal__header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.modal__header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--modal-accent, var(--color-primary)) 15%, transparent);
+  color: var(--modal-accent, var(--color-primary));
+  flex-shrink: 0;
 }
 
 .modal__close {
