@@ -8,17 +8,20 @@ export const routes: Routes = [
     path: '',
     // Landing page profil aplikasi, publik tanpa authGuard.
     pathMatch: 'full',
+    title: 'Quizez — Quiz & Survey CMS',
     loadComponent: () => import('./features/landing/landing.component').then((m) => m.LandingComponent),
   },
   {
     path: 'public-form/:token',
     // Route publik buat pengisian quiz/survey dari link share, sengaja tanpa authGuard.
+    title: 'Isi Form - Quizez',
     loadComponent: () =>
       import('./features/public-form/public-form.component').then((m) => m.PublicFormComponent),
   },
   {
     path: 'admin-cms/login',
     // Lazy load halaman login, ga perlu authGuard karena ini justru buat login.
+    title: 'Login - Quizez',
     loadComponent: () =>
       import('./features/admin-cms/login/login.component').then((m) => m.LoginComponent),
   },
@@ -33,6 +36,7 @@ export const routes: Routes = [
         path: '',
         // Default child route, tampil pas buka /admin-cms tanpa path tambahan.
         pathMatch: 'full',
+        title: 'Dashboard - Quizez',
         loadComponent: () =>
           import('./features/admin-cms/dashboard/dashboard.component').then(
             (m) => m.DashboardComponent
@@ -40,11 +44,13 @@ export const routes: Routes = [
       },
       {
         path: 'quiz',
+        title: 'Quiz - Quizez',
         loadComponent: () =>
           import('./features/admin-cms/quiz/quiz.component').then((m) => m.QuizComponent),
       },
       {
         path: 'question-answer',
+        title: 'Question & Answer - Quizez',
         loadComponent: () =>
           import('./features/admin-cms/question-answer/question-answer.component').then(
             (m) => m.QuestionAnswerComponent
@@ -52,6 +58,7 @@ export const routes: Routes = [
       },
       {
         path: 'question-bank',
+        title: 'Bank Soal - Quizez',
         loadComponent: () =>
           import('./features/admin-cms/question-bank/question-bank.component').then(
             (m) => m.QuestionBankComponent
@@ -59,11 +66,13 @@ export const routes: Routes = [
       },
       {
         path: 'summary',
+        title: 'Summary - Quizez',
         loadComponent: () =>
           import('./features/admin-cms/summary/summary.component').then((m) => m.SummaryComponent),
       },
       {
         path: 'summary/:quizId/submission/:submissionId',
+        title: 'Detail Submission - Quizez',
         loadComponent: () =>
           import('./features/admin-cms/summary-submission-detail/summary-submission-detail.component').then(
             (m) => m.SummarySubmissionDetailComponent
@@ -71,6 +80,7 @@ export const routes: Routes = [
       },
       {
         path: 'summary/:id',
+        title: 'Detail Summary - Quizez',
         loadComponent: () =>
           import('./features/admin-cms/summary-detail/summary-detail.component').then(
             (m) => m.SummaryDetailComponent
@@ -78,6 +88,7 @@ export const routes: Routes = [
       },
       {
         path: 'analytics',
+        title: 'Analytics & Reporting - Quizez',
         loadComponent: () =>
           import('./features/admin-cms/analytics/analytics.component').then(
             (m) => m.AnalyticsComponent
@@ -85,6 +96,7 @@ export const routes: Routes = [
       },
       {
         path: 'collaboration-permission',
+        title: 'Kolaborasi & Permission - Quizez',
         loadComponent: () =>
           import('./features/admin-cms/collaboration-permission/collaboration-permission.component').then(
             (m) => m.CollaborationPermissionComponent
