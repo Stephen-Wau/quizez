@@ -10,10 +10,10 @@
   background: transparent;
   color: #64748b;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.2s ease;
 
   &:hover:not(:disabled) {
-    transform: scale(1.1);
+    transform: scale(1.12) rotate(-8deg);
   }
 
   &:disabled {
